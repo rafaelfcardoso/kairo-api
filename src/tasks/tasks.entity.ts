@@ -8,9 +8,9 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Project } from './project.entity';
-import { Tag } from './tag.entity';
-import { FocusSession } from './focus-session.entity';
+import { Project } from '../projects/projects.entity';
+import { Tag } from '../entities/tag.entity';
+import { FocusSession } from '../entities/focus-session.entity';
 
 export enum TaskPriority {
   LOW = 'low',

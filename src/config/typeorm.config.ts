@@ -1,7 +1,7 @@
 // src/config/typeorm.config.ts
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
-import { Task } from '../entities/task.entity';
-import { Project } from '../entities/project.entity';
+import { Task } from '../tasks/tasks.entity';
+import { Project } from '../projects/projects.entity';
 import { Tag } from '../entities/tag.entity';
 import { FocusSession } from '../entities/focus-session.entity';
 import { BlockRule } from '../entities/block-rule.entity';
