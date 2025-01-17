@@ -1,8 +1,8 @@
 // src/services/project.service.ts
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ProjectRepository } from './projects.repository';
-import { TaskRepository } from '../tasks/tasks.repository';
+import { ProjectsRepository } from './projects.repository';
+import { TasksRepository } from '../tasks/tasks.repository';
 import { Project } from './projects.entity';
 import { 
   CreateProjectDto, 
@@ -13,12 +13,12 @@ import {
 import { TaskStatus } from '../tasks/tasks.entity';
 
 @Injectable()
-export class ProjectService {
+export class ProjectsService {
   constructor(
-    @InjectRepository(ProjectRepository)
-    private projectRepository: ProjectRepository,
-    @InjectRepository(TaskRepository)
-    private taskRepository: TaskRepository,
+    @InjectRepository(ProjectsRepository)
+    private projectRepository: ProjectsRepository,
+    @InjectRepository(TasksRepository)
+    private taskRepository: TasksRepository,
   ) {}
 
   async getProjects(filterDto: ProjectFilterDto): Promise<Project[]> {

@@ -6,7 +6,7 @@ import { CreateTaskDto, UpdateTaskDto, TaskFilterDto } from './tasks.dto';
 import { NotFoundException } from '@nestjs/common';
 
 @Injectable()
-export class TaskRepository extends Repository<Task> {
+export class TasksRepository extends Repository<Task> {
   constructor(private dataSource: DataSource) {
     super(Task, dataSource.createEntityManager());
   }

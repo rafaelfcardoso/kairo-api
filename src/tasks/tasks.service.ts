@@ -1,94 +1,94 @@
 // src/services/task.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { TaskRepository } from './tasks.repository';
-import { ProjectRepository } from '../projects/projects.repository';
-import { TagRepository } from '../tags/tags.repository';
+import { TasksRepository } from './tasks.repository';
+import { ProjectsRepository } from '../projects/projects.repository';
+import { TagsRepository } from '../tags/tags.repository';
 import { Task, TaskStatus, TaskPriority } from './tasks.entity';
 import { CreateTaskDto, UpdateTaskDto, TaskFilterDto } from './tasks.dto';
 
 @Injectable()
 export class TaskService {
   constructor(
-    @InjectRepository(TaskRepository)
-    private taskRepository: TaskRepository,
-    @InjectRepository(ProjectRepository)
-    private projectRepository: ProjectRepository,
-    @InjectRepository(TagRepository)
-    private tagRepository: TagRepository,
+    @InjectRepository(TasksRepository)
+    private tasksRepository: TasksRepository,
+    @InjectRepository(ProjectsRepository)
+    private projectsRepository: ProjectsRepository,
+    @InjectRepository(TagsRepository)
+    private tagsRepository: TagsRepository,
   ) {}
 
   async getTasks(filterDto: TaskFilterDto): Promise<Task[]> {
-    return this.taskRepository.getTasks(filterDto);
+    return this.tasksRepository.getTasks(filterDto);
   }
 
   async getTaskById(id: string): Promise<Task> {
-    return this.taskRepository.getTaskById(id);
+    return this.tasksRepository.getTaskById(id);
   }
 
   async createTask(createTaskDto: CreateTaskDto): Promise<Task> {
-    return this.taskRepository.createTask(createTaskDto);
+    return this.tasksRepository.createTask(createTaskDto);
   }
 
   async updateTask(id: string, updateTaskDto: UpdateTaskDto): Promise<Task> {
-    return this.taskRepository.updateTask(id, updateTaskDto);
+    return this.tasksRepository.updateTask(id, updateTaskDto);
   }
 
   async deleteTask(id: string): Promise<void> {
-    return this.taskRepository.deleteTask(id);
+    return this.tasksRepository.deleteTask(id);
   }
 
   async archiveTask(id: string): Promise<Task> {
-    return this.taskRepository.archiveTask(id);
+    return this.tasksRepository.archiveTask(id);
   }
 
   async getTodayTasks(): Promise<Task[]> {
-    return this.taskRepository.getTodayTasks();
+    return this.tasksRepository.getTodayTasks();
   }
 
   async getOverdueTasks(): Promise<Task[]> {
-    return this.taskRepository.getOverdueTasks();
+    return this.tasksRepository.getOverdueTasks();
   }
 
   async getUpcomingTasks(days: number = 7): Promise<Task[]> {
-    return this.taskRepository.getUpcomingTasks(days);
+    return this.tasksRepository.getUpcomingTasks(days);
   }
 
   async updateTaskStatus(id: string, status: TaskStatus): Promise<Task> {
     const task = await this.getTaskById(id);
-    return this.taskRepository.updateTask(id, { ...task, status });
+    return this.tasksRepository.updateTask(id, { ...task, status });
   }
 
   async updateTaskPriority(id: string, priority: TaskPriority): Promise<Task> {
     const task = await this.getTaskById(id);
-    return this.taskRepository.updateTask(id, { ...task, priority });
+    return this.tasksRepository.updateTask(id, { ...task, priority });
   }
   async assignToProject(taskId: string, projectId: string): Promise<Task> {
-    const project = await this.projectRepository.findOne({ where: { id: projectId } });
+    const project = await this.projectsRepository.findOne({ where: { id: projectId } });
     if (!project) {
       throw new NotFoundException(`Project with ID "${projectId}" not found`);
     }
 
-    return this.taskRepository.assignToProject(taskId, projectId);
+    return this.tasksRepository.assignToProject(taskId, projectId);
   }
 
   async addTags(taskId: string, tagIds: string[]): Promise<Task> {
-    const foundTags = await this.tagRepository.findByIds(tagIds);
+    const foundTags = await this.tagsRepository.findByIds(tagIds);
     if (foundTags.length !== tagIds.length) {
       throw new NotFoundException('One or more tags not found');
     }
 
-    return this.taskRepository.addTags(taskId, tagIds);
+    return this.tasksRepository.addTags(taskId, tagIds);
   }
 
   async removeTags(taskId: string, tagIds: string[]): Promise<Task> {
     const task = await this.getTaskById(taskId);
     task.tags = task.tags.filter((tag) => !tagIds.includes(tag.id));
-    return this.taskRepository.save(task);
+    return this.tasksRepository.save(task);
   }
 
   async addFocusSession(taskId: string, sessionId: string): Promise<Task> {
-    return this.taskRepository.addFocusSession(taskId, sessionId);
+    return this.tasksRepository.addFocusSession(taskId, sessionId);
   }
 
   async getTaskStats(): Promise<{
@@ -98,15 +98,15 @@ export class TaskService {
     upcoming: number;
   }> {
     const [total, completed, overdue, upcoming] = await Promise.all([
-      this.taskRepository.count({ where: { isArchived: false } }),
-      this.taskRepository.count({
+      this.tasksRepository.count({ where: { isArchived: false } }),
+      this.tasksRepository.count({
         where: {
           status: TaskStatus.COMPLETED,
           isArchived: false,
         },
       }),
-      this.taskRepository.getOverdueTasks(),
-      this.taskRepository.getUpcomingTasks(),
+      this.tasksRepository.getOverdueTasks(),
+      this.tasksRepository.getUpcomingTasks(),
     ]);
 
     return {
@@ -118,7 +118,7 @@ export class TaskService {
   }
 
   async getTasksByPriority(): Promise<Record<TaskPriority, number>> {
-    const tasks = await this.taskRepository.find({
+    const tasks = await this.tasksRepository.find({
       where: { isArchived: false },
       select: ['priority'],
     });
@@ -140,7 +140,7 @@ export class TaskService {
     const { ...taskData } = sourceTask;
 
     // Create new task with same data but append "(Copy)" to title
-    return this.taskRepository.createTask({
+    return this.tasksRepository.createTask({
       ...taskData,
       title: `${taskData.title} (Copy)`,
     });

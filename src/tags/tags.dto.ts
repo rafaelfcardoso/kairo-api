@@ -2,15 +2,25 @@ import { IsString, IsHexColor, IsOptional } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateTagDto {
-  @ApiProperty()
+  @ApiProperty({
+    example: 'Important',
+    description: 'The name of the tag',
+  })
   @IsString()
   name: string;
 
-  @ApiProperty()
+  @ApiProperty({
+    example: '#FF0000',
+    description: 'The color of the tag in hex format',
+  })
   @IsHexColor()
   color: string;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({
+    example: 'For high-priority items',
+    description: 'Optional description of the tag',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   description?: string;

@@ -10,7 +10,7 @@ import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { Task, TaskStatus } from '../tasks/tasks.entity';
 
 @Injectable()
-export class ProjectRepository extends TreeRepository<Project> {
+export class ProjectsRepository extends TreeRepository<Project> {
   constructor(private dataSource: DataSource) {
     super(Project, dataSource.createEntityManager());
   }

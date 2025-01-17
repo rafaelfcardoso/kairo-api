@@ -14,7 +14,7 @@ import {
   HttpCode,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
-import { ProjectService } from './projects.service';
+import { ProjectsService } from './projects.service';
 import { 
   CreateProjectDto, 
   UpdateProjectDto, 
@@ -27,8 +27,8 @@ import { AuthGuard } from '@nestjs/passport';
 @ApiTags('Projects')
 @Controller('projects')
 @UseGuards(AuthGuard())
-export class ProjectController {
-  constructor(private projectService: ProjectService) {}
+export class ProjectsController {
+  constructor(private projectService: ProjectsService) {}
 
   @Get()
   @ApiOperation({ summary: 'Get all projects with optional filters' })

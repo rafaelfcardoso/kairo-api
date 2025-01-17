@@ -6,7 +6,7 @@ import {
   ManyToMany,
   CreateDateColumn,
 } from 'typeorm';
-import { Task } from './task.entity';
+import { Task } from '../tasks/tasks.entity';
 
 export enum EnergyLevel {
   LOW = 'low',

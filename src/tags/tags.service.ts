@@ -1,46 +1,46 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { TagRepository } from './tags.repository';
+import { TagsRepository } from './tags.repository';
 import { CreateTagDto, UpdateTagDto } from './tags.dto';
 import { Tag } from './tags.entity';
 
 @Injectable()
-export class TagService {
+export class TagsService {
   constructor(
-    @InjectRepository(TagRepository)
-    private tagRepository: TagRepository,
+    @InjectRepository(TagsRepository)
+    private tagsRepository: TagsRepository,
   ) {}
 
   async getTags(): Promise<Tag[]> {
-    return this.tagRepository.getTags();
+    return this.tagsRepository.getTags();
   }
 
   async getTagById(id: string): Promise<Tag> {
-    return this.tagRepository.getTagById(id);
+    return this.tagsRepository.getTagById(id);
   }
 
   async createTag(createTagDto: CreateTagDto): Promise<Tag> {
-    return this.tagRepository.createTag(createTagDto);
+    return this.tagsRepository.createTag(createTagDto);
   }
 
   async updateTag(id: string, updateTagDto: UpdateTagDto): Promise<Tag> {
-    return this.tagRepository.updateTag(id, updateTagDto);
+    return this.tagsRepository.updateTag(id, updateTagDto);
   }
 
   async deleteTag(id: string): Promise<void> {
-    await this.tagRepository.deleteTag(id);
+    await this.tagsRepository.deleteTag(id);
   }
 
   async getTagsByIds(ids: string[]): Promise<Tag[]> {
-    return this.tagRepository.getTagsByIds(ids);
+    return this.tagsRepository.getTagsByIds(ids);
   }
 
   async getTagStats(): Promise<Array<{ tag: Tag; taskCount: number }>> {
-    return this.tagRepository.getTagStats();
+    return this.tagsRepository.getTagStats();
   }
 
   async findSimilarTags(name: string): Promise<Tag[]> {
-    return this.tagRepository.findSimilarTags(name);
+    return this.tagsRepository.findSimilarTags(name);
   }
 
   async getMostUsedTags(limit: number = 5): Promise<Array<{ tag: Tag; taskCount: number }>> {

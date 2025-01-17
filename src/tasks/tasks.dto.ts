@@ -10,78 +10,133 @@ import {
   IsBoolean,
   IsInt,
   Min,
+  MinLength,
+  IsDateString,
 } from 'class-validator';
 import { TaskStatus, TaskPriority } from './tasks.entity';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { PartialType } from '@nestjs/swagger';
 
 export class CreateTaskDto {
-  @IsNotEmpty()
+  @ApiProperty({
+    example: 'Implement user authentication',
+    description: 'The title of the task',
+  })
   @IsString()
+  @MinLength(3)
   title: string;
 
-  @IsOptional()
+  @ApiPropertyOptional({
+    example: 'Add JWT authentication with refresh tokens',
+    description: 'Detailed description of the task',
+  })
   @IsString()
+  @IsOptional()
   description?: string;
 
-  @IsOptional()
+  @ApiPropertyOptional({
+    enum: TaskPriority,
+    example: TaskPriority.MEDIUM,
+    description: 'Priority level of the task',
+  })
   @IsEnum(TaskPriority)
+  @IsOptional()
   priority?: TaskPriority;
 
+  @ApiPropertyOptional({
+    example: '2024-12-31T23:59:59Z',
+    description: 'Due date of the task',
+  })
+  @IsDateString()
   @IsOptional()
-  @IsDate()
   dueDate?: Date;
 
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  estimatedMinutes?: number;
-
-  @IsOptional()
-  @IsUUID()
-  projectId?: string;
-
-  @IsOptional()
+  @ApiPropertyOptional({
+    example: ['123e4567-e89b-12d3-a456-426614174000'],
+    description: 'Array of tag IDs to associate with the task',
+  })
   @IsArray()
   @IsUUID('4', { each: true })
+  @IsOptional()
   tagIds?: string[];
+
+  @ApiPropertyOptional({
+    example: '123e4567-e89b-12d3-a456-426614174000',
+    description: 'Project ID to associate the task with',
+  })
+  @IsUUID('4')
+  @IsOptional()
+  projectId?: string;
 }
 
-export class UpdateTaskDto extends CreateTaskDto {
-  @IsOptional()
+export class UpdateTaskDto extends PartialType(CreateTaskDto) {
+  @ApiPropertyOptional({
+    enum: TaskStatus,
+    example: TaskStatus.COMPLETED,
+    description: 'New status for the task',
+  })
   @IsEnum(TaskStatus)
-  status?: TaskStatus;
-
   @IsOptional()
-  @IsBoolean()
-  isArchived?: boolean;
+  status?: TaskStatus;
 }
 
 export class TaskFilterDto {
-  @IsOptional()
-  @IsEnum(TaskStatus)
-  status?: TaskStatus;
-
-  @IsOptional()
-  @IsEnum(TaskPriority)
-  priority?: TaskPriority;
-
-  @IsOptional()
+  @ApiPropertyOptional({
+    example: 'auth',
+    description: 'Search term to filter tasks by title or description',
+  })
   @IsString()
+  @IsOptional()
   search?: string;
 
+  @ApiPropertyOptional({
+    enum: TaskStatus,
+    example: TaskStatus.PENDING,
+    description: 'Filter tasks by status',
+  })
+  @IsEnum(TaskStatus)
   @IsOptional()
-  @IsUUID()
+  status?: TaskStatus;
+
+  @ApiPropertyOptional({
+    enum: TaskPriority,
+    example: TaskPriority.HIGH,
+    description: 'Filter tasks by priority',
+  })
+  @IsEnum(TaskPriority)
+  @IsOptional()
+  priority?: TaskPriority;
+
+  @ApiPropertyOptional({
+    example: false,
+    description: 'Include archived tasks in the results',
+  })
+  @IsBoolean()
+  @IsOptional()
+  includeArchived?: boolean;
+
+  @ApiPropertyOptional({
+    example: '123e4567-e89b-12d3-a456-426614174000',
+    description: 'Filter tasks by project ID',
+  })
+  @IsUUID('4')
+  @IsOptional()
   projectId?: string;
 
-  @IsOptional()
+  @ApiPropertyOptional({
+    example: ['123e4567-e89b-12d3-a456-426614174000'],
+    description: 'Filter tasks by tag IDs',
+  })
   @IsArray()
   @IsUUID('4', { each: true })
+  @IsOptional()
   tagIds?: string[];
 
+  @ApiPropertyOptional({
+    example: '2024-12-31',
+    description: 'Filter tasks by due date',
+  })
+  @IsDateString()
   @IsOptional()
-  @IsDate()
   dueDate?: Date;
-
-  @IsOptional()
-  @IsBoolean()
-  includeArchived?: boolean = false;
 }

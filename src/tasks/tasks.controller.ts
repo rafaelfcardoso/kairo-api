@@ -12,6 +12,7 @@ import {
   HttpStatus,
   HttpCode,
   ValidationPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { TaskService } from './tasks.service';
 import { CreateTaskDto, UpdateTaskDto, TaskFilterDto } from './tasks.dto';
@@ -24,29 +25,29 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { ParseUUIDArrayPipe } from './pipes/parse-uuid-array.pipe';
+import { AuthGuard } from '@nestjs/passport';
 
 @ApiTags('Tasks')
 @Controller('tasks')
+@UseGuards(AuthGuard())
 export class TaskController {
   constructor(private taskService: TaskService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get all tasks with optional filters' })
-  @ApiQuery({ type: TaskFilterDto, required: false })
+  @ApiOperation({ summary: 'Get all tasks' })
+  @ApiQuery({ type: TaskFilterDto })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Retrieved tasks successfully',
     type: [Task],
   })
-  async getTasks(
-    @Query(ValidationPipe) filterDto: TaskFilterDto,
-  ): Promise<Task[]> {
+  async getTasks(@Query() filterDto: TaskFilterDto): Promise<Task[]> {
     return this.taskService.getTasks(filterDto);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a task by ID' })
-  @ApiParam({ name: 'id', type: 'string', description: 'Task ID' })
+  @ApiParam({ name: 'id', description: 'Task ID' })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Retrieved task successfully',

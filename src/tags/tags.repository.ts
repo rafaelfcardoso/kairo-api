@@ -5,7 +5,7 @@ import { CreateTagDto, UpdateTagDto } from './tags.dto';
 import { NotFoundException } from '@nestjs/common';
 
 @Injectable()
-export class TagRepository extends Repository<Tag> {
+export class TagsRepository extends Repository<Tag> {
   constructor(private dataSource: DataSource) {
     super(Tag, dataSource.createEntityManager());
   }
