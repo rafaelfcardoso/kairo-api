@@ -5,7 +5,7 @@ import { TaskService } from './tasks.service';
 import { TaskController } from './tasks.controller';
 import { TaskRepository } from './tasks.repository';
 import { ProjectRepository } from '../projects/projects.repository';
-import { TagRepository } from '../tags/tag.repository';
+import { TagRepository } from '../tags/tags.repository';
 
 @Module({
   imports: [

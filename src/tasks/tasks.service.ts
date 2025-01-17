@@ -3,7 +3,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { TaskRepository } from './tasks.repository';
 import { ProjectRepository } from '../projects/projects.repository';
-import { TagRepository } from '../tags/tag.repository';
+import { TagRepository } from '../tags/tags.repository';
 import { Task, TaskStatus, TaskPriority } from './tasks.entity';
 import { CreateTaskDto, UpdateTaskDto, TaskFilterDto } from './tasks.dto';
 
@@ -63,9 +63,8 @@ export class TaskService {
     const task = await this.getTaskById(id);
     return this.taskRepository.updateTask(id, { ...task, priority });
   }
-
   async assignToProject(taskId: string, projectId: string): Promise<Task> {
-    const project = await this.projectRepository.findOne(projectId);
+    const project = await this.projectRepository.findOne({ where: { id: projectId } });
     if (!project) {
       throw new NotFoundException(`Project with ID "${projectId}" not found`);
     }
