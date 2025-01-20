@@ -105,8 +105,13 @@ export class Task {
   @JoinTable()
   focusSessions: FocusSession[];
 
-  @Column({ default: false })
-  completed: boolean;
+  @ApiProperty({
+    example: false,
+    description: 'Whether the task is completed',
+  })
+  get isCompleted(): boolean {
+    return this.status === TaskStatus.COMPLETED;
+  }
 
   @ApiProperty()
   @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })

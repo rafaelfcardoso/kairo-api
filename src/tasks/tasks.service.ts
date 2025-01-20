@@ -10,11 +10,8 @@ import { CreateTaskDto, UpdateTaskDto, TaskFilterDto } from './tasks.dto';
 @Injectable()
 export class TaskService {
   constructor(
-    @InjectRepository(TasksRepository)
     private tasksRepository: TasksRepository,
-    @InjectRepository(ProjectsRepository)
     private projectsRepository: ProjectsRepository,
-    @InjectRepository(TagsRepository)
     private tagsRepository: TagsRepository,
   ) {}
 

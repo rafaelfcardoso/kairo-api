@@ -1,6 +1,5 @@
 // src/services/project.service.ts
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import { ProjectsRepository } from './projects.repository';
 import { TasksRepository } from '../tasks/tasks.repository';
 import { Project } from './projects.entity';
@@ -15,47 +14,45 @@ import { TaskStatus } from '../tasks/tasks.entity';
 @Injectable()
 export class ProjectsService {
   constructor(
-    @InjectRepository(ProjectsRepository)
-    private projectRepository: ProjectsRepository,
-    @InjectRepository(TasksRepository)
-    private taskRepository: TasksRepository,
+    private projectsRepository: ProjectsRepository,
+    private tasksRepository: TasksRepository,
   ) {}
 
   async getProjects(filterDto: ProjectFilterDto): Promise<Project[]> {
-    return this.projectRepository.getProjects(filterDto);
+    return this.projectsRepository.getProjects(filterDto);
   }
 
   async getProjectById(id: string): Promise<Project> {
-    return this.projectRepository.getProjectById(id);
+    return this.projectsRepository.getProjectById(id);
   }
 
   async createProject(createProjectDto: CreateProjectDto): Promise<Project> {
-    return this.projectRepository.createProject(createProjectDto);
+    return this.projectsRepository.createProject(createProjectDto);
   }
 
   async updateProject(id: string, updateProjectDto: UpdateProjectDto): Promise<Project> {
-    return this.projectRepository.updateProject(id, updateProjectDto);
+    return this.projectsRepository.updateProject(id, updateProjectDto);
   }
 
   async deleteProject(id: string): Promise<void> {
-    await this.projectRepository.deleteProject(id);
+    await this.projectsRepository.deleteProject(id);
   }
 
   async archiveProject(id: string): Promise<Project> {
-    return this.projectRepository.archiveProject(id);
+    return this.projectsRepository.archiveProject(id);
   }
 
   async moveProject(moveDto: ProjectMoveDto): Promise<void> {
     const { projectId, targetId, position } = moveDto;
-    await this.projectRepository.moveProject(projectId, targetId, position);
+    await this.projectsRepository.moveProject(projectId, targetId, position);
   }
 
   async reorderProjects(projectIds: string[]): Promise<void> {
-    await this.projectRepository.reorderProjects(projectIds);
+    await this.projectsRepository.reorderProjects(projectIds);
   }
 
   async getProjectTree(rootId?: string): Promise<Project[]> {
-    return this.projectRepository.getProjectTree(rootId);
+    return this.projectsRepository.getProjectTree(rootId);
   }
 
   async getProjectWithAncestors(id: string): Promise<{
@@ -64,7 +61,7 @@ export class ProjectsService {
   }> {
     const [project, ancestors] = await Promise.all([
       this.getProjectById(id),
-      this.projectRepository.getProjectAncestors(id)
+      this.projectsRepository.getProjectAncestors(id)
     ]);
 
     return { project, ancestors };
@@ -80,11 +77,11 @@ export class ProjectsService {
     deepTasksCount: number; // Including tasks from subprojects
   }> {
     const project = await this.getProjectById(id);
-    const descendants = await this.projectRepository.getProjectDescendants(id);
+    const descendants = await this.projectsRepository.getProjectDescendants(id);
     
     // Get all tasks from this project and its subprojects
     const allProjectIds = [id, ...descendants.map(d => d.id)];
-    const allTasks = await this.taskRepository.createQueryBuilder('task')
+    const allTasks = await this.tasksRepository.createQueryBuilder('task')
       .where('task.projectId IN (:...projectIds)', { projectIds: allProjectIds })
       .getMany();
 
@@ -131,7 +128,7 @@ export class ProjectsService {
           status: task.status,
           projectId: newProject.id,
         };
-        return this.taskRepository.createTask(newTaskData);
+        return this.tasksRepository.createTask(newTaskData);
       });
       await Promise.all(taskPromises);
     }
@@ -155,7 +152,7 @@ export class ProjectsService {
 
     // Move all tasks from source to target
     if (sourceProject.tasks.length > 0) {
-      await this.taskRepository.createQueryBuilder()
+      await this.tasksRepository.createQueryBuilder()
         .update()
         .set({ project: targetProject })
         .where('projectId = :sourceId', { sourceId })
@@ -164,7 +161,7 @@ export class ProjectsService {
 
     // Move all subprojects from source to target
     if (sourceProject.children.length > 0) {
-      await this.projectRepository.createQueryBuilder()
+      await this.projectsRepository.createQueryBuilder()
         .update(Project)
         .set({ parent: targetProject })
         .where('parentId = :sourceId', { sourceId })
@@ -205,7 +202,7 @@ export class ProjectsService {
   }
 
   async searchProjects(query: string): Promise<Project[]> {
-    return this.projectRepository.createQueryBuilder('project')
+    return this.projectsRepository.createQueryBuilder('project')
       .leftJoinAndSelect('project.parent', 'parent')
       .leftJoinAndSelect('project.children', 'children')
       .where('LOWER(project.name) LIKE LOWER(:query)', { query: `%${query}%` })
@@ -214,7 +211,7 @@ export class ProjectsService {
   }
 
   async getProjectBreadcrumb(id: string): Promise<Project[]> {
-    const ancestors = await this.projectRepository.getProjectAncestors(id);
+    const ancestors = await this.projectsRepository.getProjectAncestors(id);
     const current = await this.getProjectById(id);
     return [...ancestors, current];
   }

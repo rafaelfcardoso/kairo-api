@@ -29,7 +29,7 @@ import { AuthGuard } from '@nestjs/passport';
 
 @ApiTags('Tasks')
 @Controller('tasks')
-@UseGuards(AuthGuard())
+// @UseGuards(AuthGuard()) // Comment this out temporarily
 export class TaskController {
   constructor(private taskService: TaskService) {}
 

@@ -1,10 +1,12 @@
 // src/config/typeorm.config.ts
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import { Task } from '../tasks/tasks.entity';
 import { Project } from '../projects/projects.entity';
 import { Tag } from '../tags/tags.entity';
 import { FocusSession } from '../entities/focus-session.entity';
 import { BlockRule } from '../entities/block-rule.entity';
+import { InitialSchema1705759726000 } from '../migrations/1705759726000-InitialSchema';
 
 export const typeOrmConfig: TypeOrmModuleOptions = {
   type: 'postgres',
@@ -14,6 +16,12 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
   password: process.env.DB_PASSWORD || 'postgres',
   database: process.env.DB_DATABASE || 'zenith',
   entities: [Task, Project, Tag, FocusSession, BlockRule],
-  synchronize: process.env.NODE_ENV !== 'production',
-  logging: process.env.NODE_ENV !== 'production',
+  migrations: [InitialSchema1705759726000],
+  synchronize: false,
+  logging: true,
 };
+
+export default new DataSource({
+  ...typeOrmConfig,
+  type: 'postgres',
+} as any);

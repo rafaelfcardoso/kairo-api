@@ -5,7 +5,9 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: ['error', 'warn', 'log', 'debug', 'verbose'],
+  });
   
   // Get ConfigService
   const configService = app.get(ConfigService);
@@ -75,5 +77,10 @@ async function bootstrap() {
   await app.listen(port);
   console.log(`Application is running on: http://localhost:${port}`);
   console.log(`Swagger documentation available at: http://localhost:${port}/api`);
+  console.log(`Database connection details:
+    Host: ${configService.get('DB_HOST')}
+    Port: ${configService.get('DB_PORT')}
+    Database: ${configService.get('DB_NAME')}
+  `);
 }
 bootstrap();
