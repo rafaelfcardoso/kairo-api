@@ -12,7 +12,6 @@ import {
   HttpStatus,
   HttpCode,
   ValidationPipe,
-  UseGuards,
 } from '@nestjs/common';
 import { TaskService } from './tasks.service';
 import { CreateTaskDto, UpdateTaskDto, TaskFilterDto } from './tasks.dto';
@@ -25,11 +24,9 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { ParseUUIDArrayPipe } from './pipes/parse-uuid-array.pipe';
-import { AuthGuard } from '@nestjs/passport';
 
 @ApiTags('Tasks')
 @Controller('tasks')
-// @UseGuards(AuthGuard()) // Comment this out temporarily
 export class TaskController {
   constructor(private taskService: TaskService) {}
 
@@ -41,7 +38,13 @@ export class TaskController {
     description: 'Retrieved tasks successfully',
     type: [Task],
   })
-  async getTasks(@Query() filterDto: TaskFilterDto): Promise<Task[]> {
+  async getTasks(
+    @Query(new ValidationPipe({ 
+      transform: true,
+      transformOptions: { enableImplicitConversion: false }
+    })) 
+    filterDto: TaskFilterDto
+  ): Promise<Task[]> {
     return this.taskService.getTasks(filterDto);
   }
 

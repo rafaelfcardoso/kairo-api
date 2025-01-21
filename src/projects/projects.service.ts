@@ -10,6 +10,7 @@ import {
   ProjectMoveDto 
 } from './projects.dto';
 import { TaskStatus } from '../tasks/tasks.entity';
+import { Task } from '../tasks/tasks.entity';
 
 @Injectable()
 export class ProjectsService {
@@ -123,7 +124,7 @@ export class ProjectsService {
         const newTaskData = {
           title: task.title,
           description: task.description,
-          dueDate: task.dueDate,
+          dueDate: task.dueDate ? task.dueDate.toISOString() : null,
           priority: task.priority,
           status: task.status,
           projectId: newProject.id,
@@ -245,5 +246,45 @@ export class ProjectsService {
     }
 
     return { health, factors };
+  }
+
+  async duplicateTaskToProject(taskId: string, projectId: string): Promise<Task> {
+    const task = await this.tasksRepository.getTaskById(taskId);
+    const project = await this.projectsRepository.findOne({ where: { id: projectId } });
+
+    if (!project) {
+      throw new NotFoundException(`Project with ID "${projectId}" not found`);
+    }
+
+    const { dueDate, ...taskData } = task;
+    const newTaskData = {
+      title: task.title,
+      description: task.description,
+      dueDate: dueDate ? dueDate.toISOString() : null,
+      priority: task.priority,
+      status: task.status,
+      projectId,
+    };
+
+    return this.tasksRepository.createTask(newTaskData);
+  }
+
+  async createTaskWithProject(projectId: string, task: Task): Promise<Task> {
+    const project = await this.projectsRepository.findOne({ where: { id: projectId } });
+    if (!project) {
+      throw new NotFoundException(`Project with ID "${projectId}" not found`);
+    }
+
+    const { dueDate, ...taskData } = task;
+    const newTaskData = {
+      title: task.title,
+      description: task.description,
+      dueDate: dueDate ? dueDate.toISOString() : null,
+      priority: task.priority,
+      status: task.status,
+      projectId,
+    };
+
+    return this.tasksRepository.createTask(newTaskData);
   }
 }

@@ -53,12 +53,22 @@ export class TaskService {
 
   async updateTaskStatus(id: string, status: TaskStatus): Promise<Task> {
     const task = await this.getTaskById(id);
-    return this.tasksRepository.updateTask(id, { ...task, status });
+    const { dueDate, ...taskData } = task;
+    return this.tasksRepository.updateTask(id, { 
+      ...taskData,
+      status,
+      dueDate: dueDate ? dueDate.toISOString() as any : null,
+    });
   }
 
   async updateTaskPriority(id: string, priority: TaskPriority): Promise<Task> {
     const task = await this.getTaskById(id);
-    return this.tasksRepository.updateTask(id, { ...task, priority });
+    const { dueDate, ...taskData } = task;
+    return this.tasksRepository.updateTask(id, { 
+      ...taskData,
+      priority,
+      dueDate: dueDate ? dueDate.toISOString() as any : null,
+    });
   }
   async assignToProject(taskId: string, projectId: string): Promise<Task> {
     const project = await this.projectsRepository.findOne({ where: { id: projectId } });
@@ -133,13 +143,11 @@ export class TaskService {
 
   async duplicateTask(id: string): Promise<Task> {
     const sourceTask = await this.getTaskById(id);
-    // const { id: sourceId, createdAt, updatedAt, ...taskData } = sourceTask; // Renamed id to sourceId
-    const { ...taskData } = sourceTask;
-
-    // Create new task with same data but append "(Copy)" to title
+    const { dueDate, ...taskData } = sourceTask;
     return this.tasksRepository.createTask({
       ...taskData,
       title: `${taskData.title} (Copy)`,
-    });
+      dueDate: dueDate ? dueDate.toISOString() as any : null,
+    } as CreateTaskDto);
   }
 }

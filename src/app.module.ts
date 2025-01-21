@@ -4,7 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { TasksModule } from './tasks/tasks.module';
 import { ProjectsModule } from './projects/projects.module';
 import { TagsModule } from './tags/tags.module';
-import { AuthModule } from './auth/auth.module';
+// import { AuthModule } from './auth/auth.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -30,7 +30,7 @@ import { AppController } from './app.controller';
     TasksModule,
     ProjectsModule,
     TagsModule,
-    AuthModule,
+    // AuthModule,
   ],
   controllers: [AppController],
 })

@@ -51,7 +51,13 @@ export class TasksRepository extends Repository<Task> {
     }
 
     if (dueDate) {
-      query.andWhere('DATE(task.dueDate) = DATE(:dueDate)', { dueDate });
+      query.andWhere(
+        'task.dueDate >= :startDate AND task.dueDate < :endDate',
+        {
+          startDate: `${dueDate}T00:00:00.000Z`,
+          endDate: `${dueDate}T23:59:59.999Z`,
+        }
+      );
     }
 
     return await query.getMany();

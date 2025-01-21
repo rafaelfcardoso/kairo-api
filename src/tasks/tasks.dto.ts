@@ -12,6 +12,7 @@ import {
   Min,
   MinLength,
   IsDateString,
+  Matches,
 } from 'class-validator';
 import { TaskStatus, TaskPriority } from './tasks.entity';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -44,12 +45,12 @@ export class CreateTaskDto {
   priority?: TaskPriority;
 
   @ApiPropertyOptional({
-    example: '2024-12-31T23:59:59Z',
-    description: 'Due date of the task',
+    example: '2024-12-31T23:59:59.999Z',
+    description: 'Due date of the task in ISO 8601 format',
   })
   @IsDateString()
   @IsOptional()
-  dueDate?: Date;
+  dueDate?: string;
 
   @ApiPropertyOptional({
     example: ['123e4567-e89b-12d3-a456-426614174000'],
@@ -134,9 +135,13 @@ export class TaskFilterDto {
 
   @ApiPropertyOptional({
     example: '2024-12-31',
-    description: 'Filter tasks by due date',
+    description: 'Filter tasks by due date (YYYY-MM-DD format)',
+    type: String,
   })
-  @IsDateString()
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'dueDate must be in YYYY-MM-DD format'
+  })
   @IsOptional()
-  dueDate?: Date;
+  dueDate?: string;
 }

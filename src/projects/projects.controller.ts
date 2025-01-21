@@ -10,7 +10,6 @@ import {
   Query,
   ParseUUIDPipe,
   HttpStatus,
-  UseGuards,
   HttpCode,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
@@ -22,11 +21,9 @@ import {
   ProjectMoveDto 
 } from './projects.dto';
 import { Project } from './projects.entity';
-import { AuthGuard } from '@nestjs/passport';
 
 @ApiTags('Projects')
 @Controller('projects')
-@UseGuards(AuthGuard())
 export class ProjectsController {
   constructor(private projectService: ProjectsService) {}
 

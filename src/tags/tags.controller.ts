@@ -9,13 +9,11 @@ import {
   Query,
   ParseUUIDPipe,
   ParseIntPipe,
-  UseGuards,
   HttpStatus,
 } from '@nestjs/common';
 import { TagsService } from './tags.service';
 import { CreateTagDto, UpdateTagDto } from './tags.dto';
 import { Tag } from './tags.entity';
-import { AuthGuard } from '@nestjs/passport';
 import {
   ApiTags,
   ApiOperation,
@@ -26,7 +24,6 @@ import {
 
 @ApiTags('Tags')
 @Controller('tags')
-@UseGuards(AuthGuard())
 export class TagsController {
   constructor(private tagsService: TagsService) {}
 
