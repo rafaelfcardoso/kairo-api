@@ -83,7 +83,7 @@ export class UpdateTaskDto extends PartialType(CreateTaskDto) {
 
 export class TaskFilterDto {
   @ApiPropertyOptional({
-    example: 'auth',
+    example: '',
     description: 'Search term to filter tasks by title or description',
   })
   @IsString()
@@ -92,7 +92,7 @@ export class TaskFilterDto {
 
   @ApiPropertyOptional({
     enum: TaskStatus,
-    example: TaskStatus.PENDING,
+    example: null,
     description: 'Filter tasks by status',
   })
   @IsEnum(TaskStatus)
@@ -101,7 +101,7 @@ export class TaskFilterDto {
 
   @ApiPropertyOptional({
     enum: TaskPriority,
-    example: TaskPriority.HIGH,
+    example: null,
     description: 'Filter tasks by priority',
   })
   @IsEnum(TaskPriority)
@@ -117,7 +117,7 @@ export class TaskFilterDto {
   includeArchived?: boolean;
 
   @ApiPropertyOptional({
-    example: '123e4567-e89b-12d3-a456-426614174000',
+    example: '',
     description: 'Filter tasks by project ID',
   })
   @IsUUID('4')
@@ -125,7 +125,7 @@ export class TaskFilterDto {
   projectId?: string;
 
   @ApiPropertyOptional({
-    example: ['123e4567-e89b-12d3-a456-426614174000'],
+    example: [],
     description: 'Filter tasks by tag IDs',
   })
   @IsArray()
@@ -134,7 +134,7 @@ export class TaskFilterDto {
   tagIds?: string[];
 
   @ApiPropertyOptional({
-    example: '2024-12-31',
+    example: '',
     description: 'Filter tasks by due date (YYYY-MM-DD format)',
     type: String,
   })

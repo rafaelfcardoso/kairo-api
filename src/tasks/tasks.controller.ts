@@ -22,6 +22,7 @@ import {
   ApiResponse,
   ApiParam,
   ApiQuery,
+  ApiBody,
 } from '@nestjs/swagger';
 import { ParseUUIDArrayPipe } from './pipes/parse-uuid-array.pipe';
 
@@ -123,6 +124,20 @@ export class TaskController {
   @Put(':id/status')
   @ApiOperation({ summary: 'Update task status' })
   @ApiParam({ name: 'id', type: 'string', description: 'Task ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['status'],
+      properties: {
+        status: {
+          type: 'string',
+          enum: ['todo', 'in_progress', 'pending', 'completed'],
+          description: 'The new status for the task',
+          example: 'completed'
+        }
+      }
+    }
+  })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Task status updated successfully',
