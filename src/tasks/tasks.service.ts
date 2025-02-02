@@ -24,11 +24,25 @@ export class TaskService {
   }
 
   async createTask(createTaskDto: CreateTaskDto): Promise<Task> {
-    return this.tasksRepository.createTask(createTaskDto);
+    const { projectId, ...taskData } = createTaskDto;
+    
+    // If no project specified, assign to Inbox
+    if (!projectId) {
+      taskData['projectId'] = '569c363f-1934-4e69-b324-6c2fad28bc59';
+    }
+
+    return this.tasksRepository.createTask({ projectId, ...taskData });
   }
 
   async updateTask(id: string, updateTaskDto: UpdateTaskDto): Promise<Task> {
-    return this.tasksRepository.updateTask(id, updateTaskDto);
+    const { projectId, ...taskData } = updateTaskDto;
+    
+    // If project is being removed, assign to Inbox
+    if (projectId === null) {
+      taskData['projectId'] = '569c363f-1934-4e69-b324-6c2fad28bc59';
+    }
+
+    return this.tasksRepository.updateTask(id, { projectId, ...taskData });
   }
 
   async deleteTask(id: string): Promise<void> {
@@ -131,8 +145,8 @@ export class TaskService {
     });
 
     return {
-      [TaskPriority.LOW]: tasks.filter((t) => t.priority === TaskPriority.LOW)
-        .length,
+      [TaskPriority.NONE]: tasks.filter((t) => t.priority === TaskPriority.NONE).length,
+      [TaskPriority.LOW]: tasks.filter((t) => t.priority === TaskPriority.LOW).length,
       [TaskPriority.MEDIUM]: tasks.filter(
         (t) => t.priority === TaskPriority.MEDIUM,
       ).length,

@@ -33,7 +33,48 @@ export class TaskController {
 
   @Get()
   @ApiOperation({ summary: 'Get all tasks' })
-  @ApiQuery({ type: TaskFilterDto })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: TaskStatus,
+    description: 'Filter tasks by status'
+  })
+  @ApiQuery({
+    name: 'includeArchived',
+    required: false,
+    type: Boolean,
+    description: 'Include archived tasks in the results'
+  })
+  @ApiQuery({
+    name: 'priority',
+    required: false,
+    enum: TaskPriority,
+    description: 'Filter tasks by priority'
+  })
+  @ApiQuery({
+    name: 'projectId',
+    required: false,
+    type: String,
+    description: 'Filter tasks by project ID'
+  })
+  @ApiQuery({
+    name: 'tagIds',
+    required: false,
+    type: [String],
+    description: 'Filter tasks by tag IDs'
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Search term to filter tasks by title or description'
+  })
+  @ApiQuery({
+    name: 'dueDate',
+    required: false,
+    type: String,
+    description: 'Filter tasks by due date (YYYY-MM-DD format)'
+  })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Retrieved tasks successfully',
@@ -153,6 +194,20 @@ export class TaskController {
   @Put(':id/priority')
   @ApiOperation({ summary: 'Update task priority' })
   @ApiParam({ name: 'id', type: 'string', description: 'Task ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['priority'],
+      properties: {
+        priority: {
+          type: 'string',
+          enum: ['none', 'low', 'medium', 'high'],
+          description: 'The new priority for the task',
+          example: 'none'
+        }
+      }
+    }
+  })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Task priority updated successfully',

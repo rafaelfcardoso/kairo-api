@@ -28,6 +28,9 @@ export class Project {
   @Column({ default: false })
   isArchived: boolean;
 
+  @Column({ default: false })
+  isSystem: boolean;
+
   @TreeParent()
   parent: Project;
 

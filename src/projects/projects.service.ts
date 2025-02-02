@@ -36,7 +36,14 @@ export class ProjectsService {
   }
 
   async deleteProject(id: string): Promise<void> {
-    await this.projectsRepository.deleteProject(id);
+    const project = await this.projectsRepository.findOne({ where: { id } });
+    if (!project) {
+      throw new NotFoundException(`Project with ID "${id}" not found`);
+    }
+    if (project.isSystem) {
+      throw new BadRequestException(`Cannot delete system project "${project.name}"`);
+    }
+    await this.projectsRepository.delete(id);
   }
 
   async archiveProject(id: string): Promise<Project> {

@@ -12,7 +12,7 @@ export class InitialSchema1705759726000 implements MigrationInterface {
 
     // Create TaskPriority enum
     await queryRunner.query(`
-      CREATE TYPE "task_priority_enum" AS ENUM ('low', 'medium', 'high')
+      CREATE TYPE "task_priority_enum" AS ENUM ('none', 'low', 'medium', 'high')
     `);
 
     // Create Project table

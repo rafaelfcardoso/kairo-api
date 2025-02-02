@@ -11,6 +11,7 @@ import {
   ParseUUIDPipe,
   HttpStatus,
   HttpCode,
+  ValidationPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { ProjectsService } from './projects.service';
@@ -29,13 +30,42 @@ export class ProjectsController {
 
   @Get()
   @ApiOperation({ summary: 'Get all projects with optional filters' })
-  @ApiQuery({ type: ProjectFilterDto, required: false })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Search term to filter projects by name or description'
+  })
+  @ApiQuery({
+    name: 'includeArchived',
+    required: false,
+    type: Boolean,
+    description: 'Whether to include archived projects in the results'
+  })
+  @ApiQuery({
+    name: 'includeSystem',
+    required: false,
+    type: Boolean,
+    description: 'Whether to include system projects in the results'
+  })
+  @ApiQuery({
+    name: 'parentId',
+    required: false,
+    type: String,
+    description: 'Filter projects by parent ID (null for root projects)'
+  })
   @ApiResponse({ 
     status: HttpStatus.OK, 
     description: 'Retrieved projects successfully',
     type: [Project]
   })
-  async getProjects(@Query() filterDto: ProjectFilterDto): Promise<Project[]> {
+  async getProjects(
+    @Query(new ValidationPipe({ 
+      transform: true,
+      transformOptions: { enableImplicitConversion: true }
+    })) 
+    filterDto: ProjectFilterDto
+  ): Promise<Project[]> {
     return this.projectService.getProjects(filterDto);
   }
 

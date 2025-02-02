@@ -16,7 +16,11 @@ export class ProjectsRepository extends TreeRepository<Project> {
   }
 
   async getProjects(filterDto: ProjectFilterDto): Promise<Project[]> {
-    const { search, includeArchived, parentId } = filterDto;
+    const { search, includeArchived, includeSystem, parentId } = filterDto;
+    
+    console.log('Filter DTO:', filterDto);
+    console.log('includeSystem:', includeSystem);
+    console.log('Type of includeSystem:', typeof includeSystem);
 
     let query = this.createQueryBuilder('project')
       .leftJoinAndSelect('project.parent', 'parent')
@@ -25,24 +29,58 @@ export class ProjectsRepository extends TreeRepository<Project> {
       .orderBy('project.order', 'ASC')
       .addOrderBy('project.createdAt', 'DESC');
 
+    // Start with base conditions
+    let hasWhereClause = false;
+
     if (!includeArchived) {
       query = query.where('project.isArchived = :isArchived', {
         isArchived: false,
       });
+      hasWhereClause = true;
+    }
+
+    // Handle system projects filter
+    if (includeSystem === false) {
+      if (hasWhereClause) {
+        query = query.andWhere('project.isSystem = :isSystem', {
+          isSystem: false,
+        });
+      } else {
+        query = query.where('project.isSystem = :isSystem', {
+          isSystem: false,
+        });
+        hasWhereClause = true;
+      }
     }
 
     if (parentId) {
-      query = query.andWhere('parent.id = :parentId', { parentId });
+      if (hasWhereClause) {
+        query = query.andWhere('parent.id = :parentId', { parentId });
+      } else {
+        query = query.where('parent.id = :parentId', { parentId });
+        hasWhereClause = true;
+      }
     } else if (parentId === null) {
-      // Get only root projects (those without parents)
-      query = query.andWhere('project.parent IS NULL');
+      if (hasWhereClause) {
+        query = query.andWhere('project.parent IS NULL');
+      } else {
+        query = query.where('project.parent IS NULL');
+        hasWhereClause = true;
+      }
     }
 
     if (search) {
-      query = query.andWhere(
-        '(LOWER(project.name) LIKE LOWER(:search) OR LOWER(project.description) LIKE LOWER(:search))',
-        { search: `%${search}%` },
-      );
+      if (hasWhereClause) {
+        query = query.andWhere(
+          '(LOWER(project.name) LIKE LOWER(:search) OR LOWER(project.description) LIKE LOWER(:search))',
+          { search: `%${search}%` },
+        );
+      } else {
+        query = query.where(
+          '(LOWER(project.name) LIKE LOWER(:search) OR LOWER(project.description) LIKE LOWER(:search))',
+          { search: `%${search}%` },
+        );
+      }
     }
 
     const projects = await query.getMany();

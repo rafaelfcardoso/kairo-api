@@ -37,8 +37,8 @@ export class CreateTaskDto {
 
   @ApiPropertyOptional({
     enum: TaskPriority,
-    example: TaskPriority.MEDIUM,
-    description: 'Priority level of the task',
+    example: TaskPriority.NONE,
+    description: 'Priority level of the task (none, low, medium, high)',
   })
   @IsEnum(TaskPriority)
   @IsOptional()
@@ -92,8 +92,9 @@ export class TaskFilterDto {
 
   @ApiPropertyOptional({
     enum: TaskStatus,
-    example: null,
+    example: TaskStatus.PENDING,
     description: 'Filter tasks by status',
+    enumName: 'TaskStatus'
   })
   @IsEnum(TaskStatus)
   @IsOptional()
@@ -101,8 +102,9 @@ export class TaskFilterDto {
 
   @ApiPropertyOptional({
     enum: TaskPriority,
-    example: null,
+    example: TaskPriority.NONE,
     description: 'Filter tasks by priority',
+    enumName: 'TaskPriority'
   })
   @IsEnum(TaskPriority)
   @IsOptional()

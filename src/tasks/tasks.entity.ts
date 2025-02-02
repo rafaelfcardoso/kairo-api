@@ -14,6 +14,7 @@ import { FocusSession } from '../entities/focus-session.entity';
 import { ApiProperty } from '@nestjs/swagger';
 
 export enum TaskPriority {
+  NONE = 'none',
   LOW = 'low',
   MEDIUM = 'medium',
   HIGH = 'high',
@@ -64,13 +65,13 @@ export class Task {
 
   @ApiProperty({
     enum: TaskPriority,
-    example: TaskPriority.MEDIUM,
+    example: TaskPriority.NONE,
     description: 'Priority level of the task',
   })
   @Column({
     type: 'enum',
     enum: TaskPriority,
-    default: TaskPriority.MEDIUM,
+    default: TaskPriority.NONE,
   })
   priority: TaskPriority;
 

@@ -1,5 +1,5 @@
 // src/dto/project.dto.ts
-import { IsNotEmpty, IsOptional, IsString, IsUUID, IsBoolean } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsUUID, IsBoolean, Matches } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 export class CreateProjectDto {
   @ApiProperty({
@@ -20,12 +20,15 @@ export class CreateProjectDto {
   description?: string;
 
   @ApiProperty({
-    example: 'blue',  // Set the example for the color field
-    description: 'Color code or name for the project',
+    example: '#4A90E2',
+    description: 'Color code in hex format (e.g., #4A90E2)',
     required: false,
   })
   @IsOptional()
   @IsString()
+  @Matches(/^#[0-9A-Fa-f]{6}$/, {
+    message: 'Color must be a valid hex color code (e.g., #4A90E2)',
+  })
   color?: string;
 
   @ApiProperty({
@@ -55,6 +58,15 @@ export class ProjectFilterDto {
   @IsOptional()
   @IsBoolean()
   includeArchived?: boolean = false;
+
+  @ApiProperty({
+    example: false,
+    description: 'Whether to include system projects in the results',
+    required: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  includeSystem?: boolean = false;
 
   @IsOptional()
   @IsUUID()
