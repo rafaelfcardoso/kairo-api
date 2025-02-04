@@ -32,4 +32,7 @@ jobs:
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
-        run: railway up --service delightful-miracle/zenith-api-nest --environment development
+        run: |
+          echo "Available services:"
+          railway service list
+          railway up --service "zenith-api-nest"
