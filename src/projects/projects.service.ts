@@ -1,13 +1,17 @@
 // src/services/project.service.ts
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { ProjectsRepository } from './projects.repository';
 import { TasksRepository } from '../tasks/tasks.repository';
 import { Project } from './projects.entity';
-import { 
-  CreateProjectDto, 
-  UpdateProjectDto, 
-  ProjectFilterDto, 
-  ProjectMoveDto 
+import {
+  CreateProjectDto,
+  UpdateProjectDto,
+  ProjectFilterDto,
+  ProjectMoveDto,
 } from './projects.dto';
 import { TaskStatus } from '../tasks/tasks.entity';
 import { Task } from '../tasks/tasks.entity';
@@ -31,7 +35,10 @@ export class ProjectsService {
     return this.projectsRepository.createProject(createProjectDto);
   }
 
-  async updateProject(id: string, updateProjectDto: UpdateProjectDto): Promise<Project> {
+  async updateProject(
+    id: string,
+    updateProjectDto: UpdateProjectDto,
+  ): Promise<Project> {
     return this.projectsRepository.updateProject(id, updateProjectDto);
   }
 
@@ -41,7 +48,9 @@ export class ProjectsService {
       throw new NotFoundException(`Project with ID "${id}" not found`);
     }
     if (project.isSystem) {
-      throw new BadRequestException(`Cannot delete system project "${project.name}"`);
+      throw new BadRequestException(
+        `Cannot delete system project "${project.name}"`,
+      );
     }
     await this.projectsRepository.delete(id);
   }
@@ -69,7 +78,7 @@ export class ProjectsService {
   }> {
     const [project, ancestors] = await Promise.all([
       this.getProjectById(id),
-      this.projectsRepository.getProjectAncestors(id)
+      this.projectsRepository.getProjectAncestors(id),
     ]);
 
     return { project, ancestors };
@@ -86,21 +95,33 @@ export class ProjectsService {
   }> {
     const project = await this.getProjectById(id);
     const descendants = await this.projectsRepository.getProjectDescendants(id);
-    
+
     // Get all tasks from this project and its subprojects
-    const allProjectIds = [id, ...descendants.map(d => d.id)];
-    const allTasks = await this.tasksRepository.createQueryBuilder('task')
-      .where('task.projectId IN (:...projectIds)', { projectIds: allProjectIds })
+    const allProjectIds = [id, ...descendants.map((d) => d.id)];
+    const allTasks = await this.tasksRepository
+      .createQueryBuilder('task')
+      .where('task.projectId IN (:...projectIds)', {
+        projectIds: allProjectIds,
+      })
       .getMany();
 
     const stats = {
       totalTasks: project.tasks.length,
-      completedTasks: project.tasks.filter(t => t.status === TaskStatus.COMPLETED).length,
-      pendingTasks: project.tasks.filter(t => t.status === TaskStatus.PENDING).length,
-      overdueTasks: project.tasks.filter(t => t.status === TaskStatus.PENDING && t.dueDate < new Date()).length,
-      progress: project.tasks.length > 0 
-        ? (project.tasks.filter(t => t.status === TaskStatus.COMPLETED).length / project.tasks.length) * 100 
-        : 0,
+      completedTasks: project.tasks.filter(
+        (t) => t.status === TaskStatus.COMPLETED,
+      ).length,
+      pendingTasks: project.tasks.filter((t) => t.status === TaskStatus.PENDING)
+        .length,
+      overdueTasks: project.tasks.filter(
+        (t) => t.status === TaskStatus.PENDING && t.dueDate < new Date(),
+      ).length,
+      progress:
+        project.tasks.length > 0
+          ? (project.tasks.filter((t) => t.status === TaskStatus.COMPLETED)
+              .length /
+              project.tasks.length) *
+            100
+          : 0,
       subprojectsCount: descendants.length,
       deepTasksCount: allTasks.length,
     };
@@ -108,13 +129,16 @@ export class ProjectsService {
     return stats;
   }
 
-  async duplicateProject(id: string, options: {
-    includeSubprojects?: boolean;
-    includeTasks?: boolean;
-  } = {}): Promise<Project> {
+  async duplicateProject(
+    id: string,
+    options: {
+      includeSubprojects?: boolean;
+      includeTasks?: boolean;
+    } = {},
+  ): Promise<Project> {
     const { includeSubprojects = true, includeTasks = true } = options;
     const sourceProject = await this.getProjectById(id);
-    
+
     // Create new project with same basic data
     const newProjectData = {
       name: `${sourceProject.name} (Copy)`,
@@ -122,7 +146,7 @@ export class ProjectsService {
       color: sourceProject.color,
       parent: sourceProject.parent,
     };
-    
+
     const newProject = await this.createProject(newProjectData);
 
     if (includeTasks) {
@@ -143,8 +167,8 @@ export class ProjectsService {
 
     if (includeSubprojects) {
       // Recursively duplicate subprojects
-      const subprojectPromises = sourceProject.children.map(child =>
-        this.duplicateProject(child.id, options)
+      const subprojectPromises = sourceProject.children.map((child) =>
+        this.duplicateProject(child.id, options),
       );
       await Promise.all(subprojectPromises);
     }
@@ -160,7 +184,8 @@ export class ProjectsService {
 
     // Move all tasks from source to target
     if (sourceProject.tasks.length > 0) {
-      await this.tasksRepository.createQueryBuilder()
+      await this.tasksRepository
+        .createQueryBuilder()
         .update()
         .set({ project: targetProject })
         .where('projectId = :sourceId', { sourceId })
@@ -169,7 +194,8 @@ export class ProjectsService {
 
     // Move all subprojects from source to target
     if (sourceProject.children.length > 0) {
-      await this.projectsRepository.createQueryBuilder()
+      await this.projectsRepository
+        .createQueryBuilder()
         .update(Project)
         .set({ parent: targetProject })
         .where('parentId = :sourceId', { sourceId })
@@ -199,7 +225,7 @@ export class ProjectsService {
 
     // Calculate completion trend
     const completionTrend = tasks
-      .filter(task => task.status === TaskStatus.COMPLETED)
+      .filter((task) => task.status === TaskStatus.COMPLETED)
       .reduce((acc, task) => {
         const month = task.updatedAt.toISOString().slice(0, 7);
         acc[month] = (acc[month] || 0) + 1;
@@ -210,11 +236,14 @@ export class ProjectsService {
   }
 
   async searchProjects(query: string): Promise<Project[]> {
-    return this.projectsRepository.createQueryBuilder('project')
+    return this.projectsRepository
+      .createQueryBuilder('project')
       .leftJoinAndSelect('project.parent', 'parent')
       .leftJoinAndSelect('project.children', 'children')
       .where('LOWER(project.name) LIKE LOWER(:query)', { query: `%${query}%` })
-      .orWhere('LOWER(project.description) LIKE LOWER(:query)', { query: `%${query}%` })
+      .orWhere('LOWER(project.description) LIKE LOWER(:query)', {
+        query: `%${query}%`,
+      })
       .getMany();
   }
 
@@ -230,16 +259,16 @@ export class ProjectsService {
   }> {
     const stats = await this.getProjectStats(id);
     const factors: string[] = [];
-    
+
     // Define health check criteria
     if (stats.overdueTasks > 0) {
       factors.push(`${stats.overdueTasks} overdue tasks`);
     }
-    
+
     if (stats.progress < 30) {
       factors.push('Low progress rate');
     }
-    
+
     if (stats.totalTasks === 0) {
       factors.push('No tasks created');
     }
@@ -255,9 +284,14 @@ export class ProjectsService {
     return { health, factors };
   }
 
-  async duplicateTaskToProject(taskId: string, projectId: string): Promise<Task> {
+  async duplicateTaskToProject(
+    taskId: string,
+    projectId: string,
+  ): Promise<Task> {
     const task = await this.tasksRepository.getTaskById(taskId);
-    const project = await this.projectsRepository.findOne({ where: { id: projectId } });
+    const project = await this.projectsRepository.findOne({
+      where: { id: projectId },
+    });
 
     if (!project) {
       throw new NotFoundException(`Project with ID "${projectId}" not found`);
@@ -277,7 +311,9 @@ export class ProjectsService {
   }
 
   async createTaskWithProject(projectId: string, task: Task): Promise<Task> {
-    const project = await this.projectsRepository.findOne({ where: { id: projectId } });
+    const project = await this.projectsRepository.findOne({
+      where: { id: projectId },
+    });
     if (!project) {
       throw new NotFoundException(`Project with ID "${projectId}" not found`);
     }

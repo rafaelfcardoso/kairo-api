@@ -136,4 +136,4 @@ export class TagsController {
   async deleteTag(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.tagsService.deleteTag(id);
   }
-} 
+}

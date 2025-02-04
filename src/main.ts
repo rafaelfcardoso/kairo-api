@@ -8,13 +8,13 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'log', 'debug', 'verbose'],
   });
-  
+
   // Get ConfigService
   const configService = app.get(ConfigService);
-  
+
   // Enable CORS
   app.enableCors();
-  
+
   // Validation pipe with proper settings
   app.useGlobalPipes(
     new ValidationPipe({
@@ -30,7 +30,8 @@ async function bootstrap() {
   // Swagger setup with more details
   const config = new DocumentBuilder()
     .setTitle('Zenith API')
-    .setDescription(`
+    .setDescription(
+      `
       Task Management API with Projects, Tasks, and Tags.
       
       ## Features
@@ -38,7 +39,8 @@ async function bootstrap() {
       - Project Organization
       - Tag System
       - Authentication
-    `)
+    `,
+    )
     .setVersion('1.0')
     .addTag('Tasks', 'Task management endpoints')
     .addTag('Projects', 'Project management endpoints')
@@ -58,7 +60,7 @@ async function bootstrap() {
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  
+
   // Customize swagger UI
   SwaggerModule.setup('api', app, document, {
     swaggerOptions: {
@@ -76,7 +78,9 @@ async function bootstrap() {
   const port = configService.get('PORT') || 3001;
   await app.listen(port);
   console.log(`Application is running on: http://localhost:${port}`);
-  console.log(`Swagger documentation available at: http://localhost:${port}/api`);
+  console.log(
+    `Swagger documentation available at: http://localhost:${port}/api`,
+  );
   console.log(`Database connection details:
     Host: ${configService.get('DB_HOST')}
     Port: ${configService.get('DB_PORT')}

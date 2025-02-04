@@ -16,7 +16,6 @@ import { Task } from '../tasks/tasks.entity';
 @Tree('closure-table') // Using closure table pattern for efficient tree operations
 export class Project {
   @PrimaryGeneratedColumn('uuid')
-  
   id: string;
 
   @Column()

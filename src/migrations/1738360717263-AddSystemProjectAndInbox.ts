@@ -1,11 +1,9 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddSystemProjectAndInbox1738360717263 implements MigrationInterface {
+export class AddSystemProjectAndInbox1738360717263
+  implements MigrationInterface
+{
+  public async up(queryRunner: QueryRunner): Promise<void> {}
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-    }
-
-    public async down(queryRunner: QueryRunner): Promise<void> {
-    }
-
+  public async down(queryRunner: QueryRunner): Promise<void> {}
 }

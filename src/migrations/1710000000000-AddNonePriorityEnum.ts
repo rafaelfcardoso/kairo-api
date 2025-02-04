@@ -50,4 +50,4 @@ export class AddNonePriorityEnum1710000000000 implements MigrationInterface {
       ALTER TABLE "task" ALTER COLUMN priority SET DEFAULT 'medium';
     `);
   }
-} 
+}

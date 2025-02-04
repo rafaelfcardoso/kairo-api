@@ -25,7 +25,7 @@ export class TaskService {
 
   async createTask(createTaskDto: CreateTaskDto): Promise<Task> {
     const { projectId, ...taskData } = createTaskDto;
-    
+
     // If no project specified, assign to Inbox
     if (!projectId) {
       taskData['projectId'] = '569c363f-1934-4e69-b324-6c2fad28bc59';
@@ -36,7 +36,7 @@ export class TaskService {
 
   async updateTask(id: string, updateTaskDto: UpdateTaskDto): Promise<Task> {
     const { projectId, ...taskData } = updateTaskDto;
-    
+
     // If project is being removed, assign to Inbox
     if (projectId === null) {
       taskData['projectId'] = '569c363f-1934-4e69-b324-6c2fad28bc59';
@@ -68,24 +68,26 @@ export class TaskService {
   async updateTaskStatus(id: string, status: TaskStatus): Promise<Task> {
     const task = await this.getTaskById(id);
     const { dueDate, ...taskData } = task;
-    return this.tasksRepository.updateTask(id, { 
+    return this.tasksRepository.updateTask(id, {
       ...taskData,
       status,
-      dueDate: dueDate ? dueDate.toISOString() as any : null,
+      dueDate: dueDate ? (dueDate.toISOString() as any) : null,
     });
   }
 
   async updateTaskPriority(id: string, priority: TaskPriority): Promise<Task> {
     const task = await this.getTaskById(id);
     const { dueDate, ...taskData } = task;
-    return this.tasksRepository.updateTask(id, { 
+    return this.tasksRepository.updateTask(id, {
       ...taskData,
       priority,
-      dueDate: dueDate ? dueDate.toISOString() as any : null,
+      dueDate: dueDate ? (dueDate.toISOString() as any) : null,
     });
   }
   async assignToProject(taskId: string, projectId: string): Promise<Task> {
-    const project = await this.projectsRepository.findOne({ where: { id: projectId } });
+    const project = await this.projectsRepository.findOne({
+      where: { id: projectId },
+    });
     if (!project) {
       throw new NotFoundException(`Project with ID "${projectId}" not found`);
     }
@@ -145,8 +147,10 @@ export class TaskService {
     });
 
     return {
-      [TaskPriority.NONE]: tasks.filter((t) => t.priority === TaskPriority.NONE).length,
-      [TaskPriority.LOW]: tasks.filter((t) => t.priority === TaskPriority.LOW).length,
+      [TaskPriority.NONE]: tasks.filter((t) => t.priority === TaskPriority.NONE)
+        .length,
+      [TaskPriority.LOW]: tasks.filter((t) => t.priority === TaskPriority.LOW)
+        .length,
       [TaskPriority.MEDIUM]: tasks.filter(
         (t) => t.priority === TaskPriority.MEDIUM,
       ).length,
@@ -161,7 +165,7 @@ export class TaskService {
     return this.tasksRepository.createTask({
       ...taskData,
       title: `${taskData.title} (Copy)`,
-      dueDate: dueDate ? dueDate.toISOString() as any : null,
+      dueDate: dueDate ? (dueDate.toISOString() as any) : null,
     } as CreateTaskDto);
   }
 }

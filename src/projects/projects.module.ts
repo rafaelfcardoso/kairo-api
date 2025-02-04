@@ -7,15 +7,9 @@ import { ProjectsRepository } from './projects.repository';
 import { TasksRepository } from '../tasks/tasks.repository';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Project]),
-  ],
+  imports: [TypeOrmModule.forFeature([Project])],
   controllers: [ProjectsController],
-  providers: [
-    ProjectsService,
-    ProjectsRepository,
-    TasksRepository,
-  ],
+  providers: [ProjectsService, ProjectsRepository, TasksRepository],
   exports: [ProjectsService],
 })
 export class ProjectsModule {}

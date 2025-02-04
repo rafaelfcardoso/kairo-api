@@ -94,7 +94,7 @@ export class TaskFilterDto {
     enum: TaskStatus,
     example: TaskStatus.PENDING,
     description: 'Filter tasks by status',
-    enumName: 'TaskStatus'
+    enumName: 'TaskStatus',
   })
   @IsEnum(TaskStatus)
   @IsOptional()
@@ -104,7 +104,7 @@ export class TaskFilterDto {
     enum: TaskPriority,
     example: TaskPriority.NONE,
     description: 'Filter tasks by priority',
-    enumName: 'TaskPriority'
+    enumName: 'TaskPriority',
   })
   @IsEnum(TaskPriority)
   @IsOptional()
@@ -142,7 +142,7 @@ export class TaskFilterDto {
   })
   @IsString()
   @Matches(/^\d{4}-\d{2}-\d{2}$/, {
-    message: 'dueDate must be in YYYY-MM-DD format'
+    message: 'dueDate must be in YYYY-MM-DD format',
   })
   @IsOptional()
   dueDate?: string;

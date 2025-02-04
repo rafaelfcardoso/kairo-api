@@ -98,7 +98,7 @@ export class Task {
   project: Project;
 
   @ApiProperty({ type: () => [Tag] })
-  @ManyToMany(() => Tag, tag => tag.tasks)
+  @ManyToMany(() => Tag, (tag) => tag.tasks)
   @JoinTable()
   tags: Tag[];
 

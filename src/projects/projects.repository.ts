@@ -17,7 +17,7 @@ export class ProjectsRepository extends TreeRepository<Project> {
 
   async getProjects(filterDto: ProjectFilterDto): Promise<Project[]> {
     const { search, includeArchived, includeSystem, parentId } = filterDto;
-    
+
     console.log('Filter DTO:', filterDto);
     console.log('includeSystem:', includeSystem);
     console.log('Type of includeSystem:', typeof includeSystem);
@@ -90,10 +90,11 @@ export class ProjectsRepository extends TreeRepository<Project> {
       ...project,
       tasksCount: project.tasks?.length || 0,
       completedTasksCount:
-        project.tasks?.filter((task) => task.status === TaskStatus.COMPLETED).length ||
-        0,
+        project.tasks?.filter((task) => task.status === TaskStatus.COMPLETED)
+          .length || 0,
       progress: project.tasks?.length
-        ? (project.tasks.filter((task) => task.status === TaskStatus.COMPLETED).length /
+        ? (project.tasks.filter((task) => task.status === TaskStatus.COMPLETED)
+            .length /
             project.tasks.length) *
           100
         : 0,
@@ -115,7 +116,8 @@ export class ProjectsRepository extends TreeRepository<Project> {
     // Calculate statistics
     project.tasksCount = project.tasks?.length || 0;
     project.completedTasksCount =
-      project.tasks?.filter((task) => task.status === TaskStatus.COMPLETED).length || 0;
+      project.tasks?.filter((task) => task.status === TaskStatus.COMPLETED)
+        .length || 0;
     project.progress = project.tasks?.length
       ? (project.completedTasksCount / project.tasksCount) * 100
       : 0;
@@ -249,9 +251,9 @@ export class ProjectsRepository extends TreeRepository<Project> {
       if (seen.has(currentId)) return true;
 
       seen.add(currentId);
-      const current = await this.findOne({ 
+      const current = await this.findOne({
         where: { id: currentId },
-        relations: ['parent']
+        relations: ['parent'],
       });
       currentId = current?.parent?.id;
     }
@@ -263,19 +265,29 @@ export class ProjectsRepository extends TreeRepository<Project> {
     const trees = await this.findTrees({
       relations: ['tasks'],
     });
-    return rootId ? trees.filter(tree => tree.id === rootId) : trees;
+    return rootId ? trees.filter((tree) => tree.id === rootId) : trees;
   }
 
   async getProjectAncestors(id: string): Promise<Project[]> {
     const project = await this.findOne({ where: { id } });
-    if (!project) throw new NotFoundException(`Project with ID "${id}" not found`);
-    return this.createAncestorsQueryBuilder('project', 'projectClosure', project).getMany();
+    if (!project)
+      throw new NotFoundException(`Project with ID "${id}" not found`);
+    return this.createAncestorsQueryBuilder(
+      'project',
+      'projectClosure',
+      project,
+    ).getMany();
   }
 
   async getProjectDescendants(id: string): Promise<Project[]> {
     const project = await this.findOne({ where: { id } });
-    if (!project) throw new NotFoundException(`Project with ID "${id}" not found`);
-    return this.createDescendantsQueryBuilder('project', 'projectClosure', project).getMany();
+    if (!project)
+      throw new NotFoundException(`Project with ID "${id}" not found`);
+    return this.createDescendantsQueryBuilder(
+      'project',
+      'projectClosure',
+      project,
+    ).getMany();
   }
 
   async moveProject(

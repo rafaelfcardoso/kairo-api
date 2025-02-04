@@ -88,4 +88,4 @@ export class InitialSchema1705759726000 implements MigrationInterface {
     await queryRunner.query(`DROP TYPE "task_status_enum"`);
     await queryRunner.query(`DROP EXTENSION IF EXISTS "uuid-ossp"`);
   }
-} 
+}

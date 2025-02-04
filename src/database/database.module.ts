@@ -6,4 +6,4 @@ import { DatabaseTestService } from './database-test.service';
   providers: [...databaseProviders, DatabaseTestService],
   exports: [...databaseProviders, DatabaseTestService],
 })
-export class DatabaseModule {} 
+export class DatabaseModule {}

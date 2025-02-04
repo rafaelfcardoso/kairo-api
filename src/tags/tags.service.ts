@@ -5,9 +5,7 @@ import { Tag } from './tags.entity';
 
 @Injectable()
 export class TagsService {
-  constructor(
-    private tagsRepository: TagsRepository,
-  ) {}
+  constructor(private tagsRepository: TagsRepository) {}
 
   async getTags(): Promise<Tag[]> {
     return this.tagsRepository.getTags();
@@ -41,17 +39,15 @@ export class TagsService {
     return this.tagsRepository.findSimilarTags(name);
   }
 
-  async getMostUsedTags(limit: number = 5): Promise<Array<{ tag: Tag; taskCount: number }>> {
+  async getMostUsedTags(
+    limit: number = 5,
+  ): Promise<Array<{ tag: Tag; taskCount: number }>> {
     const stats = await this.getTagStats();
-    return stats
-      .sort((a, b) => b.taskCount - a.taskCount)
-      .slice(0, limit);
+    return stats.sort((a, b) => b.taskCount - a.taskCount).slice(0, limit);
   }
 
   async getUnusedTags(): Promise<Tag[]> {
     const stats = await this.getTagStats();
-    return stats
-      .filter(stat => stat.taskCount === 0)
-      .map(stat => stat.tag);
+    return stats.filter((stat) => stat.taskCount === 0).map((stat) => stat.tag);
   }
-} 
+}

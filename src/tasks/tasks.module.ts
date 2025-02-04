@@ -9,16 +9,9 @@ import { ProjectsRepository } from '../projects/projects.repository';
 import { TagsRepository } from '../tags/tags.repository';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Task]),
-  ],
+  imports: [TypeOrmModule.forFeature([Task])],
   controllers: [TaskController],
-  providers: [
-    TaskService,
-    TasksRepository,
-    ProjectsRepository,
-    TagsRepository,
-  ],
+  providers: [TaskService, TasksRepository, ProjectsRepository, TagsRepository],
   exports: [TaskService],
 })
 export class TasksModule {}

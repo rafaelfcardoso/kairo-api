@@ -13,13 +13,19 @@ import {
   HttpCode,
   ValidationPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { ProjectsService } from './projects.service';
-import { 
-  CreateProjectDto, 
-  UpdateProjectDto, 
-  ProjectFilterDto, 
-  ProjectMoveDto 
+import {
+  CreateProjectDto,
+  UpdateProjectDto,
+  ProjectFilterDto,
+  ProjectMoveDto,
 } from './projects.dto';
 import { Project } from './projects.entity';
 
@@ -34,37 +40,39 @@ export class ProjectsController {
     name: 'search',
     required: false,
     type: String,
-    description: 'Search term to filter projects by name or description'
+    description: 'Search term to filter projects by name or description',
   })
   @ApiQuery({
     name: 'includeArchived',
     required: false,
     type: Boolean,
-    description: 'Whether to include archived projects in the results'
+    description: 'Whether to include archived projects in the results',
   })
   @ApiQuery({
     name: 'includeSystem',
     required: false,
     type: Boolean,
-    description: 'Whether to include system projects in the results'
+    description: 'Whether to include system projects in the results',
   })
   @ApiQuery({
     name: 'parentId',
     required: false,
     type: String,
-    description: 'Filter projects by parent ID (null for root projects)'
+    description: 'Filter projects by parent ID (null for root projects)',
   })
-  @ApiResponse({ 
-    status: HttpStatus.OK, 
+  @ApiResponse({
+    status: HttpStatus.OK,
     description: 'Retrieved projects successfully',
-    type: [Project]
+    type: [Project],
   })
   async getProjects(
-    @Query(new ValidationPipe({ 
-      transform: true,
-      transformOptions: { enableImplicitConversion: true }
-    })) 
-    filterDto: ProjectFilterDto
+    @Query(
+      new ValidationPipe({
+        transform: true,
+        transformOptions: { enableImplicitConversion: true },
+      }),
+    )
+    filterDto: ProjectFilterDto,
   ): Promise<Project[]> {
     return this.projectService.getProjects(filterDto);
   }
@@ -72,10 +80,10 @@ export class ProjectsController {
   @Get('tree')
   @ApiOperation({ summary: 'Get project hierarchy as a tree' })
   @ApiQuery({ name: 'rootId', required: false, type: String })
-  @ApiResponse({ 
-    status: HttpStatus.OK, 
+  @ApiResponse({
+    status: HttpStatus.OK,
     description: 'Retrieved project tree successfully',
-    type: [Project]
+    type: [Project],
   })
   async getProjectTree(@Query('rootId') rootId?: string): Promise<Project[]> {
     return this.projectService.getProjectTree(rootId);
@@ -84,10 +92,10 @@ export class ProjectsController {
   @Get('search')
   @ApiOperation({ summary: 'Search projects' })
   @ApiQuery({ name: 'query', required: true, type: String })
-  @ApiResponse({ 
-    status: HttpStatus.OK, 
+  @ApiResponse({
+    status: HttpStatus.OK,
     description: 'Search results',
-    type: [Project]
+    type: [Project],
   })
   async searchProjects(@Query('query') query: string): Promise<Project[]> {
     return this.projectService.searchProjects(query);
@@ -96,22 +104,24 @@ export class ProjectsController {
   @Get(':id')
   @ApiOperation({ summary: 'Get a project by ID' })
   @ApiParam({ name: 'id', type: String })
-  @ApiResponse({ 
-    status: HttpStatus.OK, 
+  @ApiResponse({
+    status: HttpStatus.OK,
     description: 'Retrieved project successfully',
-    type: Project
+    type: Project,
   })
-  async getProjectById(@Param('id', ParseUUIDPipe) id: string): Promise<Project> {
+  async getProjectById(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<Project> {
     return this.projectService.getProjectById(id);
   }
 
   @Get(':id/with-ancestors')
   @ApiOperation({ summary: 'Get project with its ancestors' })
   @ApiParam({ name: 'id', type: String })
-  @ApiResponse({ 
-    status: HttpStatus.OK, 
+  @ApiResponse({
+    status: HttpStatus.OK,
     description: 'Retrieved project with ancestors',
-    type: Project
+    type: Project,
   })
   async getProjectWithAncestors(@Param('id', ParseUUIDPipe) id: string) {
     return this.projectService.getProjectWithAncestors(id);
@@ -120,21 +130,23 @@ export class ProjectsController {
   @Get(':id/breadcrumb')
   @ApiOperation({ summary: 'Get project breadcrumb trail' })
   @ApiParam({ name: 'id', type: String })
-  @ApiResponse({ 
-    status: HttpStatus.OK, 
+  @ApiResponse({
+    status: HttpStatus.OK,
     description: 'Retrieved project breadcrumb',
-    type: [Project]
+    type: [Project],
   })
-  async getProjectBreadcrumb(@Param('id', ParseUUIDPipe) id: string): Promise<Project[]> {
+  async getProjectBreadcrumb(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<Project[]> {
     return this.projectService.getProjectBreadcrumb(id);
   }
 
   @Get(':id/stats')
   @ApiOperation({ summary: 'Get project statistics' })
   @ApiParam({ name: 'id', type: String })
-  @ApiResponse({ 
-    status: HttpStatus.OK, 
-    description: 'Retrieved project statistics'
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Retrieved project statistics',
   })
   async getProjectStats(@Param('id', ParseUUIDPipe) id: string) {
     return this.projectService.getProjectStats(id);
@@ -143,9 +155,9 @@ export class ProjectsController {
   @Get(':id/timeline')
   @ApiOperation({ summary: 'Get project timeline' })
   @ApiParam({ name: 'id', type: String })
-  @ApiResponse({ 
-    status: HttpStatus.OK, 
-    description: 'Retrieved project timeline'
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Retrieved project timeline',
   })
   async getProjectTimeline(@Param('id', ParseUUIDPipe) id: string) {
     return this.projectService.getProjectTimeline(id);
@@ -154,9 +166,9 @@ export class ProjectsController {
   @Get(':id/health')
   @ApiOperation({ summary: 'Get project health status' })
   @ApiParam({ name: 'id', type: String })
-  @ApiResponse({ 
-    status: HttpStatus.OK, 
-    description: 'Retrieved project health status'
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Retrieved project health status',
   })
   async getProjectHealth(@Param('id', ParseUUIDPipe) id: string) {
     return this.projectService.calculateProjectHealth(id);
@@ -164,12 +176,14 @@ export class ProjectsController {
 
   @Post()
   @ApiOperation({ summary: 'Create a new project' })
-  @ApiResponse({ 
-    status: HttpStatus.CREATED, 
+  @ApiResponse({
+    status: HttpStatus.CREATED,
     description: 'Project created successfully',
-    type: Project
+    type: Project,
   })
-  async createProject(@Body() createProjectDto: CreateProjectDto): Promise<Project> {
+  async createProject(
+    @Body() createProjectDto: CreateProjectDto,
+  ): Promise<Project> {
     return this.projectService.createProject(createProjectDto);
   }
 
@@ -178,26 +192,29 @@ export class ProjectsController {
   @ApiParam({ name: 'id', type: String })
   @ApiQuery({ name: 'includeSubprojects', required: false, type: Boolean })
   @ApiQuery({ name: 'includeTasks', required: false, type: Boolean })
-  @ApiResponse({ 
-    status: HttpStatus.CREATED, 
+  @ApiResponse({
+    status: HttpStatus.CREATED,
     description: 'Project duplicated successfully',
-    type: Project
+    type: Project,
   })
   async duplicateProject(
     @Param('id', ParseUUIDPipe) id: string,
     @Query('includeSubprojects') includeSubprojects?: boolean,
     @Query('includeTasks') includeTasks?: boolean,
   ): Promise<Project> {
-    return this.projectService.duplicateProject(id, { includeSubprojects, includeTasks });
+    return this.projectService.duplicateProject(id, {
+      includeSubprojects,
+      includeTasks,
+    });
   }
 
   @Put(':id')
   @ApiOperation({ summary: 'Update a project' })
   @ApiParam({ name: 'id', type: String })
-  @ApiResponse({ 
-    status: HttpStatus.OK, 
+  @ApiResponse({
+    status: HttpStatus.OK,
     description: 'Project updated successfully',
-    type: Project
+    type: Project,
   })
   async updateProject(
     @Param('id', ParseUUIDPipe) id: string,
@@ -208,9 +225,9 @@ export class ProjectsController {
 
   @Put('move')
   @ApiOperation({ summary: 'Move a project in the hierarchy' })
-  @ApiResponse({ 
-    status: HttpStatus.OK, 
-    description: 'Project moved successfully'
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Project moved successfully',
   })
   async moveProject(@Body() moveDto: ProjectMoveDto): Promise<void> {
     return this.projectService.moveProject(moveDto);
@@ -218,9 +235,9 @@ export class ProjectsController {
 
   @Put('reorder')
   @ApiOperation({ summary: 'Reorder projects' })
-  @ApiResponse({ 
-    status: HttpStatus.OK, 
-    description: 'Projects reordered successfully'
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Projects reordered successfully',
   })
   async reorderProjects(@Body() projectIds: string[]): Promise<void> {
     return this.projectService.reorderProjects(projectIds);
@@ -229,21 +246,23 @@ export class ProjectsController {
   @Put(':id/archive')
   @ApiOperation({ summary: 'Archive a project' })
   @ApiParam({ name: 'id', type: String })
-  @ApiResponse({ 
-    status: HttpStatus.OK, 
+  @ApiResponse({
+    status: HttpStatus.OK,
     description: 'Project archived successfully',
-    type: Project
+    type: Project,
   })
-  async archiveProject(@Param('id', ParseUUIDPipe) id: string): Promise<Project> {
+  async archiveProject(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<Project> {
     return this.projectService.archiveProject(id);
   }
 
   @Post('merge')
   @ApiOperation({ summary: 'Merge two projects' })
-  @ApiResponse({ 
-    status: HttpStatus.OK, 
+  @ApiResponse({
+    status: HttpStatus.OK,
     description: 'Projects merged successfully',
-    type: Project
+    type: Project,
   })
   async mergeProjects(
     @Body('sourceId', ParseUUIDPipe) sourceId: string,
@@ -256,9 +275,9 @@ export class ProjectsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a project' })
   @ApiParam({ name: 'id', type: String })
-  @ApiResponse({ 
-    status: HttpStatus.NO_CONTENT, 
-    description: 'Project deleted successfully'
+  @ApiResponse({
+    status: HttpStatus.NO_CONTENT,
+    description: 'Project deleted successfully',
   })
   async deleteProject(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     return this.projectService.deleteProject(id);

@@ -37,43 +37,43 @@ export class TaskController {
     name: 'status',
     required: false,
     enum: TaskStatus,
-    description: 'Filter tasks by status'
+    description: 'Filter tasks by status',
   })
   @ApiQuery({
     name: 'includeArchived',
     required: false,
     type: Boolean,
-    description: 'Include archived tasks in the results'
+    description: 'Include archived tasks in the results',
   })
   @ApiQuery({
     name: 'priority',
     required: false,
     enum: TaskPriority,
-    description: 'Filter tasks by priority'
+    description: 'Filter tasks by priority',
   })
   @ApiQuery({
     name: 'projectId',
     required: false,
     type: String,
-    description: 'Filter tasks by project ID'
+    description: 'Filter tasks by project ID',
   })
   @ApiQuery({
     name: 'tagIds',
     required: false,
     type: [String],
-    description: 'Filter tasks by tag IDs'
+    description: 'Filter tasks by tag IDs',
   })
   @ApiQuery({
     name: 'search',
     required: false,
     type: String,
-    description: 'Search term to filter tasks by title or description'
+    description: 'Search term to filter tasks by title or description',
   })
   @ApiQuery({
     name: 'dueDate',
     required: false,
     type: String,
-    description: 'Filter tasks by due date (YYYY-MM-DD format)'
+    description: 'Filter tasks by due date (YYYY-MM-DD format)',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -81,11 +81,13 @@ export class TaskController {
     type: [Task],
   })
   async getTasks(
-    @Query(new ValidationPipe({ 
-      transform: true,
-      transformOptions: { enableImplicitConversion: false }
-    })) 
-    filterDto: TaskFilterDto
+    @Query(
+      new ValidationPipe({
+        transform: true,
+        transformOptions: { enableImplicitConversion: false },
+      }),
+    )
+    filterDto: TaskFilterDto,
   ): Promise<Task[]> {
     return this.taskService.getTasks(filterDto);
   }
@@ -174,10 +176,10 @@ export class TaskController {
           type: 'string',
           enum: ['todo', 'in_progress', 'pending', 'completed'],
           description: 'The new status for the task',
-          example: 'completed'
-        }
-      }
-    }
+          example: 'completed',
+        },
+      },
+    },
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -203,10 +205,10 @@ export class TaskController {
           type: 'string',
           enum: ['none', 'low', 'medium', 'high'],
           description: 'The new priority for the task',
-          example: 'none'
-        }
-      }
-    }
+          example: 'none',
+        },
+      },
+    },
   })
   @ApiResponse({
     status: HttpStatus.OK,

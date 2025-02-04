@@ -51,6 +51,6 @@ export class Tag {
     type: () => [Task],
     description: 'Tasks associated with this tag',
   })
-  @ManyToMany(() => Task, task => task.tags)
+  @ManyToMany(() => Task, (task) => task.tags)
   tasks: Task[];
-} 
+}

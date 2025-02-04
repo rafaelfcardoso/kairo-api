@@ -63,7 +63,7 @@ export class TagsRepository extends Repository<Tag> {
       .loadRelationCountAndMap('tag.taskCount', 'tag.tasks')
       .getMany();
 
-    return tags.map(tag => ({
+    return tags.map((tag) => ({
       tag,
       taskCount: (tag as any).taskCount || 0,
     }));
@@ -74,4 +74,4 @@ export class TagsRepository extends Repository<Tag> {
       .where('LOWER(tag.name) LIKE LOWER(:name)', { name: `%${name}%` })
       .getMany();
   }
-} 
+}
