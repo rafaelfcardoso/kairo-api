@@ -28,11 +28,7 @@ async function bootstrap() {
   );
 
   // Get the public URL for Swagger
-  const publicUrl = process.env.RAILWAY_STATIC_URL
-    ? `https://${process.env.RAILWAY_STATIC_URL}`
-    : process.env.RAILWAY_PUBLIC_DOMAIN
-      ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-      : `http://localhost:${process.env.PORT || 3001}`;
+  const publicUrl = 'https://zenith-api-nest-development.up.railway.app';
 
   // Swagger setup with more details
   const config = new DocumentBuilder()
@@ -88,9 +84,8 @@ async function bootstrap() {
   // Debug environment variables
   console.log('Environment Variables:', {
     PORT: process.env.PORT,
-    RAILWAY_STATIC_URL: process.env.RAILWAY_STATIC_URL,
-    RAILWAY_PUBLIC_DOMAIN: process.env.RAILWAY_PUBLIC_DOMAIN,
     NODE_ENV: process.env.NODE_ENV,
+    PUBLIC_URL: publicUrl,
   });
 
   // Listen on all interfaces (important for Docker)
