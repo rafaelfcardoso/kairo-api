@@ -55,7 +55,7 @@ async function bootstrap() {
         description: 'Enter JWT token',
         in: 'header',
       },
-      'JWT-auth', // This name here is important for references
+      'JWT-auth',
     )
     .build();
 
@@ -75,12 +75,10 @@ async function bootstrap() {
   });
 
   // Get port from config or use 3001 as fallback
-  const port = configService.get('PORT') || 3001;
-  await app.listen(port);
-  console.log(`Application is running on: http://localhost:${port}`);
-  console.log(
-    `Swagger documentation available at: http://localhost:${port}/api`,
-  );
+  const port = process.env.PORT || configService.get('PORT') || 3001;
+  await app.listen(port, '0.0.0.0');
+  console.log(`Application is running on: ${await app.getUrl()}`);
+  console.log(`Swagger documentation available at: ${await app.getUrl()}/api`);
   console.log(`Database connection details:
     Host: ${configService.get('DB_HOST')}
     Port: ${configService.get('DB_PORT')}
