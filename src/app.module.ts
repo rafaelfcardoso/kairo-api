@@ -14,33 +14,36 @@ import { AppController } from './app.controller';
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        host:
-          configService.get('PGHOST') ||
-          configService.get('DB_HOST') ||
-          'localhost',
-        port:
-          parseInt(
-            configService.get('PGPORT') || configService.get('DB_PORT'),
+      useFactory: (configService: ConfigService) => {
+        const dbConfig = {
+          type: 'postgres' as const,
+          host: process.env.PGHOST || configService.get('DB_HOST'),
+          port: parseInt(
+            process.env.PGPORT || configService.get('DB_PORT'),
             10,
-          ) || 5432,
-        username:
-          configService.get('PGUSER') ||
-          configService.get('DB_USER') ||
-          'postgres',
-        password:
-          configService.get('PGPASSWORD') ||
-          configService.get('DB_PASS') ||
-          'postgres',
-        database:
-          configService.get('PGDATABASE') ||
-          configService.get('DB_NAME') ||
-          'zenith',
-        entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: true,
-        logging: true,
-      }),
+          ),
+          username: process.env.PGUSER || configService.get('DB_USER'),
+          password: process.env.PGPASSWORD || configService.get('DB_PASS'),
+          database: process.env.PGDATABASE || configService.get('DB_NAME'),
+          entities: [__dirname + '/**/*.entity{.ts,.js}'],
+          synchronize: true,
+          logging: true,
+          ssl:
+            process.env.NODE_ENV === 'production'
+              ? { rejectUnauthorized: false }
+              : false,
+        };
+
+        console.log('Database Configuration:', {
+          host: dbConfig.host,
+          port: dbConfig.port,
+          database: dbConfig.database,
+          username: dbConfig.username,
+          ssl: dbConfig.ssl,
+        });
+
+        return dbConfig;
+      },
       inject: [ConfigService],
     }),
     TasksModule,

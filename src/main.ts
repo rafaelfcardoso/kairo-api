@@ -74,15 +74,22 @@ async function bootstrap() {
     customSiteTitle: 'Zenith API Documentation',
   });
 
-  // Get port from config or use 3001 as fallback
-  const port = process.env.PORT || configService.get('PORT') || 3001;
-  await app.listen(port, '0.0.0.0');
-  console.log(`Application is running on: ${await app.getUrl()}`);
-  console.log(`Swagger documentation available at: ${await app.getUrl()}/api`);
-  console.log(`Database connection details:
-    Host: ${configService.get('DB_HOST')}
-    Port: ${configService.get('DB_PORT')}
-    Database: ${configService.get('DB_NAME')}
-  `);
+  const port = process.env.PORT || 3001;
+  const host = '0.0.0.0';
+
+  await app.listen(port, host);
+
+  const appUrl = await app.getUrl();
+  const publicUrl =
+    process.env.RAILWAY_STATIC_URL ||
+    appUrl.replace(`http://${host}`, 'http://localhost');
+
+  console.log(`Application is running on: ${publicUrl}`);
+  console.log(`Swagger documentation available at: ${publicUrl}/api`);
+  console.log('Database Configuration:', {
+    host: process.env.PGHOST || configService.get('DB_HOST'),
+    port: process.env.PGPORT || configService.get('DB_PORT'),
+    database: process.env.PGDATABASE || configService.get('DB_NAME'),
+  });
 }
 bootstrap();
