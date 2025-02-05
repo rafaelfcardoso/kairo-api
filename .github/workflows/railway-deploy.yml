@@ -29,23 +29,12 @@ jobs:
       - name: Install Railway CLI
         run: npm i -g @railway/cli
 
-      - name: 'Railway Deploy'
-        description: 'Simple Action to Deploy Railway App using Railway CLI'
-        inputs:
-          railway_token:
-            description: 'Railway Token for Deployment'
-            required: false
-          service:
-            description: 'The specific service target'
-            required: true
-          detach:
-            description: 'Detach option in the railway cli'
-            required: false
+      - name: Deploy to Railway
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
           RAILWAY_SERVICE_NAME: ${{ secrets.RAILWAY_SERVICE_NAME }}
-        runs:
-          args:
-            - ${{ inputs.service }}
-            - ${{ inputs.detach }}
+        run: |
+          railway login --ci $RAILWAY_TOKEN
+          railway link --project $RAILWAY_PROJECT_ID
+          railway up --service $RAILWAY_SERVICE_NAME --detach
