@@ -1,11 +1,13 @@
-name: Deploy to Railway
+name: Run Tests
 
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
-  deploy:
+  test:
     runs-on: ubuntu-latest
     environment: production
 
@@ -24,13 +26,4 @@ jobs:
 
       - name: Run Tests
         run: npm test
-        continue-on-error: true
-
-      - name: Install Railway CLI
-        run: npm i -g @railway/cli
-
-      - name: Deploy to Railway
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: |
-          railway up --service zenith-api-nest --environment development --project delightful-miracle
+        continue-on-error: true 
