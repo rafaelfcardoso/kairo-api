@@ -75,17 +75,29 @@ async function bootstrap() {
   });
 
   // Get port from Railway or fallback to default
-  const port = process.env.PORT || 3001;
+  const port = process.env.PORT || configService.get('PORT') || 3001;
+
+  // Debug environment variables
+  console.log('Environment Variables:', {
+    PORT: process.env.PORT,
+    RAILWAY_STATIC_URL: process.env.RAILWAY_STATIC_URL,
+    RAILWAY_PUBLIC_DOMAIN: process.env.RAILWAY_PUBLIC_DOMAIN,
+    NODE_ENV: process.env.NODE_ENV,
+  });
 
   // Listen on all interfaces
   await app.listen(port, '0.0.0.0');
 
-  // Get the application URL
+  // Get the actual URL the app is listening on
+  const serverUrl = await app.getUrl();
+  console.log(`Server is listening on: ${serverUrl}`);
+
+  // Get the public-facing URL
   const appUrl = process.env.RAILWAY_STATIC_URL
     ? `https://${process.env.RAILWAY_STATIC_URL}`
     : process.env.RAILWAY_PUBLIC_DOMAIN
       ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-      : `http://localhost:${port}`;
+      : serverUrl;
 
   console.log(`Application is running on: ${appUrl}`);
   console.log(`Swagger documentation available at: ${appUrl}/api`);
