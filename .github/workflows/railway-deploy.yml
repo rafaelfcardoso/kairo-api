@@ -36,4 +36,4 @@ jobs:
         run: |
           railway login --ci $RAILWAY_TOKEN
           railway link --project $RAILWAY_PROJECT_ID
-          railway up --service 58253aa6-ad9c-41f7-8871-2e1797b54d77 --detach
+          railway up --service delightful-miracle/zenith-api-nest --detach
