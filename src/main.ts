@@ -57,6 +57,10 @@ async function bootstrap() {
       },
       'JWT-auth',
     )
+    .addServer(
+      process.env.RAILWAY_STATIC_URL ||
+        `http://localhost:${process.env.PORT || 3001}`,
+    )
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

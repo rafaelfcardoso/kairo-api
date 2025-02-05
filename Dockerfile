@@ -40,5 +40,5 @@ EXPOSE 3001
 # Set NODE_ENV
 ENV NODE_ENV=production
 
-# Start the application
-CMD ["npm", "run", "start:prod"] 
+# Use PORT environment variable provided by Railway
+CMD ["sh", "-c", "npm run start:prod -- --port ${PORT}"] 
