@@ -34,5 +34,5 @@ jobs:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           RAILWAY_PROJECT_ID: d7ce16f8-4e34-4f32-9f8f-d5d621621422
         run: |
-          railway link $RAILWAY_PROJECT_ID
+          railway link --project $RAILWAY_PROJECT_ID
           railway up --service 58253aa6-ad9c-41f7-8871-2e1797b54d77
