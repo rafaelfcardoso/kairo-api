@@ -74,17 +74,21 @@ async function bootstrap() {
     customSiteTitle: 'Zenith API Documentation',
   });
 
-  // Get port and host configuration
+  // Get port from Railway or fallback to default
   const port = process.env.PORT || 3001;
+
+  // Listen on all interfaces
   await app.listen(port, '0.0.0.0');
 
-  // Get the Railway-provided URL or construct a local one
-  const railwayUrl = process.env.RAILWAY_PUBLIC_DOMAIN
-    ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-    : `http://localhost:${port}`;
+  // Get the application URL
+  const appUrl = process.env.RAILWAY_STATIC_URL
+    ? `https://${process.env.RAILWAY_STATIC_URL}`
+    : process.env.RAILWAY_PUBLIC_DOMAIN
+      ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+      : `http://localhost:${port}`;
 
-  console.log(`Application is running on: ${railwayUrl}`);
-  console.log(`Swagger documentation available at: ${railwayUrl}/api`);
+  console.log(`Application is running on: ${appUrl}`);
+  console.log(`Swagger documentation available at: ${appUrl}/api`);
   console.log('Database Configuration:', {
     host: process.env.PGHOST || configService.get('DB_HOST'),
     port: process.env.PGPORT || configService.get('DB_PORT'),

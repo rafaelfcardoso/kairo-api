@@ -15,6 +15,24 @@ import { AppController } from './app.controller';
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
+        // Check if DATABASE_PUBLIC_URL is provided
+        const databaseUrl = process.env.DATABASE_PUBLIC_URL;
+
+        if (databaseUrl) {
+          return {
+            type: 'postgres' as const,
+            url: databaseUrl,
+            entities: [__dirname + '/**/*.entity{.ts,.js}'],
+            synchronize: true,
+            logging: true,
+            ssl:
+              process.env.NODE_ENV === 'production'
+                ? { rejectUnauthorized: false }
+                : false,
+          };
+        }
+
+        // Fallback to individual connection parameters
         const dbConfig = {
           type: 'postgres' as const,
           host: process.env.PGHOST || configService.get('DB_HOST'),
