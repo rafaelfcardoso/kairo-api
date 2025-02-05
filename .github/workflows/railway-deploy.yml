@@ -32,8 +32,5 @@ jobs:
       - name: Deploy to Railway
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-          RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
         run: |
-          railway login --ci $RAILWAY_TOKEN
-          railway link --project $RAILWAY_PROJECT_ID
-          railway up --service delightful-miracle/zenith-api-nest --detach
+          railway up --service zenith-api-nest --environment development --project delightful-miracle
