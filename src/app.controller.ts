@@ -1,11 +1,15 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
+import { DataSource } from 'typeorm';
 
 @ApiTags('App')
 @Controller()
 export class AppController {
-  constructor(private configService: ConfigService) {}
+  constructor(
+    private configService: ConfigService,
+    private dataSource: DataSource,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Root endpoint' })
@@ -16,7 +20,11 @@ export class AppController {
   @Get('health')
   @ApiOperation({ summary: 'Health check endpoint' })
   @ApiResponse({ status: 200, description: 'Application is healthy' })
-  healthCheck() {
+  async healthCheck() {
+    const dbStatus = this.dataSource.isInitialized
+      ? 'connected'
+      : 'disconnected';
+
     return {
       status: 'ok',
       timestamp: new Date().toISOString(),
@@ -24,6 +32,9 @@ export class AppController {
       version: process.env.npm_package_version || '1.0.0',
       uptime: process.uptime(),
       memoryUsage: process.memoryUsage(),
+      database: {
+        status: dbStatus,
+      },
     };
   }
 }
