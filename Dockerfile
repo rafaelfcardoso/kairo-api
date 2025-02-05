@@ -34,11 +34,11 @@ RUN apk add --no-cache python3 make g++ && \
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
 
-# Expose port
-EXPOSE 3001
+# Expose port (this is for documentation, Railway will override with PORT env var)
+EXPOSE 8080
 
 # Set NODE_ENV
 ENV NODE_ENV=production
 
-# Use PORT environment variable provided by Railway
-CMD ["sh", "-c", "npm run start:prod -- --port ${PORT}"] 
+# Start the application using the PORT environment variable
+CMD ["sh", "-c", "npm run start:prod"] 

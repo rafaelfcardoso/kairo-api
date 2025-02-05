@@ -27,6 +27,13 @@ async function bootstrap() {
     }),
   );
 
+  // Get the public URL for Swagger
+  const publicUrl = process.env.RAILWAY_STATIC_URL
+    ? `https://${process.env.RAILWAY_STATIC_URL}`
+    : process.env.RAILWAY_PUBLIC_DOMAIN
+      ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+      : `http://localhost:${process.env.PORT || 3001}`;
+
   // Swagger setup with more details
   const config = new DocumentBuilder()
     .setTitle('Zenith API')
@@ -57,10 +64,7 @@ async function bootstrap() {
       },
       'JWT-auth',
     )
-    .addServer(
-      process.env.RAILWAY_STATIC_URL ||
-        `http://localhost:${process.env.PORT || 3001}`,
-    )
+    .addServer(publicUrl, 'API Server')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
@@ -79,7 +83,7 @@ async function bootstrap() {
   });
 
   // Get port from Railway or fallback to default
-  const port = process.env.PORT || configService.get('PORT') || 3001;
+  const port = process.env.PORT || 3001;
 
   // Debug environment variables
   console.log('Environment Variables:', {
@@ -89,22 +93,12 @@ async function bootstrap() {
     NODE_ENV: process.env.NODE_ENV,
   });
 
-  // Listen on all interfaces
+  // Listen on all interfaces (important for Docker)
   await app.listen(port, '0.0.0.0');
 
-  // Get the actual URL the app is listening on
-  const serverUrl = await app.getUrl();
-  console.log(`Server is listening on: ${serverUrl}`);
-
-  // Get the public-facing URL
-  const appUrl = process.env.RAILWAY_STATIC_URL
-    ? `https://${process.env.RAILWAY_STATIC_URL}`
-    : process.env.RAILWAY_PUBLIC_DOMAIN
-      ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-      : serverUrl;
-
-  console.log(`Application is running on: ${appUrl}`);
-  console.log(`Swagger documentation available at: ${appUrl}/api`);
+  console.log(`Server is listening on port ${port}`);
+  console.log(`Application is running on: ${publicUrl}`);
+  console.log(`Swagger documentation available at: ${publicUrl}/api`);
   console.log('Database Configuration:', {
     host: process.env.PGHOST || configService.get('DB_HOST'),
     port: process.env.PGPORT || configService.get('DB_PORT'),
