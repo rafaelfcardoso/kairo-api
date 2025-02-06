@@ -197,6 +197,13 @@ export class ProjectsRepository extends TreeRepository<Project> {
   async deleteProject(id: string): Promise<void> {
     const project = await this.getProjectById(id);
 
+    // Prevent deletion of system projects
+    if (project.isSystem) {
+      throw new BadRequestException(
+        `Cannot delete system project "${project.name}"`,
+      );
+    }
+
     // Check if project has children
     if (project.children?.length > 0) {
       throw new BadRequestException('Cannot delete project with sub-projects');
