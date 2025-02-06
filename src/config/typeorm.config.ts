@@ -8,6 +8,7 @@ import { FocusSession } from '../entities/focus-session.entity';
 import { BlockRule } from '../entities/block-rule.entity';
 import { InitialSchema1705759726000 } from '../migrations/1705759726000-InitialSchema';
 import { FixProjectColors1738362321118 } from '../migrations/1738362321118-FixProjectColors';
+import { EnsureInboxProject1738362321119 } from '../migrations/1738362321119-EnsureInboxProject';
 
 export const typeOrmConfig: TypeOrmModuleOptions = {
   type: 'postgres',
@@ -17,7 +18,11 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
   password: process.env.DB_PASSWORD || 'postgres',
   database: process.env.DB_DATABASE || 'zenith',
   entities: [Task, Project, Tag, FocusSession, BlockRule],
-  migrations: [InitialSchema1705759726000, FixProjectColors1738362321118],
+  migrations: [
+    InitialSchema1705759726000,
+    FixProjectColors1738362321118,
+    EnsureInboxProject1738362321119,
+  ],
   synchronize: false,
   logging: true,
 };
