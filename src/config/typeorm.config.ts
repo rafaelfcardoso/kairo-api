@@ -9,6 +9,7 @@ import { BlockRule } from '../entities/block-rule.entity';
 import { InitialSchema1705759726000 } from '../migrations/1705759726000-InitialSchema';
 import { FixProjectColors1738362321118 } from '../migrations/1738362321118-FixProjectColors';
 import { EnsureInboxProject1738362321119 } from '../migrations/1738362321119-EnsureInboxProject';
+import { AddHasTimeToTasks1738934197033 } from '../migrations/1738934197033-AddHasTimeToTasks';
 
 export const typeOrmConfig: TypeOrmModuleOptions = {
   type: 'postgres',
@@ -22,6 +23,7 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
     InitialSchema1705759726000,
     FixProjectColors1738362321118,
     EnsureInboxProject1738362321119,
+    AddHasTimeToTasks1738934197033,
   ],
   synchronize: false,
   logging: true,

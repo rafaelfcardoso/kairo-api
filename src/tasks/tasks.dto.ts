@@ -53,6 +53,14 @@ export class CreateTaskDto {
   dueDate?: string;
 
   @ApiPropertyOptional({
+    example: false,
+    description: 'Whether the task has a specific time set for the due date',
+  })
+  @IsBoolean()
+  @IsOptional()
+  hasTime?: boolean;
+
+  @ApiPropertyOptional({
     example: ['123e4567-e89b-12d3-a456-426614174000'],
     description: 'Array of tag IDs to associate with the task',
   })

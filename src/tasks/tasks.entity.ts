@@ -83,6 +83,13 @@ export class Task {
   @Column({ nullable: true })
   dueDate: Date;
 
+  @ApiProperty({
+    example: false,
+    description: 'Whether the task has a specific time set for the due date',
+  })
+  @Column({ default: false })
+  hasTime: boolean;
+
   @Column({ default: 0 })
   estimatedMinutes: number;
 
