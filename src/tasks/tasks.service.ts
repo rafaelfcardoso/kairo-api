@@ -5,6 +5,7 @@ import { TasksRepository } from './tasks.repository';
 import { ProjectsRepository } from '../projects/projects.repository';
 import { TagsRepository } from '../tags/tags.repository';
 import { Task, TaskStatus, TaskPriority } from './tasks.entity';
+import { Project, ProjectType } from '../projects/projects.entity';
 import { CreateTaskDto, UpdateTaskDto, TaskFilterDto } from './tasks.dto';
 import { Repository } from 'typeorm';
 
@@ -57,13 +58,18 @@ export class TaskService {
 
     const { projectId, ...taskData } = createTaskDto;
 
-    // If no project specified, assign to Inbox
-    if (!projectId) {
-      taskData['projectId'] = '569c363f-1934-4e69-b324-6c2fad28bc59';
+    // Always ensure a project is assigned
+    const project = projectId 
+      ? await this.projectsRepository.findOne({ where: { id: projectId } })
+      : await this.getInboxProject();
+
+    if (!project) {
+      throw new NotFoundException(`Project with ID "${projectId}" not found`);
     }
 
     const task = this.taskRepository.create({
       ...taskData,
+      project,
       status: TaskStatus.TODO,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -78,12 +84,20 @@ export class TaskService {
 
     const { projectId, ...taskData } = updateTaskDto;
 
-    // If project is being removed, assign to Inbox
-    if (projectId === null) {
-      taskData['projectId'] = '569c363f-1934-4e69-b324-6c2fad28bc59';
-    }
-
     const task = await this.getTaskById(id);
+    
+    // If project is being changed
+    if (projectId !== undefined) {
+      const project = projectId 
+        ? await this.projectsRepository.findOne({ where: { id: projectId } })
+        : await this.getInboxProject();
+
+      if (!project) {
+        throw new NotFoundException(`Project with ID "${projectId}" not found`);
+      }
+
+      task.project = project;
+    }
     
     // Update the task
     Object.assign(task, {
@@ -92,6 +106,18 @@ export class TaskService {
     });
 
     return this.taskRepository.save(task);
+  }
+
+  private async getInboxProject(): Promise<Project> {
+    const inboxProject = await this.projectsRepository.findOne({
+      where: { type: ProjectType.INBOX }
+    });
+
+    if (!inboxProject) {
+      throw new Error('Inbox project not found. This is a system configuration error.');
+    }
+
+    return inboxProject;
   }
 
   async deleteTask(id: string): Promise<void> {

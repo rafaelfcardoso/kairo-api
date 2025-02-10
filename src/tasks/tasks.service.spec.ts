@@ -2,10 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TaskService } from './tasks.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Task, TaskStatus, TaskPriority } from './tasks.entity';
+import { Project, ProjectType } from '../projects/projects.entity';
 import { TasksRepository } from './tasks.repository';
 import { ProjectsRepository } from '../projects/projects.repository';
 import { TagsRepository } from '../tags/tags.repository';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 
 describe('TaskService', () => {
@@ -14,6 +15,12 @@ describe('TaskService', () => {
   let tasksRepository: TasksRepository;
   let projectsRepository: ProjectsRepository;
   let tagsRepository: TagsRepository;
+
+  const mockInboxProject = {
+    id: '569c363f-1934-4e69-b324-6c2fad28bc59',
+    name: 'Inbox',
+    type: ProjectType.INBOX,
+  };
 
   const mockTaskRepository = {
     create: jest.fn(),
@@ -28,7 +35,19 @@ describe('TaskService', () => {
   };
 
   const mockProjectsRepository = {
-    findOne: jest.fn(),
+    findOne: jest.fn().mockImplementation(({ where }) => {
+      if (where.type === ProjectType.INBOX) {
+        return Promise.resolve(mockInboxProject);
+      }
+      if (where.id) {
+        return Promise.resolve({
+          id: where.id,
+          name: 'Test Project',
+          type: ProjectType.REGULAR,
+        });
+      }
+      return Promise.resolve(null);
+    }),
   };
 
   const mockTagsRepository = {
@@ -63,6 +82,9 @@ describe('TaskService', () => {
     tasksRepository = module.get<TasksRepository>(TasksRepository);
     projectsRepository = module.get<ProjectsRepository>(ProjectsRepository);
     tagsRepository = module.get<TagsRepository>(TagsRepository);
+
+    // Reset all mocks before each test
+    jest.clearAllMocks();
   });
 
   describe('validateDueDate', () => {
@@ -114,18 +136,21 @@ describe('TaskService', () => {
 
       mockTaskRepository.create.mockReturnValue({
         ...createTaskDto,
+        project: mockInboxProject,
         status: TaskStatus.TODO,
       });
 
       mockTaskRepository.save.mockResolvedValue({
         id: '123',
         ...createTaskDto,
+        project: mockInboxProject,
         status: TaskStatus.TODO,
       });
 
       const result = await service.createTask(createTaskDto);
 
       expect(result.dueDate).toBe(validDate);
+      expect(result.project).toBeDefined();
       expect(mockTaskRepository.create).toHaveBeenCalled();
       expect(mockTaskRepository.save).toHaveBeenCalled();
     });
@@ -182,6 +207,125 @@ describe('TaskService', () => {
       });
 
       await expect(service.updateTask('123', updateTaskDto)).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('Project Assignment', () => {
+    it('should assign task to specified project when creating task', async () => {
+      const projectId = 'test-project-id';
+      const mockProject = { 
+        id: projectId, 
+        name: 'Test Project',
+        type: ProjectType.REGULAR,
+      };
+      
+      mockProjectsRepository.findOne.mockResolvedValue(mockProject);
+      mockTaskRepository.create.mockReturnValue({
+        title: 'Test Task',
+        project: mockProject,
+      });
+      mockTaskRepository.save.mockResolvedValue({
+        id: 'test-task-id',
+        title: 'Test Task',
+        project: mockProject,
+      });
+
+      const createTaskDto = {
+        title: 'Test Task',
+        projectId: projectId,
+      };
+
+      const result = await service.createTask(createTaskDto);
+
+      expect(result.project).toBeDefined();
+      expect(result.project.id).toBe(projectId);
+      expect(mockProjectsRepository.findOne).toHaveBeenCalledWith({
+        where: { id: projectId },
+      });
+    });
+
+    it('should assign task to Inbox project when no project specified during creation', async () => {
+      mockProjectsRepository.findOne.mockResolvedValue(mockInboxProject);
+      mockTaskRepository.create.mockReturnValue({
+        title: 'Test Task',
+        project: mockInboxProject,
+      });
+      mockTaskRepository.save.mockResolvedValue({
+        id: 'test-task-id',
+        title: 'Test Task',
+        project: mockInboxProject,
+      });
+
+      const createTaskDto = {
+        title: 'Test Task',
+      };
+
+      const result = await service.createTask(createTaskDto);
+
+      expect(result.project).toBeDefined();
+      expect(result.project.id).toBe(mockInboxProject.id);
+      expect(mockProjectsRepository.findOne).toHaveBeenCalledWith({
+        where: { type: ProjectType.INBOX },
+      });
+    });
+
+    it('should assign task to Inbox project when project is explicitly set to null during update', async () => {
+      const existingTask = {
+        id: 'test-task-id',
+        title: 'Test Task',
+        project: { 
+          id: 'old-project-id', 
+          name: 'Old Project',
+          type: ProjectType.REGULAR,
+        },
+      };
+
+      mockTasksRepository.getTaskById.mockResolvedValue(existingTask);
+      mockProjectsRepository.findOne.mockResolvedValue(mockInboxProject);
+      mockTaskRepository.save.mockResolvedValue({
+        ...existingTask,
+        project: mockInboxProject,
+      });
+
+      const updateTaskDto = {
+        projectId: null,
+      };
+
+      const result = await service.updateTask('test-task-id', updateTaskDto);
+
+      expect(result.project).toBeDefined();
+      expect(result.project.id).toBe(mockInboxProject.id);
+      expect(mockProjectsRepository.findOne).toHaveBeenCalledWith({
+        where: { type: ProjectType.INBOX },
+      });
+    });
+
+    it('should throw error when specified project does not exist', async () => {
+      const projectId = 'non-existent-project';
+      mockProjectsRepository.findOne.mockResolvedValue(null);
+
+      const createTaskDto = {
+        title: 'Test Task',
+        projectId: projectId,
+      };
+
+      await expect(service.createTask(createTaskDto)).rejects.toThrow(NotFoundException);
+      expect(mockProjectsRepository.findOne).toHaveBeenCalledWith({
+        where: { id: projectId },
+      });
+    });
+
+    it('should throw error when Inbox project does not exist', async () => {
+      mockProjectsRepository.findOne.mockResolvedValue(null);
+
+      const createTaskDto = {
+        title: 'Test Task',
+      };
+
+      await expect(service.createTask(createTaskDto)).rejects.toThrow('Inbox project not found');
+      expect(mockProjectsRepository.findOne).toHaveBeenCalledWith({
+        where: { type: ProjectType.INBOX },
+      });
     });
   });
 });
