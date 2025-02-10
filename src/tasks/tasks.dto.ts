@@ -53,9 +53,9 @@ export class CreateTaskDto {
     example: '2024-12-31T23:59:59.999Z',
     description: 'Due date of the task in ISO 8601 format',
   })
+  @IsISO8601({ strict: true, strictSeparator: true })
   @IsOptional()
-  @IsISO8601({ strict: true })
-  @ValidateIf((o) => o.dueDate !== null)
+  @ValidateIf((object, value) => value !== null)
   dueDate?: string;
 
   @ApiPropertyOptional({
