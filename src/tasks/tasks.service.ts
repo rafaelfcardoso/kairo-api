@@ -1,11 +1,12 @@
 // src/services/task.service.ts
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { TasksRepository } from './tasks.repository';
 import { ProjectsRepository } from '../projects/projects.repository';
 import { TagsRepository } from '../tags/tags.repository';
 import { Task, TaskStatus, TaskPriority } from './tasks.entity';
 import { CreateTaskDto, UpdateTaskDto, TaskFilterDto } from './tasks.dto';
+import { Repository } from 'typeorm';
 
 @Injectable()
 export class TaskService {
@@ -13,7 +14,34 @@ export class TaskService {
     private tasksRepository: TasksRepository,
     private projectsRepository: ProjectsRepository,
     private tagsRepository: TagsRepository,
+    @InjectRepository(Task)
+    private taskRepository: Repository<Task>,
   ) {}
+
+  private validateDueDate(dueDate: string | null): void {
+    if (!dueDate) return;
+
+    const dueDateObj = new Date(dueDate);
+    const now = new Date();
+
+    // Check if date is valid
+    if (isNaN(dueDateObj.getTime())) {
+      throw new BadRequestException('Invalid due date format');
+    }
+
+    // Check if date has timezone information
+    if (!dueDate.includes('Z') && !dueDate.includes('+')) {
+      throw new BadRequestException('Due date must include timezone information');
+    }
+
+    // Optional: Enforce business rules about minimum/maximum dates
+    const maxDate = new Date();
+    maxDate.setFullYear(maxDate.getFullYear() + 5); // Max 5 years in future
+    
+    if (dueDateObj > maxDate) {
+      throw new BadRequestException('Due date cannot be more than 5 years in the future');
+    }
+  }
 
   async getTasks(filterDto: TaskFilterDto): Promise<Task[]> {
     return this.tasksRepository.getTasks(filterDto);
@@ -24,6 +52,9 @@ export class TaskService {
   }
 
   async createTask(createTaskDto: CreateTaskDto): Promise<Task> {
+    // Validate due date if provided
+    this.validateDueDate(createTaskDto.dueDate);
+
     const { projectId, ...taskData } = createTaskDto;
 
     // If no project specified, assign to Inbox
@@ -31,10 +62,20 @@ export class TaskService {
       taskData['projectId'] = '569c363f-1934-4e69-b324-6c2fad28bc59';
     }
 
-    return this.tasksRepository.createTask({ projectId, ...taskData });
+    const task = this.taskRepository.create({
+      ...taskData,
+      status: TaskStatus.TODO,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    return this.taskRepository.save(task);
   }
 
   async updateTask(id: string, updateTaskDto: UpdateTaskDto): Promise<Task> {
+    // Validate due date if provided
+    this.validateDueDate(updateTaskDto.dueDate);
+
     const { projectId, ...taskData } = updateTaskDto;
 
     // If project is being removed, assign to Inbox
@@ -42,7 +83,15 @@ export class TaskService {
       taskData['projectId'] = '569c363f-1934-4e69-b324-6c2fad28bc59';
     }
 
-    return this.tasksRepository.updateTask(id, { projectId, ...taskData });
+    const task = await this.getTaskById(id);
+    
+    // Update the task
+    Object.assign(task, {
+      ...taskData,
+      updatedAt: new Date().toISOString(),
+    });
+
+    return this.taskRepository.save(task);
   }
 
   async deleteTask(id: string): Promise<void> {

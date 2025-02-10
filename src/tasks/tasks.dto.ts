@@ -13,6 +13,9 @@ import {
   MinLength,
   IsDateString,
   Matches,
+  IsISO8601,
+  MaxLength,
+  ValidateIf,
 } from 'class-validator';
 import { TaskStatus, TaskPriority } from './tasks.entity';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -25,6 +28,7 @@ export class CreateTaskDto {
   })
   @IsString()
   @MinLength(3)
+  @MaxLength(255)
   title: string;
 
   @ApiPropertyOptional({
@@ -33,6 +37,7 @@ export class CreateTaskDto {
   })
   @IsString()
   @IsOptional()
+  @MaxLength(2000)
   description?: string;
 
   @ApiPropertyOptional({
@@ -48,8 +53,9 @@ export class CreateTaskDto {
     example: '2024-12-31T23:59:59.999Z',
     description: 'Due date of the task in ISO 8601 format',
   })
-  @IsDateString()
   @IsOptional()
+  @IsISO8601({ strict: true })
+  @ValidateIf((o) => o.dueDate !== null)
   dueDate?: string;
 
   @ApiPropertyOptional({
