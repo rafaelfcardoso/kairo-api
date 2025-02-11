@@ -27,6 +27,7 @@ export class CreateTaskDto {
     description: 'The title of the task',
   })
   @IsString()
+  @IsNotEmpty()
   @MinLength(3)
   @MaxLength(255)
   title: string;
@@ -51,11 +52,11 @@ export class CreateTaskDto {
 
   @ApiPropertyOptional({
     example: '2024-12-31T23:59:59.999Z',
-    description: 'Due date of the task in ISO 8601 format',
+    description: 'Due date of the task in ISO 8601 format with timezone',
   })
-  @IsISO8601({ strict: true, strictSeparator: true })
+  @IsISO8601({ strict: true })
+  @ValidateIf((o) => o.dueDate !== null && o.dueDate !== undefined)
   @IsOptional()
-  @ValidateIf((object, value) => value !== null)
   dueDate?: string;
 
   @ApiPropertyOptional({

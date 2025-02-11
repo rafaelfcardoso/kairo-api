@@ -1,5 +1,9 @@
 // src/services/task.service.ts
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { TasksRepository } from './tasks.repository';
 import { ProjectsRepository } from '../projects/projects.repository';
@@ -32,15 +36,19 @@ export class TaskService {
 
     // Check if date has timezone information
     if (!dueDate.includes('Z') && !dueDate.includes('+')) {
-      throw new BadRequestException('Due date must include timezone information');
+      throw new BadRequestException(
+        'Due date must include timezone information',
+      );
     }
 
     // Optional: Enforce business rules about minimum/maximum dates
     const maxDate = new Date();
     maxDate.setFullYear(maxDate.getFullYear() + 5); // Max 5 years in future
-    
+
     if (dueDateObj > maxDate) {
-      throw new BadRequestException('Due date cannot be more than 5 years in the future');
+      throw new BadRequestException(
+        'Due date cannot be more than 5 years in the future',
+      );
     }
   }
 
@@ -59,7 +67,7 @@ export class TaskService {
     const { projectId, ...taskData } = createTaskDto;
 
     // Always ensure a project is assigned
-    const project = projectId 
+    const project = projectId
       ? await this.projectsRepository.findOne({ where: { id: projectId } })
       : await this.getInboxProject();
 
@@ -67,12 +75,12 @@ export class TaskService {
       throw new NotFoundException(`Project with ID "${projectId}" not found`);
     }
 
+    // Convert dueDate string to Date object if present
     const task = this.taskRepository.create({
       ...taskData,
+      dueDate: taskData.dueDate ? new Date(taskData.dueDate) : null,
       project,
       status: TaskStatus.NOT_STARTED,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
     });
 
     return this.taskRepository.save(task);
@@ -85,10 +93,10 @@ export class TaskService {
     const { projectId, ...taskData } = updateTaskDto;
 
     const task = await this.getTaskById(id);
-    
+
     // If project is being changed
     if (projectId !== undefined) {
-      const project = projectId 
+      const project = projectId
         ? await this.projectsRepository.findOne({ where: { id: projectId } })
         : await this.getInboxProject();
 
@@ -98,11 +106,11 @@ export class TaskService {
 
       task.project = project;
     }
-    
+
     // Update the task
     Object.assign(task, {
       ...taskData,
-      updatedAt: new Date().toISOString(),
+      dueDate: taskData.dueDate ? new Date(taskData.dueDate) : task.dueDate,
     });
 
     return this.taskRepository.save(task);
@@ -110,11 +118,13 @@ export class TaskService {
 
   private async getInboxProject(): Promise<Project> {
     const inboxProject = await this.projectsRepository.findOne({
-      where: { type: ProjectType.INBOX }
+      where: { type: ProjectType.INBOX },
     });
 
     if (!inboxProject) {
-      throw new Error('Inbox project not found. This is a system configuration error.');
+      throw new Error(
+        'Inbox project not found. This is a system configuration error.',
+      );
     }
 
     return inboxProject;

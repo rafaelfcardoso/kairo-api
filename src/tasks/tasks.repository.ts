@@ -141,7 +141,7 @@ export class TasksRepository extends Repository<Task> {
         completed: TaskStatus.COMPLETED,
       })
       .andWhere(
-        'task.dueDate BETWEEN CURRENT_DATE AND (CURRENT_DATE + :days)',
+        "task.dueDate BETWEEN CURRENT_DATE AND (CURRENT_DATE + :days * INTERVAL '1 day')",
         { days },
       );
 
