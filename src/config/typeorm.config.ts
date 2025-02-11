@@ -11,6 +11,7 @@ import { FixProjectColors1738362321118 } from '../migrations/1738362321118-FixPr
 import { EnsureInboxProject1738362321119 } from '../migrations/1738362321119-EnsureInboxProject';
 import { AddHasTimeToTasks1738934197033 } from '../migrations/1738934197033-AddHasTimeToTasks';
 import { UpdateTaskStatusEnum1739279174960 } from '../migrations/1739279174960-UpdateTaskStatusEnum';
+import { EnsureValidTaskStatuses1739279174961 } from '../migrations/1739279174961-EnsureValidTaskStatuses';
 
 export const typeOrmConfig: TypeOrmModuleOptions = {
   type: 'postgres',
@@ -26,9 +27,14 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
     EnsureInboxProject1738362321119,
     AddHasTimeToTasks1738934197033,
     UpdateTaskStatusEnum1739279174960,
+    EnsureValidTaskStatuses1739279174961,
   ],
+  // Explicitly disable synchronize to prevent automatic schema updates
+  // This ensures that all schema changes are handled through migrations
   synchronize: false,
   logging: true,
+  // Add migrationsRun to ensure migrations are executed on application start
+  migrationsRun: true,
 };
 
 export default new DataSource({
