@@ -10,6 +10,7 @@ import { InitialSchema1705759726000 } from '../migrations/1705759726000-InitialS
 import { FixProjectColors1738362321118 } from '../migrations/1738362321118-FixProjectColors';
 import { EnsureInboxProject1738362321119 } from '../migrations/1738362321119-EnsureInboxProject';
 import { AddHasTimeToTasks1738934197033 } from '../migrations/1738934197033-AddHasTimeToTasks';
+import { UpdateTaskStatusEnum1739279174960 } from '../migrations/1739279174960-UpdateTaskStatusEnum';
 
 export const typeOrmConfig: TypeOrmModuleOptions = {
   type: 'postgres',
@@ -24,6 +25,7 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
     FixProjectColors1738362321118,
     EnsureInboxProject1738362321119,
     AddHasTimeToTasks1738934197033,
+    UpdateTaskStatusEnum1739279174960,
   ],
   synchronize: false,
   logging: true,
