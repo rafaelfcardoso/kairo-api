@@ -12,8 +12,12 @@ async function bootstrap() {
   // Get ConfigService
   const configService = app.get(ConfigService);
 
-  // Enable CORS
-  app.enableCors();
+  // Enable CORS with configuration
+  app.enableCors({
+    origin: configService.get('cors.origin'),
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true,
+  });
 
   // Validation pipe with proper settings
   app.useGlobalPipes(
@@ -27,8 +31,20 @@ async function bootstrap() {
     }),
   );
 
-  // Get the public URL for Swagger
-  const publicUrl = 'https://zenith-api-nest-development.up.railway.app';
+  // Get the public URL based on environment
+  const nodeEnv = process.env.NODE_ENV || 'local';
+  const port = process.env.PORT || 3001;
+  const publicUrl =
+    nodeEnv === 'local' || !nodeEnv
+      ? `http://localhost:${port}`
+      : 'https://zenith-api-nest-development.up.railway.app';
+
+  // Debug environment variables
+  console.log('Environment Variables:', {
+    PORT: process.env.PORT,
+    NODE_ENV: nodeEnv,
+    PUBLIC_URL: publicUrl,
+  });
 
   // Swagger setup with more details
   const config = new DocumentBuilder()
@@ -76,16 +92,6 @@ async function bootstrap() {
       showRequestDuration: true,
     },
     customSiteTitle: 'Zenith API Documentation',
-  });
-
-  // Get port from Railway or fallback to default
-  const port = process.env.PORT || 3001;
-
-  // Debug environment variables
-  console.log('Environment Variables:', {
-    PORT: process.env.PORT,
-    NODE_ENV: process.env.NODE_ENV,
-    PUBLIC_URL: publicUrl,
   });
 
   // Listen on all interfaces (important for Docker)

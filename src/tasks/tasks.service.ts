@@ -118,7 +118,10 @@ export class TaskService {
 
   private async getInboxProject(): Promise<Project> {
     const inboxProject = await this.projectsRepository.findOne({
-      where: { type: ProjectType.INBOX },
+      where: {
+        id: '569c363f-1934-4e69-b324-6c2fad28bc59',
+        isSystem: true,
+      },
     });
 
     if (!inboxProject) {

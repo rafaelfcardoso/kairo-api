@@ -6,61 +6,76 @@ import { ProjectsModule } from './projects/projects.module';
 import { TagsModule } from './tags/tags.module';
 // import { AuthModule } from './auth/auth.module';
 import { AppController } from './app.controller';
+import configuration from './config/configuration';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      load: [configuration],
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
-        // Check if DATABASE_PUBLIC_URL is provided
-        const databaseUrl = process.env.DATABASE_PUBLIC_URL;
+        const dbConfig = configService.get('database');
+        const nodeEnv = configService.get('nodeEnv');
 
-        if (databaseUrl) {
-          return {
-            type: 'postgres' as const,
-            url: databaseUrl,
-            entities: [__dirname + '/**/*.entity{.ts,.js}'],
-            synchronize: true,
-            logging: true,
-            ssl:
-              process.env.NODE_ENV === 'production'
-                ? { rejectUnauthorized: false }
-                : false,
-          };
+        console.log('Full config:', configService.get(undefined));
+
+        if (!dbConfig) {
+          console.error('Available configuration:', {
+            nodeEnv,
+            configKeys: Object.keys(configService.get(undefined) || {}),
+          });
+          throw new Error(
+            'Database configuration is missing. Check your environment variables and configuration.',
+          );
         }
 
-        // Fallback to individual connection parameters
-        const dbConfig = {
-          type: 'postgres' as const,
-          host: process.env.PGHOST || configService.get('DB_HOST'),
-          port: parseInt(
-            process.env.PGPORT || configService.get('DB_PORT'),
-            10,
-          ),
-          username: process.env.PGUSER || configService.get('DB_USER'),
-          password: process.env.PGPASSWORD || configService.get('DB_PASS'),
-          database: process.env.PGDATABASE || configService.get('DB_NAME'),
-          entities: [__dirname + '/**/*.entity{.ts,.js}'],
-          synchronize: true,
-          logging: true,
-          ssl:
-            process.env.NODE_ENV === 'production'
-              ? { rejectUnauthorized: false }
-              : false,
-        };
-
+        // Log database configuration (excluding sensitive data)
         console.log('Database Configuration:', {
-          host: dbConfig.host,
-          port: dbConfig.port,
-          database: dbConfig.database,
-          username: dbConfig.username,
+          environment: nodeEnv,
+          host: dbConfig.url ? '(Using connection URL)' : dbConfig.host,
+          port: dbConfig.url ? '(Using connection URL)' : dbConfig.port,
+          database: dbConfig.url ? '(Using connection URL)' : dbConfig.database,
           ssl: dbConfig.ssl,
         });
 
-        return dbConfig;
+        // Base TypeORM config
+        const typeOrmConfig = {
+          type: 'postgres' as const,
+          entities: [__dirname + '/**/*.entity{.ts,.js}'],
+          synchronize: nodeEnv === 'local', // Only allow synchronize in local development
+          logging: nodeEnv !== 'production', // Disable logging in production
+        };
+
+        // If using connection URL
+        if (dbConfig.url) {
+          return {
+            ...typeOrmConfig,
+            url: dbConfig.url,
+            ssl: dbConfig.ssl,
+          };
+        }
+
+        // Validate required database parameters
+        const requiredParams = ['host', 'port', 'username', 'database'];
+        for (const param of requiredParams) {
+          if (!dbConfig[param]) {
+            throw new Error(`Missing required database parameter: ${param}`);
+          }
+        }
+
+        // If using individual connection parameters
+        return {
+          ...typeOrmConfig,
+          host: dbConfig.host,
+          port: dbConfig.port,
+          username: dbConfig.username,
+          password: dbConfig.password,
+          database: dbConfig.database,
+          ssl: dbConfig.ssl,
+        };
       },
       inject: [ConfigService],
     }),

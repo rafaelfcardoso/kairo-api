@@ -5,13 +5,9 @@ import {
   IsEnum,
   IsUUID,
   IsArray,
-  IsDate,
   IsString,
   IsBoolean,
-  IsInt,
-  Min,
   MinLength,
-  IsDateString,
   Matches,
   IsISO8601,
   MaxLength,
@@ -77,8 +73,9 @@ export class CreateTaskDto {
   tagIds?: string[];
 
   @ApiPropertyOptional({
-    example: '123e4567-e89b-12d3-a456-426614174000',
-    description: 'Project ID to associate the task with',
+    example: '569c363f-1934-4e69-b324-6c2fad28bc59',
+    description:
+      'Project ID to associate the task with (defaults to Inbox project)',
   })
   @IsUUID('4')
   @IsOptional()
