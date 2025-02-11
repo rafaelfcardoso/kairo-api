@@ -6,6 +6,7 @@ import { Project } from './projects.entity';
 import { ProjectsRepository } from './projects.repository';
 import { TasksRepository } from '../tasks/tasks.repository';
 import { ModuleRef } from '@nestjs/core';
+import { ProjectType } from './projects.entity';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Project])],
@@ -21,7 +22,10 @@ export class ProjectsModule implements OnModuleInit {
 
     // Check if Inbox project exists
     const inboxProject = await projectsRepository.findOne({
-      where: { id: '569c363f-1934-4e69-b324-6c2fad28bc59' },
+      where: {
+        type: ProjectType.INBOX,
+        isSystem: true,
+      },
     });
 
     if (!inboxProject) {
@@ -31,6 +35,7 @@ export class ProjectsModule implements OnModuleInit {
         name: 'Caixa de entrada',
         description: 'Tarefas não atribuídas a projetos',
         isSystem: true,
+        type: ProjectType.INBOX,
         color: '#808080',
       });
 

@@ -12,6 +12,7 @@ import { EnsureInboxProject1738362321119 } from '../migrations/1738362321119-Ens
 import { AddHasTimeToTasks1738934197033 } from '../migrations/1738934197033-AddHasTimeToTasks';
 import { UpdateTaskStatusEnum1739279174960 } from '../migrations/1739279174960-UpdateTaskStatusEnum';
 import { EnsureValidTaskStatuses1739279174961 } from '../migrations/1739279174961-EnsureValidTaskStatuses';
+import { AddProjectTypeEnum1739279174962 } from '../migrations/1739279174962-AddProjectTypeEnum';
 
 export const typeOrmConfig: TypeOrmModuleOptions = {
   type: 'postgres',
@@ -28,6 +29,7 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
     AddHasTimeToTasks1738934197033,
     UpdateTaskStatusEnum1739279174960,
     EnsureValidTaskStatuses1739279174961,
+    AddProjectTypeEnum1739279174962,
   ],
   // Explicitly disable synchronize to prevent automatic schema updates
   // This ensures that all schema changes are handled through migrations

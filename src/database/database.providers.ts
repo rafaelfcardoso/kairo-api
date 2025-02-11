@@ -6,6 +6,7 @@ import { EnsureInboxProject1738362321119 } from '../migrations/1738362321119-Ens
 import { AddHasTimeToTasks1738934197033 } from '../migrations/1738934197033-AddHasTimeToTasks';
 import { UpdateTaskStatusEnum1739279174960 } from '../migrations/1739279174960-UpdateTaskStatusEnum';
 import { EnsureValidTaskStatuses1739279174961 } from '../migrations/1739279174961-EnsureValidTaskStatuses';
+import { AddProjectTypeEnum1739279174962 } from '../migrations/1739279174962-AddProjectTypeEnum';
 
 export const databaseProviders = [
   {
@@ -27,6 +28,7 @@ export const databaseProviders = [
           AddHasTimeToTasks1738934197033,
           UpdateTaskStatusEnum1739279174960,
           EnsureValidTaskStatuses1739279174961,
+          AddProjectTypeEnum1739279174962,
         ],
         migrationsRun: true,
         logging: true,
