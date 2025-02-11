@@ -21,9 +21,9 @@ export enum TaskPriority {
 }
 
 export enum TaskStatus {
-  TODO = 'todo',
+  NOT_STARTED = 'not_started',
   IN_PROGRESS = 'in_progress',
-  PENDING = 'pending',
+  BLOCKED = 'blocked',
   COMPLETED = 'completed',
 }
 
@@ -53,13 +53,13 @@ export class Task {
 
   @ApiProperty({
     enum: TaskStatus,
-    example: TaskStatus.PENDING,
+    example: TaskStatus.NOT_STARTED,
     description: 'Current status of the task',
   })
   @Column({
     type: 'enum',
     enum: TaskStatus,
-    default: TaskStatus.PENDING,
+    default: TaskStatus.NOT_STARTED,
   })
   status: TaskStatus;
 

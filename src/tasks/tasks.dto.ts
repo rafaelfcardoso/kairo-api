@@ -106,7 +106,7 @@ export class TaskFilterDto {
 
   @ApiPropertyOptional({
     enum: TaskStatus,
-    example: TaskStatus.PENDING,
+    example: TaskStatus.NOT_STARTED,
     description: 'Filter tasks by status',
     enumName: 'TaskStatus',
   })

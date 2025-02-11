@@ -137,14 +137,14 @@ describe('TaskService', () => {
       mockTaskRepository.create.mockReturnValue({
         ...createTaskDto,
         project: mockInboxProject,
-        status: TaskStatus.TODO,
+        status: TaskStatus.NOT_STARTED,
       });
 
       mockTaskRepository.save.mockResolvedValue({
         id: '123',
         ...createTaskDto,
         project: mockInboxProject,
-        status: TaskStatus.TODO,
+        status: TaskStatus.NOT_STARTED,
       });
 
       const result = await service.createTask(createTaskDto);
@@ -178,13 +178,13 @@ describe('TaskService', () => {
       mockTasksRepository.getTaskById.mockResolvedValue({
         id: '123',
         title: 'Test Task',
-        status: TaskStatus.TODO,
+        status: TaskStatus.NOT_STARTED,
       });
 
       mockTaskRepository.save.mockResolvedValue({
         id: '123',
         title: 'Test Task',
-        status: TaskStatus.TODO,
+        status: TaskStatus.NOT_STARTED,
         dueDate: validDate,
       });
 
@@ -203,7 +203,7 @@ describe('TaskService', () => {
       mockTasksRepository.getTaskById.mockResolvedValue({
         id: '123',
         title: 'Test Task',
-        status: TaskStatus.TODO,
+        status: TaskStatus.NOT_STARTED,
       });
 
       await expect(service.updateTask('123', updateTaskDto)).rejects.toThrow(BadRequestException);

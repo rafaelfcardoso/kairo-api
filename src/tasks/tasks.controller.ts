@@ -174,7 +174,7 @@ export class TaskController {
       properties: {
         status: {
           type: 'string',
-          enum: ['todo', 'in_progress', 'pending', 'completed'],
+          enum: ['not_started', 'in_progress', 'blocked', 'completed'],
           description: 'The new status for the task',
           example: 'completed',
         },

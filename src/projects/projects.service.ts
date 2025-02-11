@@ -87,7 +87,7 @@ export class ProjectsService {
   async getProjectStats(id: string): Promise<{
     totalTasks: number;
     completedTasks: number;
-    pendingTasks: number;
+    notStartedTasks: number;
     overdueTasks: number;
     progress: number;
     subprojectsCount: number;
@@ -110,10 +110,11 @@ export class ProjectsService {
       completedTasks: project.tasks.filter(
         (t) => t.status === TaskStatus.COMPLETED,
       ).length,
-      pendingTasks: project.tasks.filter((t) => t.status === TaskStatus.PENDING)
-        .length,
+      notStartedTasks: project.tasks.filter(
+        (t) => t.status === TaskStatus.NOT_STARTED,
+      ).length,
       overdueTasks: project.tasks.filter(
-        (t) => t.status === TaskStatus.PENDING && t.dueDate < new Date(),
+        (t) => t.status === TaskStatus.NOT_STARTED && t.dueDate < new Date(),
       ).length,
       progress:
         project.tasks.length > 0

@@ -70,7 +70,7 @@ export class TaskService {
     const task = this.taskRepository.create({
       ...taskData,
       project,
-      status: TaskStatus.TODO,
+      status: TaskStatus.NOT_STARTED,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
