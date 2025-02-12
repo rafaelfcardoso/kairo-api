@@ -38,6 +38,7 @@ async function bootstrap() {
   // Allow override through environment variable
   const publicUrl =
     process.env.API_URL ||
+    process.env.RAILWAY_STATIC_URL ||
     (() => {
       switch (nodeEnv) {
         case 'production':
@@ -45,7 +46,7 @@ async function bootstrap() {
         case 'staging':
           return 'https://zenith-api-staging.up.railway.app';
         case 'development':
-          return 'https://zenith-api-nest-development.up.railway.app';
+          return 'https://zenith-api-development.up.railway.app';
         default:
           return `http://localhost:${port}`;
       }
@@ -56,6 +57,7 @@ async function bootstrap() {
     PORT: process.env.PORT,
     NODE_ENV: nodeEnv,
     PUBLIC_URL: publicUrl,
+    RAILWAY_STATIC_URL: process.env.RAILWAY_STATIC_URL,
   });
 
   // Swagger setup with more details
