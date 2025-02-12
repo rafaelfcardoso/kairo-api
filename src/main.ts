@@ -34,10 +34,22 @@ async function bootstrap() {
   // Get the public URL based on environment
   const nodeEnv = process.env.NODE_ENV || 'local';
   const port = process.env.PORT || 3001;
+
+  // Allow override through environment variable
   const publicUrl =
-    nodeEnv === 'local' || !nodeEnv
-      ? `http://localhost:${port}`
-      : 'https://zenith-api-nest-development.up.railway.app';
+    process.env.API_URL ||
+    (() => {
+      switch (nodeEnv) {
+        case 'production':
+          return 'https://zenith-api.up.railway.app';
+        case 'staging':
+          return 'https://zenith-api-staging.up.railway.app';
+        case 'development':
+          return 'https://zenith-api-nest-development.up.railway.app';
+        default:
+          return `http://localhost:${port}`;
+      }
+    })();
 
   // Debug environment variables
   console.log('Environment Variables:', {
