@@ -16,11 +16,11 @@ import { AddProjectTypeEnum1739279174962 } from '../migrations/1739279174962-Add
 
 export const typeOrmConfig: TypeOrmModuleOptions = {
   type: 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT) || 5432,
-  username: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASS || 'postgres',
-  database: process.env.DB_NAME || 'zenith_db',
+  host: process.env.PGHOST || process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.PGPORT || process.env.DB_PORT) || 5432,
+  username: process.env.PGUSER || process.env.DB_USER || 'postgres',
+  password: process.env.PGPASSWORD || process.env.DB_PASS || 'postgres',
+  database: process.env.PGDATABASE || process.env.DB_NAME || 'zenith_db',
   entities: [Task, Project, Tag, FocusSession, BlockRule],
   migrations: [
     InitialSchema1705759726000,
@@ -31,12 +31,10 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
     EnsureValidTaskStatuses1739279174961,
     AddProjectTypeEnum1739279174962,
   ],
-  // Explicitly disable synchronize to prevent automatic schema updates
-  // This ensures that all schema changes are handled through migrations
-  synchronize: false,
-  logging: true,
-  // Add migrationsRun to ensure migrations are executed on application start
+  synchronize: process.env.NODE_ENV === 'local',
+  logging: process.env.NODE_ENV !== 'production',
   migrationsRun: true,
+  ssl: process.env.NODE_ENV !== 'local' ? { rejectUnauthorized: false } : false,
 };
 
 export default new DataSource({

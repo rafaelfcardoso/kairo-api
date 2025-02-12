@@ -113,9 +113,10 @@ async function bootstrap() {
   console.log(`Application is running on: ${publicUrl}`);
   console.log(`Swagger documentation available at: ${publicUrl}/api`);
   console.log('Database Configuration:', {
-    host: process.env.PGHOST || configService.get('DB_HOST'),
-    port: process.env.PGPORT || configService.get('DB_PORT'),
-    database: process.env.PGDATABASE || configService.get('DB_NAME'),
+    host: configService.get('database.host'),
+    port: configService.get('database.port'),
+    database: configService.get('database.database'),
+    ssl: configService.get('database.ssl'),
   });
 }
 bootstrap();

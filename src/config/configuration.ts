@@ -5,11 +5,11 @@ export default () => {
   console.log('Loading configuration for environment:', nodeEnv);
   console.log('Environment variables:', {
     NODE_ENV: process.env.NODE_ENV,
-    DB_HOST: process.env.DB_HOST,
-    DB_PORT: process.env.DB_PORT,
-    DB_USER: process.env.DB_USER,
-    DB_PASS: '***', // Masked for security
-    DB_NAME: process.env.DB_NAME,
+    PGHOST: process.env.PGHOST,
+    PGPORT: process.env.PGPORT,
+    PGUSER: process.env.PGUSER,
+    PGDATABASE: process.env.PGDATABASE,
+    RAILWAY_STATIC_URL: process.env.RAILWAY_STATIC_URL,
   });
 
   // Base configuration shared across all environments
@@ -42,54 +42,56 @@ export default () => {
         url: `http://localhost:${baseConfig.port}`,
       },
       database: {
-        host: process.env.DB_HOST || 'localhost',
-        port: parseInt(process.env.DB_PORT, 10) || 5432,
-        username: process.env.DB_USER || 'postgres',
-        password: process.env.DB_PASS || '',
-        database: process.env.DB_NAME || 'zenith_db',
+        host: process.env.PGHOST || process.env.DB_HOST || 'localhost',
+        port: parseInt(process.env.PGPORT || process.env.DB_PORT, 10) || 5432,
+        username: process.env.PGUSER || process.env.DB_USER || 'postgres',
+        password: process.env.PGPASSWORD || process.env.DB_PASS || '',
+        database: process.env.PGDATABASE || process.env.DB_NAME || 'zenith_db',
         ssl: false,
       },
     },
     development: {
       api: {
-        url: 'https://zenith-api-nest-development.up.railway.app',
+        url:
+          process.env.RAILWAY_STATIC_URL ||
+          'https://zenith-api-nest-development.up.railway.app',
       },
       database: {
-        host: process.env.DB_HOST || 'localhost',
-        port: parseInt(process.env.DB_PORT, 10) || 5432,
-        username: process.env.DB_USER || 'postgres',
-        password: process.env.DB_PASS || '',
-        database: process.env.DB_NAME || 'zenith_db',
-        ssl: false,
-        url: process.env.DATABASE_PUBLIC_URL, // Optional URL override
+        host: process.env.PGHOST,
+        port: parseInt(process.env.PGPORT, 10),
+        username: process.env.PGUSER,
+        password: process.env.PGPASSWORD,
+        database: process.env.PGDATABASE,
+        ssl: { rejectUnauthorized: false },
       },
     },
     staging: {
       api: {
-        url: process.env.API_URL || 'https://zenith-api-staging.up.railway.app',
+        url:
+          process.env.RAILWAY_STATIC_URL ||
+          'https://zenith-api-staging.up.railway.app',
       },
       database: {
-        host: process.env.DB_HOST || 'localhost',
-        port: parseInt(process.env.DB_PORT, 10) || 5432,
-        username: process.env.DB_USER || 'postgres',
-        password: process.env.DB_PASS || '',
-        database: process.env.DB_NAME || 'zenith_db',
+        host: process.env.PGHOST,
+        port: parseInt(process.env.PGPORT, 10),
+        username: process.env.PGUSER,
+        password: process.env.PGPASSWORD,
+        database: process.env.PGDATABASE,
         ssl: { rejectUnauthorized: false },
-        url: process.env.DATABASE_PUBLIC_URL, // Optional URL override
       },
     },
     production: {
       api: {
-        url: process.env.API_URL || 'https://zenith-api.up.railway.app',
+        url:
+          process.env.RAILWAY_STATIC_URL || 'https://zenith-api.up.railway.app',
       },
       database: {
-        host: process.env.DB_HOST || 'localhost',
-        port: parseInt(process.env.DB_PORT, 10) || 5432,
-        username: process.env.DB_USER || 'postgres',
-        password: process.env.DB_PASS || '',
-        database: process.env.DB_NAME || 'zenith_db',
+        host: process.env.PGHOST,
+        port: parseInt(process.env.PGPORT, 10),
+        username: process.env.PGUSER,
+        password: process.env.PGPASSWORD,
+        database: process.env.PGDATABASE,
         ssl: { rejectUnauthorized: false },
-        url: process.env.DATABASE_PUBLIC_URL, // Optional URL override
       },
     },
   };
