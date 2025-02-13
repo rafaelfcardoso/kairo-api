@@ -5,6 +5,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
+import { DataSource } from 'typeorm';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -13,6 +14,16 @@ async function bootstrap() {
 
   // Get ConfigService
   const configService = app.get(ConfigService);
+
+  // Get DataSource and run migrations
+  const dataSource = app.get(DataSource);
+  try {
+    await dataSource.runMigrations();
+    console.log('Database migrations completed successfully');
+  } catch (error) {
+    console.error('Error running migrations:', error);
+    throw error;
+  }
 
   // Apply Helmet middleware
   app.use(helmet());
