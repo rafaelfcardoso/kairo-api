@@ -29,11 +29,32 @@ async function bootstrap() {
   );
 
   // Enable CORS with configuration
+  const allowedOrigins = [
+    'capacitor://localhost',
+    'ionic://localhost',
+    'http://localhost',
+    'http://localhost:8080',
+    'http://localhost:8100',
+  ];
+
+  // Add the Railway URL if it exists
+  const railwayUrl = configService.get('api.url');
+  if (railwayUrl) {
+    allowedOrigins.push(railwayUrl);
+  }
+
   app.enableCors({
-    origin: configService.get('cors.origin'),
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    origin: allowedOrigins,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: [
+      'Origin',
+      'X-Requested-With',
+      'Content-Type',
+      'Accept',
+      'Authorization',
+      'Access-Control-Allow-Origin',
+    ],
     exposedHeaders: [
       'X-RateLimit-Limit',
       'X-RateLimit-Remaining',
@@ -57,11 +78,6 @@ async function bootstrap() {
   const nodeEnv = configService.get('nodeEnv') || 'local';
   const port = configService.get('port') || 3001;
   const apiUrl = configService.get('api.url');
-
-  // Set global prefix for all routes except health check
-  app.setGlobalPrefix('api', {
-    exclude: ['/health'],
-  });
 
   // Debug environment variables
   console.log('Environment Variables:', {
@@ -88,9 +104,9 @@ async function bootstrap() {
       - Input Sanitization
 
       ## Base URLs
-      - API Endpoints: ${apiUrl}/api
+      - Application Root: ${apiUrl}
+      - API Documentation: ${apiUrl}/api
       - Health Check: ${apiUrl}/health
-      - Documentation: ${apiUrl}/api
     `,
     )
     .setVersion('1.0')
@@ -109,7 +125,8 @@ async function bootstrap() {
       },
       'JWT-auth',
     )
-    .addServer(apiUrl, 'Base URL')
+    //.addServer(`${apiUrl}/api`, 'API Endpoints')
+    //.addServer(apiUrl, 'Health Check')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
@@ -131,10 +148,13 @@ async function bootstrap() {
   await app.listen(port, '0.0.0.0');
 
   const serverUrl = await app.getUrl();
+  const baseUrl = apiUrl || serverUrl;
   console.log(`Server is listening on port ${port}`);
-  console.log(`Application is running on: ${apiUrl || serverUrl}`);
-  console.log(`Swagger documentation available at: ${apiUrl || serverUrl}/api`);
-  console.log('Database Configuration:', {
+  console.log('Available endpoints:');
+  console.log(`- Application Root: ${baseUrl}`);
+  console.log(`- API Documentation: ${baseUrl}/api`);
+  console.log(`- Health Check: ${baseUrl}/health`);
+  console.log('\nDatabase Configuration:', {
     host: configService.get('database.host'),
     port: configService.get('database.port'),
     database: configService.get('database.database'),

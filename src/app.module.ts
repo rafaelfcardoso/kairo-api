@@ -49,41 +49,20 @@ import configuration from './config/configuration';
           logging: nodeEnv !== 'production', // Disable logging in production
         };
 
-        // If using connection URL
-        if (dbConfig.url) {
-          return {
-            ...typeOrmConfig,
-            url: dbConfig.url,
-            ssl: dbConfig.ssl,
-          };
-        }
-
-        // Validate required database parameters
-        const requiredParams = ['host', 'port', 'username', 'database'];
-        for (const param of requiredParams) {
-          if (!dbConfig[param]) {
-            throw new Error(`Missing required database parameter: ${param}`);
-          }
-        }
-
-        // If using individual connection parameters
+        // Return final config
         return {
           ...typeOrmConfig,
-          host: dbConfig.host,
-          port: dbConfig.port,
-          username: dbConfig.username,
-          password: dbConfig.password,
-          database: dbConfig.database,
-          ssl: dbConfig.ssl,
+          ...(dbConfig.url ? { url: dbConfig.url } : dbConfig),
         };
       },
       inject: [ConfigService],
     }),
-    SecurityModule,
     TasksModule,
     ProjectsModule,
     TagsModule,
+    SecurityModule,
   ],
   controllers: [AppController],
+  providers: [],
 })
 export class AppModule {}

@@ -17,7 +17,7 @@ describe('AppController', () => {
           useValue: {
             get: jest.fn((key: string) => {
               switch (key) {
-                case 'NODE_ENV':
+                case 'nodeEnv':
                   return 'test';
                 default:
                   return null;

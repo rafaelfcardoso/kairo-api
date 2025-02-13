@@ -11,6 +11,13 @@ export class AppController {
     private dataSource: DataSource,
   ) {}
 
+  @Get()
+  @ApiTags('App')
+  @ApiOperation({ summary: 'Root endpoint' })
+  getHello(): string {
+    return 'Zenith API is running!';
+  }
+
   @Get('health')
   @ApiOperation({ summary: 'API Health and Status' })
   @ApiResponse({
@@ -44,7 +51,8 @@ export class AppController {
     },
   })
   async healthCheck() {
-    const baseUrl = this.configService.get('api.url') || 'http://localhost:3001';
+    const baseUrl =
+      this.configService.get('api.url') || 'http://localhost:3001';
     const dbStatus = this.dataSource.isInitialized
       ? 'connected'
       : 'disconnected';
