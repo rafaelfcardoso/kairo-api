@@ -58,12 +58,10 @@ async function bootstrap() {
   const port = configService.get('port') || 3001;
   const apiUrl = configService.get('api.url');
 
-  // Set global prefix for all routes
-  if (nodeEnv !== 'local') {
-    app.setGlobalPrefix('api', {
-      exclude: ['/health'],
-    });
-  }
+  // Set global prefix for all routes except health check
+  app.setGlobalPrefix('api', {
+    exclude: ['/health'],
+  });
 
   // Debug environment variables
   console.log('Environment Variables:', {
@@ -88,6 +86,11 @@ async function bootstrap() {
       - Rate Limiting
       - Security Headers
       - Input Sanitization
+
+      ## Base URLs
+      - API Endpoints: ${apiUrl}/api
+      - Health Check: ${apiUrl}/health
+      - Documentation: ${apiUrl}/api
     `,
     )
     .setVersion('1.0')
@@ -106,7 +109,8 @@ async function bootstrap() {
       },
       'JWT-auth',
     )
-    .addServer(apiUrl, 'API Server')
+    .addServer(`${apiUrl}/api`, 'API Endpoints')
+    .addServer(apiUrl, 'Health Check')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
