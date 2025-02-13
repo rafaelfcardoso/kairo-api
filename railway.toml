@@ -3,10 +3,18 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "npm run start:prod"
+runtime = "V2"
+numReplicas = 1
+startCommand = "npm run start:dev"
 healthcheckPath = "/health"
-healthcheckTimeout = 300
+sleepApplication = false
+multiRegionConfig = {
+  "us-west2": {
+    "numReplicas": 1
+  }
+}
 restartPolicyType = "ON_FAILURE"
+healthcheckTimeout = 300
 restartPolicyMaxRetries = 3
 
 [deploy.healthcheck]

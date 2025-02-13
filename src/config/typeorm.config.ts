@@ -31,11 +31,22 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
     EnsureValidTaskStatuses1739279174961,
     AddProjectTypeEnum1739279174962,
   ],
-  synchronize: process.env.NODE_ENV === 'local',
-  logging: process.env.NODE_ENV !== 'production',
   migrationsRun: true,
+  migrationsTableName: 'migrations',
+  synchronize: false,
+  logging: true,
   ssl: process.env.NODE_ENV !== 'local' ? { rejectUnauthorized: false } : false,
 };
+
+// Log the configuration for debugging
+console.log('TypeORM Configuration:', {
+  host: process.env.PGHOST || process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.PGPORT || process.env.DB_PORT) || 5432,
+  database: process.env.PGDATABASE || process.env.DB_NAME || 'zenith_db',
+  migrationsRun: true,
+  synchronize: false,
+  environment: process.env.NODE_ENV,
+});
 
 export default new DataSource({
   ...typeOrmConfig,

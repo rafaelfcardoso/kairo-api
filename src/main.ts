@@ -19,6 +19,7 @@ async function bootstrap() {
   const dataSource = app.get(DataSource);
   try {
     console.log('Starting database migrations...');
+    console.log('Migration files:', dataSource.migrations);
     const pendingMigrations = await dataSource.showMigrations();
     console.log('Pending migrations:', pendingMigrations);
     await dataSource.runMigrations();
@@ -27,8 +28,21 @@ async function bootstrap() {
       'SELECT * FROM migrations ORDER BY timestamp DESC',
     );
     console.log('Applied migrations:', migrations);
+
+    // Verify the Project table structure
+    const tableInfo = await dataSource.query(
+      `SELECT column_name, data_type, udt_name 
+       FROM information_schema.columns 
+       WHERE table_name = 'project'`,
+    );
+    console.log('Project table structure:', tableInfo);
   } catch (error) {
     console.error('Error running migrations:', error);
+    if (error.code === '42P01') {
+      console.error(
+        'Migrations table does not exist. This might be a fresh database.',
+      );
+    }
     throw error;
   }
 
