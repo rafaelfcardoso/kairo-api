@@ -7,6 +7,7 @@ import { TagsModule } from './tags/tags.module';
 import { SecurityModule } from './common/security.module';
 import { AppController } from './app.controller';
 import configuration from './config/configuration';
+import { typeOrmConfig } from './config/typeorm.config';
 
 @Module({
   imports: [
@@ -41,17 +42,20 @@ import configuration from './config/configuration';
           ssl: dbConfig.ssl,
         });
 
-        // Base TypeORM config
-        const typeOrmConfig = {
+        // Merge TypeORM configs
+        const baseConfig = {
           type: 'postgres' as const,
           entities: [__dirname + '/**/*.entity{.ts,.js}'],
           synchronize: nodeEnv === 'local', // Only allow synchronize in local development
           logging: nodeEnv !== 'production', // Disable logging in production
+          migrations: typeOrmConfig.migrations, // Include migrations from typeorm.config.ts
+          migrationsRun: true,
+          migrationsTableName: 'migrations',
         };
 
         // Return final config
         return {
-          ...typeOrmConfig,
+          ...baseConfig,
           ...(dbConfig.url ? { url: dbConfig.url } : dbConfig),
         };
       },
