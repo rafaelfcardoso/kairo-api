@@ -18,8 +18,14 @@ COPY . .
 # Build the application (needed for first run)
 RUN npm run build
 
-# Ensure migrations are copied to the dist folder
-RUN cp -r src/migrations dist/
+# Verify the migrations are in the dist folder
+RUN ls -la dist/migrations || true && \
+    echo "Ensuring migrations directory exists" && \
+    mkdir -p dist/migrations && \
+    echo "Copying migrations" && \
+    cp -r src/migrations/* dist/migrations/ && \
+    echo "Migration files:" && \
+    ls -la dist/migrations/
 
 # Expose port (this is for documentation, Railway will override with PORT env var)
 EXPOSE 8080

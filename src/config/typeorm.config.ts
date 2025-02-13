@@ -46,6 +46,7 @@ console.log('TypeORM Configuration:', {
   migrationsRun: true,
   synchronize: false,
   environment: process.env.NODE_ENV,
+  migrationClasses: typeOrmConfig.migrations?.length || 0,
 });
 
 export default new DataSource({
