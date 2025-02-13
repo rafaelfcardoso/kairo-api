@@ -13,6 +13,28 @@ import { AddHasTimeToTasks1738934197033 } from '../migrations/1738934197033-AddH
 import { UpdateTaskStatusEnum1739279174960 } from '../migrations/1739279174960-UpdateTaskStatusEnum';
 import { EnsureValidTaskStatuses1739279174961 } from '../migrations/1739279174961-EnsureValidTaskStatuses';
 import { AddProjectTypeEnum1739279174962 } from '../migrations/1739279174962-AddProjectTypeEnum';
+import { join } from 'path';
+
+// Log migration classes for debugging
+const migrationClasses = [
+  InitialSchema1705759726000,
+  FixProjectColors1738362321118,
+  EnsureInboxProject1738362321119,
+  AddHasTimeToTasks1738934197033,
+  UpdateTaskStatusEnum1739279174960,
+  EnsureValidTaskStatuses1739279174961,
+  AddProjectTypeEnum1739279174962,
+];
+
+console.log(
+  'Migration Classes:',
+  migrationClasses.map((m) => ({
+    name: m.name,
+    prototype: Object.getOwnPropertyNames(m.prototype),
+  })),
+);
+
+const migrationsDir = join(__dirname, '..', 'migrations');
 
 export const typeOrmConfig: TypeOrmModuleOptions = {
   type: 'postgres',
@@ -22,15 +44,7 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
   password: process.env.PGPASSWORD || process.env.DB_PASS || 'postgres',
   database: process.env.PGDATABASE || process.env.DB_NAME || 'zenith_db',
   entities: [Task, Project, Tag, FocusSession, BlockRule],
-  migrations: [
-    InitialSchema1705759726000,
-    FixProjectColors1738362321118,
-    EnsureInboxProject1738362321119,
-    AddHasTimeToTasks1738934197033,
-    UpdateTaskStatusEnum1739279174960,
-    EnsureValidTaskStatuses1739279174961,
-    AddProjectTypeEnum1739279174962,
-  ],
+  migrations: migrationClasses,
   migrationsRun: true,
   migrationsTableName: 'migrations',
   synchronize: false,
@@ -46,10 +60,23 @@ console.log('TypeORM Configuration:', {
   migrationsRun: true,
   synchronize: false,
   environment: process.env.NODE_ENV,
-  migrationClasses: typeOrmConfig.migrations?.length || 0,
+  migrationClasses: migrationClasses.length,
+  migrationsDir,
 });
 
-export default new DataSource({
+const dataSource = new DataSource({
   ...typeOrmConfig,
   type: 'postgres',
 } as any);
+
+// Log data source configuration
+console.log('DataSource Configuration:', {
+  isInitialized: dataSource.isInitialized,
+  migrations: dataSource.migrations?.length || 0,
+  options: {
+    ...dataSource.options,
+    password: '[REDACTED]',
+  },
+});
+
+export default dataSource;
