@@ -1,7 +1,7 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { SecurityLoggerService } from '../services/security-logger.service';
-import xss from 'xss';
+import * as xss from 'xss';
 
 @Injectable()
 export class RequestSanitizerMiddleware implements NestMiddleware {
@@ -58,12 +58,15 @@ export class RequestSanitizerMiddleware implements NestMiddleware {
     // Remove null bytes
     let sanitized = value.replace(/\0/g, '');
 
-    // Sanitize HTML and JavaScript
-    sanitized = xss(sanitized, {
+    // Create XSS filter instance with options
+    const xssFilter = new xss.FilterXSS({
       whiteList: {}, // No tags allowed
       stripIgnoreTag: true,
       stripIgnoreTagBody: ['script', 'style'],
     });
+
+    // Apply XSS filtering
+    sanitized = xssFilter.process(sanitized);
 
     // Remove potential SQL injection patterns
     sanitized = sanitized
