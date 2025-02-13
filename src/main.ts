@@ -109,8 +109,7 @@ async function bootstrap() {
       },
       'JWT-auth',
     )
-    .addServer(`${apiUrl}/api`, 'API Endpoints')
-    .addServer(apiUrl, 'Health Check')
+    .addServer(apiUrl, 'Base URL')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

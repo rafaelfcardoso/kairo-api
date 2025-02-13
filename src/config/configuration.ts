@@ -19,12 +19,11 @@ export default () => {
     port: parseInt(process.env.PORT, 10) || 3001,
     nodeEnv,
 
-    // API URL
+    // API URL - Remove any duplicate domain parts
     api: {
-      url:
-        railwayUrl ||
-        process.env.API_URL ||
-        `http://localhost:${process.env.PORT || 3001}`,
+      url: railwayUrl
+        ? railwayUrl.replace(/\/[^/]+\.up\.railway\.app/, '')
+        : process.env.API_URL || `http://localhost:${process.env.PORT || 3001}`,
     },
 
     // JWT
