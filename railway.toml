@@ -8,14 +8,12 @@ numReplicas = 1
 startCommand = "npm run start:dev"
 healthcheckPath = "/health"
 sleepApplication = false
-multiRegionConfig = {
-  "us-west2": {
-    "numReplicas": 1
-  }
-}
 restartPolicyType = "ON_FAILURE"
 healthcheckTimeout = 300
 restartPolicyMaxRetries = 3
+
+[deploy.multiRegionConfig.us-west2]
+numReplicas = 1
 
 [deploy.healthcheck]
 path = "/health"
