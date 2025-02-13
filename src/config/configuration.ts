@@ -1,5 +1,6 @@
 export default () => {
   const nodeEnv = process.env.NODE_ENV || 'local';
+  const railwayUrl = process.env.RAILWAY_STATIC_URL;
 
   // Debug: Log environment variables
   console.log('Loading configuration for environment:', nodeEnv);
@@ -9,7 +10,7 @@ export default () => {
     PGPORT: process.env.PGPORT,
     PGUSER: process.env.PGUSER,
     PGDATABASE: process.env.PGDATABASE,
-    RAILWAY_STATIC_URL: process.env.RAILWAY_STATIC_URL,
+    RAILWAY_STATIC_URL: railwayUrl,
   });
 
   // Base configuration shared across all environments
@@ -17,6 +18,14 @@ export default () => {
     // Server
     port: parseInt(process.env.PORT, 10) || 3001,
     nodeEnv,
+
+    // API URL
+    api: {
+      url:
+        railwayUrl ||
+        process.env.API_URL ||
+        `http://localhost:${process.env.PORT || 3001}`,
+    },
 
     // JWT
     jwt: {
@@ -26,7 +35,7 @@ export default () => {
 
     // CORS
     cors: {
-      origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+      origin: process.env.CORS_ORIGIN || '*',
     },
 
     // Logging
@@ -38,9 +47,6 @@ export default () => {
   // Environment-specific configurations
   const envConfigs = {
     local: {
-      api: {
-        url: `http://localhost:${baseConfig.port}`,
-      },
       database: {
         host: process.env.PGHOST || process.env.DB_HOST || 'localhost',
         port: parseInt(process.env.PGPORT || process.env.DB_PORT, 10) || 5432,
@@ -51,11 +57,6 @@ export default () => {
       },
     },
     development: {
-      api: {
-        url:
-          process.env.RAILWAY_STATIC_URL ||
-          'https://zenith-api-nest-development.up.railway.app',
-      },
       database: {
         host: process.env.PGHOST,
         port: parseInt(process.env.PGPORT, 10),
@@ -66,11 +67,6 @@ export default () => {
       },
     },
     staging: {
-      api: {
-        url:
-          process.env.RAILWAY_STATIC_URL ||
-          'https://zenith-api-staging.up.railway.app',
-      },
       database: {
         host: process.env.PGHOST,
         port: parseInt(process.env.PGPORT, 10),
@@ -81,10 +77,6 @@ export default () => {
       },
     },
     production: {
-      api: {
-        url:
-          process.env.RAILWAY_STATIC_URL || 'https://zenith-api.up.railway.app',
-      },
       database: {
         host: process.env.PGHOST,
         port: parseInt(process.env.PGPORT, 10),

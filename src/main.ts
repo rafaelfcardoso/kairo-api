@@ -53,28 +53,12 @@ async function bootstrap() {
     }),
   );
 
-  // Get the public URL based on environment
+  // Get configuration values
   const nodeEnv = configService.get('nodeEnv') || 'local';
   const port = configService.get('port') || 3001;
+  const apiUrl = configService.get('api.url');
 
-  // Allow override through environment variable
-  const publicUrl =
-    process.env.API_URL ||
-    process.env.RAILWAY_STATIC_URL ||
-    (() => {
-      switch (nodeEnv) {
-        case 'production':
-          return 'https://zenith-api.up.railway.app';
-        case 'staging':
-          return 'https://zenith-api-staging.up.railway.app';
-        case 'development':
-          return 'https://zenith-api-development.up.railway.app';
-        default:
-          return `http://localhost:${port}`;
-      }
-    })();
-
-  // Set global prefix based on environment
+  // Set global prefix for all routes
   if (nodeEnv !== 'local') {
     app.setGlobalPrefix('api');
   }
@@ -83,7 +67,7 @@ async function bootstrap() {
   console.log('Environment Variables:', {
     PORT: port,
     NODE_ENV: nodeEnv,
-    PUBLIC_URL: publicUrl,
+    API_URL: apiUrl,
     RAILWAY_STATIC_URL: process.env.RAILWAY_STATIC_URL,
   });
 
@@ -120,7 +104,7 @@ async function bootstrap() {
       },
       'JWT-auth',
     )
-    .addServer(publicUrl, 'API Server')
+    .addServer(apiUrl, 'API Server')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
@@ -141,9 +125,10 @@ async function bootstrap() {
   // Listen on all interfaces (important for Docker)
   await app.listen(port, '0.0.0.0');
 
+  const serverUrl = await app.getUrl();
   console.log(`Server is listening on port ${port}`);
-  console.log(`Application is running on: ${publicUrl}`);
-  console.log(`Swagger documentation available at: ${publicUrl}/api`);
+  console.log(`Application is running on: ${apiUrl || serverUrl}`);
+  console.log(`Swagger documentation available at: ${apiUrl || serverUrl}/api`);
   console.log('Database Configuration:', {
     host: configService.get('database.host'),
     port: configService.get('database.port'),
