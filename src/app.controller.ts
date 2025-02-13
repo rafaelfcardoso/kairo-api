@@ -11,8 +11,8 @@ export class AppController {
     private dataSource: DataSource,
   ) {}
 
-  @Get()
-  @ApiOperation({ summary: 'API Status' })
+  @Get('health')
+  @ApiOperation({ summary: 'API Health and Status' })
   @ApiResponse({
     status: 200,
     description: 'Application health and status information',
@@ -43,9 +43,8 @@ export class AppController {
       },
     },
   })
-  async getStatus() {
-    const baseUrl =
-      this.configService.get('api.url') || 'http://localhost:3001';
+  async healthCheck() {
+    const baseUrl = this.configService.get('api.url') || 'http://localhost:3001';
     const dbStatus = this.dataSource.isInitialized
       ? 'connected'
       : 'disconnected';

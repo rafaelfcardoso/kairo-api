@@ -60,7 +60,9 @@ async function bootstrap() {
 
   // Set global prefix for all routes
   if (nodeEnv !== 'local') {
-    app.setGlobalPrefix('api');
+    app.setGlobalPrefix('api', {
+      exclude: ['/health'],
+    });
   }
 
   // Debug environment variables
