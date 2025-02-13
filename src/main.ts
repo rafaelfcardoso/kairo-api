@@ -19,11 +19,30 @@ async function bootstrap() {
   const dataSource = app.get(DataSource);
   try {
     console.log('Starting database migrations...');
-    console.log('Migration files:', dataSource.migrations);
+
+    // Log migration details
+    console.log(
+      'Available migrations:',
+      dataSource.migrations.map((m) => ({
+        name: m.name,
+      })),
+    );
+
+    // Check database connection
+    console.log('Database connection status:', {
+      isInitialized: dataSource.isInitialized,
+      database: dataSource.options.database,
+    });
+
+    // Show pending migrations
     const pendingMigrations = await dataSource.showMigrations();
     console.log('Pending migrations:', pendingMigrations);
+
+    // Run migrations
     await dataSource.runMigrations();
     console.log('Database migrations completed successfully');
+
+    // Check applied migrations
     const migrations = await dataSource.query(
       'SELECT * FROM migrations ORDER BY timestamp DESC',
     );
@@ -31,11 +50,23 @@ async function bootstrap() {
 
     // Verify the Project table structure
     const tableInfo = await dataSource.query(
-      `SELECT column_name, data_type, udt_name 
+      `SELECT column_name, data_type, udt_name, is_nullable 
        FROM information_schema.columns 
-       WHERE table_name = 'project'`,
+       WHERE table_name = 'project'
+       ORDER BY ordinal_position`,
     );
     console.log('Project table structure:', tableInfo);
+
+    // Verify enum types
+    const enumTypes = await dataSource.query(`
+      SELECT t.typname, e.enumlabel
+      FROM pg_type t 
+      JOIN pg_enum e ON t.oid = e.enumtypid  
+      JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
+      WHERE n.nspname = 'public'
+      ORDER BY t.typname, e.enumsortorder;
+    `);
+    console.log('Available enum types:', enumTypes);
   } catch (error) {
     console.error('Error running migrations:', error);
     if (error.code === '42P01') {

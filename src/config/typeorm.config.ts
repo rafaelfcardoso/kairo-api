@@ -13,10 +13,9 @@ import { AddHasTimeToTasks1738934197033 } from '../migrations/1738934197033-AddH
 import { UpdateTaskStatusEnum1739279174960 } from '../migrations/1739279174960-UpdateTaskStatusEnum';
 import { EnsureValidTaskStatuses1739279174961 } from '../migrations/1739279174961-EnsureValidTaskStatuses';
 import { AddProjectTypeEnum1739279174962 } from '../migrations/1739279174962-AddProjectTypeEnum';
-import { join } from 'path';
 
-// Log migration classes for debugging
-const migrationClasses = [
+// Define all migrations in one place for better maintenance
+const migrations = [
   InitialSchema1705759726000,
   FixProjectColors1738362321118,
   EnsureInboxProject1738362321119,
@@ -26,15 +25,8 @@ const migrationClasses = [
   AddProjectTypeEnum1739279174962,
 ];
 
-console.log(
-  'Migration Classes:',
-  migrationClasses.map((m) => ({
-    name: m.name,
-    prototype: Object.getOwnPropertyNames(m.prototype),
-  })),
-);
-
-const migrationsDir = join(__dirname, '..', 'migrations');
+// Define all entities in one place for better maintenance
+const entities = [Task, Project, Tag, FocusSession, BlockRule];
 
 export const typeOrmConfig: TypeOrmModuleOptions = {
   type: 'postgres',
@@ -43,8 +35,8 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
   username: process.env.PGUSER || process.env.DB_USER || 'postgres',
   password: process.env.PGPASSWORD || process.env.DB_PASS || 'postgres',
   database: process.env.PGDATABASE || process.env.DB_NAME || 'zenith_db',
-  entities: [Task, Project, Tag, FocusSession, BlockRule],
-  migrations: migrationClasses,
+  entities,
+  migrations,
   migrationsRun: true,
   migrationsTableName: 'migrations',
   synchronize: false,
@@ -52,31 +44,8 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
   ssl: process.env.NODE_ENV !== 'local' ? { rejectUnauthorized: false } : false,
 };
 
-// Log the configuration for debugging
-console.log('TypeORM Configuration:', {
-  host: process.env.PGHOST || process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.PGPORT || process.env.DB_PORT) || 5432,
-  database: process.env.PGDATABASE || process.env.DB_NAME || 'zenith_db',
-  migrationsRun: true,
-  synchronize: false,
-  environment: process.env.NODE_ENV,
-  migrationClasses: migrationClasses.length,
-  migrationsDir,
-});
-
-const dataSource = new DataSource({
+// Create and export the DataSource instance
+export default new DataSource({
   ...typeOrmConfig,
   type: 'postgres',
 } as any);
-
-// Log data source configuration
-console.log('DataSource Configuration:', {
-  isInitialized: dataSource.isInitialized,
-  migrations: dataSource.migrations?.length || 0,
-  options: {
-    ...dataSource.options,
-    password: '[REDACTED]',
-  },
-});
-
-export default dataSource;
