@@ -4,6 +4,21 @@ export class AddProjectTypeEnum1739279174962 implements MigrationInterface {
   name = 'AddProjectTypeEnum1739279174962';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    // First, ensure this migration hasn't been run before
+    const migrationExists = await queryRunner.query(
+      `
+      SELECT COUNT(*) 
+      FROM migrations 
+      WHERE name = $1
+      `,
+      [this.name],
+    );
+
+    if (parseInt(migrationExists[0].count) > 0) {
+      console.log(`Migration ${this.name} has already been applied`);
+      return;
+    }
+
     // Check if enum type exists
     const enumExists = await queryRunner.query(`
       SELECT EXISTS (
@@ -45,6 +60,16 @@ export class AddProjectTypeEnum1739279174962 implements MigrationInterface {
       SET "type" = 'inbox'
       WHERE "isSystem" = true;
     `);
+
+    // Record this migration in the migrations table
+    await queryRunner.query(
+      `
+      INSERT INTO migrations (timestamp, name)
+      VALUES ($1, $2)
+      ON CONFLICT (name) DO NOTHING;
+      `,
+      [1739279174962, this.name],
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
@@ -78,5 +103,14 @@ export class AddProjectTypeEnum1739279174962 implements MigrationInterface {
         DROP TYPE "public"."project_type_enum";
       `);
     }
+
+    // Remove this migration from the migrations table
+    await queryRunner.query(
+      `
+      DELETE FROM migrations
+      WHERE name = $1;
+      `,
+      [this.name],
+    );
   }
 }
