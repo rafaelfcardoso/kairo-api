@@ -4,7 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { TasksModule } from './tasks/tasks.module';
 import { ProjectsModule } from './projects/projects.module';
 import { TagsModule } from './tags/tags.module';
-// import { AuthModule } from './auth/auth.module';
+import { SecurityModule } from './common/security.module';
 import { AppController } from './app.controller';
 import configuration from './config/configuration';
 
@@ -79,10 +79,10 @@ import configuration from './config/configuration';
       },
       inject: [ConfigService],
     }),
+    SecurityModule,
     TasksModule,
     ProjectsModule,
     TagsModule,
-    // AuthModule,
   ],
   controllers: [AppController],
 })

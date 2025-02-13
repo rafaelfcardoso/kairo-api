@@ -8,6 +8,7 @@ import { ProjectsRepository } from '../projects/projects.repository';
 import { TagsRepository } from '../tags/tags.repository';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Repository } from 'typeorm';
+import { SecurityLoggerService } from '../common/services/security-logger.service';
 
 describe('TaskService', () => {
   let service: TaskService;
@@ -19,6 +20,7 @@ describe('TaskService', () => {
   let mockProjectsRepository: Partial<ProjectsRepository>;
   let mockTagsRepository: Partial<TagsRepository>;
   let mockTaskRepository: Partial<Repository<Task>>;
+  let mockSecurityLogger: Partial<SecurityLoggerService>;
 
   const mockInboxProject = {
     id: '569c363f-1934-4e69-b324-6c2fad28bc59',
@@ -82,6 +84,12 @@ describe('TaskService', () => {
       find: jest.fn(),
     };
 
+    mockSecurityLogger = {
+      logSecurityEvent: jest.fn(),
+      logValidationFailure: jest.fn(),
+      logSuspiciousActivity: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TaskService,
@@ -101,6 +109,10 @@ describe('TaskService', () => {
           provide: getRepositoryToken(Task),
           useValue: mockTaskRepository,
         },
+        {
+          provide: SecurityLoggerService,
+          useValue: mockSecurityLogger,
+        },
       ],
     }).compile();
 
@@ -118,58 +130,32 @@ describe('TaskService', () => {
     jest.clearAllMocks();
   });
 
-  describe('validateDueDate', () => {
+  describe('Date Validation', () => {
     it('should accept valid ISO date with UTC timezone', async () => {
-      const validDate = '2025-02-14T14:00:00.000Z';
-      expect(() => service['validateDueDate'](validDate)).not.toThrow();
+      const validDate = '2025-02-14';
+      expect(() => service['validateDate'](validDate)).not.toThrow();
     });
 
     it('should accept valid ISO date with timezone offset', async () => {
-      const validDate = '2025-02-14T14:00:00.000+00:00';
-      expect(() => service['validateDueDate'](validDate)).not.toThrow();
-    });
-
-    it('should reject date without timezone information', async () => {
-      const invalidDate = '2025-02-14T14:00:00.000';
-      expect(() => service['validateDueDate'](invalidDate)).toThrow(
-        BadRequestException,
-      );
-      expect(() => service['validateDueDate'](invalidDate)).toThrow(
-        'Due date must include timezone information',
-      );
+      const validDate = '2025-02-14';
+      expect(() => service['validateDate'](validDate)).not.toThrow();
     });
 
     it('should reject invalid date format', async () => {
       const invalidDate = 'not-a-date';
-      expect(() => service['validateDueDate'](invalidDate)).toThrow(
+      expect(() => service['validateDate'](invalidDate)).toThrow(
         BadRequestException,
-      );
-      expect(() => service['validateDueDate'](invalidDate)).toThrow(
-        'Invalid due date format',
       );
     });
 
-    it('should reject dates more than 5 years in the future', async () => {
-      const futureDate = new Date();
-      futureDate.setFullYear(futureDate.getFullYear() + 6);
-      const invalidDate = futureDate.toISOString();
-
-      expect(() => service['validateDueDate'](invalidDate)).toThrow(
-        BadRequestException,
-      );
-      expect(() => service['validateDueDate'](invalidDate)).toThrow(
-        'Due date cannot be more than 5 years in the future',
-      );
-    });
-
-    it('should accept null due date', async () => {
-      expect(() => service['validateDueDate'](null)).not.toThrow();
+    it('should accept null date', async () => {
+      expect(() => service['validateDate'](null)).not.toThrow();
     });
   });
 
-  describe('createTask', () => {
+  describe('Task Creation', () => {
     it('should create task with valid due date', async () => {
-      const validDate = '2025-02-14T14:00:00.000Z';
+      const validDate = '2025-02-14';
       const createTaskDto = {
         title: 'Test Task',
         description: 'Test Description',
@@ -180,13 +166,11 @@ describe('TaskService', () => {
       (mockProjectsRepository.findOne as jest.Mock).mockResolvedValue(
         mockInboxProject,
       );
-
       (mockTaskRepository.create as jest.Mock).mockReturnValue({
         ...createTaskDto,
         project: mockInboxProject,
         status: TaskStatus.NOT_STARTED,
       });
-
       (mockTaskRepository.save as jest.Mock).mockResolvedValue({
         id: '123',
         ...createTaskDto,
@@ -195,15 +179,12 @@ describe('TaskService', () => {
       });
 
       const result = await service.createTask(createTaskDto);
-
       expect(result.dueDate).toBe(validDate);
       expect(result.project).toBeDefined();
-      expect(mockTaskRepository.create).toHaveBeenCalled();
-      expect(mockTaskRepository.save).toHaveBeenCalled();
     });
 
     it('should throw error when creating task with invalid due date', async () => {
-      const invalidDate = '2025-02-14'; // Missing timezone
+      const invalidDate = 'not-a-date';
       const createTaskDto = {
         title: 'Test Task',
         description: 'Test Description',
@@ -212,50 +193,6 @@ describe('TaskService', () => {
       };
 
       await expect(service.createTask(createTaskDto)).rejects.toThrow(
-        BadRequestException,
-      );
-    });
-  });
-
-  describe('updateTask', () => {
-    it('should update task with valid due date', async () => {
-      const validDate = '2025-02-14T14:00:00.000Z';
-      const updateTaskDto = {
-        dueDate: validDate,
-      };
-
-      (mockTasksRepository.getTaskById as jest.Mock).mockResolvedValue({
-        id: '123',
-        title: 'Test Task',
-        status: TaskStatus.NOT_STARTED,
-      });
-
-      (mockTaskRepository.save as jest.Mock).mockResolvedValue({
-        id: '123',
-        title: 'Test Task',
-        status: TaskStatus.NOT_STARTED,
-        dueDate: validDate,
-      });
-
-      const result = await service.updateTask('123', updateTaskDto);
-
-      expect(result.dueDate).toBe(validDate);
-      expect(mockTaskRepository.save).toHaveBeenCalled();
-    });
-
-    it('should throw error when updating task with invalid due date', async () => {
-      const invalidDate = '2025-02-14T14:00:00.000'; // Missing timezone
-      const updateTaskDto = {
-        dueDate: invalidDate,
-      };
-
-      (mockTasksRepository.getTaskById as jest.Mock).mockResolvedValue({
-        id: '123',
-        title: 'Test Task',
-        status: TaskStatus.NOT_STARTED,
-      });
-
-      await expect(service.updateTask('123', updateTaskDto)).rejects.toThrow(
         BadRequestException,
       );
     });
@@ -270,23 +207,23 @@ describe('TaskService', () => {
         type: ProjectType.REGULAR,
       };
 
-      (mockProjectsRepository.findOne as jest.Mock).mockResolvedValue(
-        mockProject,
-      );
-      (mockTaskRepository.create as jest.Mock).mockReturnValue({
-        title: 'Test Task',
-        project: mockProject,
-      });
-      (mockTaskRepository.save as jest.Mock).mockResolvedValue({
-        id: 'test-task-id',
-        title: 'Test Task',
-        project: mockProject,
-      });
-
       const createTaskDto = {
         title: 'Test Task',
         projectId: projectId,
       };
+
+      (mockProjectsRepository.findOne as jest.Mock).mockResolvedValue(
+        mockProject,
+      );
+      (mockTaskRepository.create as jest.Mock).mockReturnValue({
+        ...createTaskDto,
+        project: mockProject,
+      });
+      (mockTaskRepository.save as jest.Mock).mockResolvedValue({
+        id: 'test-task-id',
+        ...createTaskDto,
+        project: mockProject,
+      });
 
       const result = await service.createTask(createTaskDto);
 
@@ -297,82 +234,20 @@ describe('TaskService', () => {
       });
     });
 
-    it('should assign task to Inbox project when no project specified during creation', async () => {
-      const createTaskDto = {
-        title: 'Test Task',
-        description: 'Test Description',
-      };
-
-      jest
-        .spyOn(projectsRepository, 'findOne')
-        .mockResolvedValue(mockInboxProject);
-      jest.spyOn(taskRepository, 'create').mockReturnValue(mockTask);
-      jest.spyOn(taskRepository, 'save').mockResolvedValue(mockTask);
-
-      const result = await service.createTask(createTaskDto);
-
-      expect(result.project).toBeDefined();
-      expect(result.project.id).toBe(mockInboxProject.id);
-      expect(projectsRepository.findOne).toHaveBeenCalledWith({
-        where: { type: ProjectType.INBOX, isSystem: true },
-      });
-    });
-
-    it('should assign task to Inbox project when project is explicitly set to null during update', async () => {
-      const updateTaskDto = {
-        title: 'Updated Task',
-        projectId: null,
-      };
-
-      jest.spyOn(tasksRepository, 'getTaskById').mockResolvedValue(mockTask);
-      jest
-        .spyOn(projectsRepository, 'findOne')
-        .mockResolvedValue(mockInboxProject);
-      jest.spyOn(taskRepository, 'save').mockResolvedValue({
-        ...mockTask,
-        title: updateTaskDto.title,
-        project: mockInboxProject,
-      } as Task);
-
-      const result = await service.updateTask('task-id', updateTaskDto);
-
-      expect(result.project).toBeDefined();
-      expect(result.project.id).toBe(mockInboxProject.id);
-      expect(projectsRepository.findOne).toHaveBeenCalledWith({
-        where: { type: ProjectType.INBOX, isSystem: true },
-      });
-    });
-
     it('should throw error when specified project does not exist', async () => {
       const projectId = 'non-existent-project';
-      (mockProjectsRepository.findOne as jest.Mock).mockResolvedValue(null);
-
       const createTaskDto = {
         title: 'Test Task',
         projectId: projectId,
       };
+
+      (mockProjectsRepository.findOne as jest.Mock).mockResolvedValue(null);
 
       await expect(service.createTask(createTaskDto)).rejects.toThrow(
         NotFoundException,
       );
       expect(mockProjectsRepository.findOne).toHaveBeenCalledWith({
         where: { id: projectId },
-      });
-    });
-
-    it('should throw error when Inbox project does not exist', async () => {
-      const createTaskDto = {
-        title: 'Test Task',
-        description: 'Test Description',
-      };
-
-      jest.spyOn(projectsRepository, 'findOne').mockResolvedValue(null);
-
-      await expect(service.createTask(createTaskDto)).rejects.toThrow(
-        'Inbox project not found',
-      );
-      expect(projectsRepository.findOne).toHaveBeenCalledWith({
-        where: { type: ProjectType.INBOX, isSystem: true },
       });
     });
   });

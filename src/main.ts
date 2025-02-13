@@ -3,6 +3,8 @@ import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import helmet from 'helmet';
+import { rateLimit } from 'express-rate-limit';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -12,11 +14,31 @@ async function bootstrap() {
   // Get ConfigService
   const configService = app.get(ConfigService);
 
+  // Apply Helmet middleware
+  app.use(helmet());
+
+  // Apply global rate limiting
+  app.use(
+    rateLimit({
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      max: 100, // limit each IP to 100 requests per windowMs
+      message: 'Too many requests from this IP, please try again later',
+      standardHeaders: true,
+      legacyHeaders: false,
+    }),
+  );
+
   // Enable CORS with configuration
   app.enableCors({
     origin: configService.get('cors.origin'),
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    exposedHeaders: [
+      'X-RateLimit-Limit',
+      'X-RateLimit-Remaining',
+      'X-RateLimit-Reset',
+    ],
   });
 
   // Validation pipe with proper settings
@@ -72,6 +94,9 @@ async function bootstrap() {
       - Project Organization
       - Tag System
       - Authentication
+      - Rate Limiting
+      - Security Headers
+      - Input Sanitization
     `,
     )
     .setVersion('1.0')

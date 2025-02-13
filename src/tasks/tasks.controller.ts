@@ -12,6 +12,8 @@ import {
   HttpStatus,
   HttpCode,
   ValidationPipe,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
 import { TaskService } from './tasks.service';
 import { CreateTaskDto, UpdateTaskDto, TaskFilterDto } from './tasks.dto';
@@ -25,9 +27,13 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 import { ParseUUIDArrayPipe } from './pipes/parse-uuid-array.pipe';
+import { RateLimitGuard } from '../common/guards/rate-limit.guard';
+import { SanitizePipe } from '../common/pipes/sanitize.pipe';
+import { Request } from 'express';
 
 @ApiTags('Tasks')
 @Controller('tasks')
+@UseGuards(RateLimitGuard)
 export class TaskController {
   constructor(private taskService: TaskService) {}
 
@@ -120,9 +126,10 @@ export class TaskController {
     description: 'Invalid input',
   })
   async createTask(
-    @Body(ValidationPipe) createTaskDto: CreateTaskDto,
+    @Body(new ValidationPipe(), new SanitizePipe()) createTaskDto: CreateTaskDto,
+    @Req() request: Request,
   ): Promise<Task> {
-    return this.taskService.createTask(createTaskDto);
+    return this.taskService.createTask(createTaskDto, request.ip);
   }
 
   @Put(':id')
@@ -135,9 +142,10 @@ export class TaskController {
   })
   async updateTask(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body(ValidationPipe) updateTaskDto: UpdateTaskDto,
+    @Body(new ValidationPipe(), new SanitizePipe()) updateTaskDto: UpdateTaskDto,
+    @Req() request: Request,
   ): Promise<Task> {
-    return this.taskService.updateTask(id, updateTaskDto);
+    return this.taskService.updateTask(id, updateTaskDto, request.ip);
   }
 
   @Delete(':id')

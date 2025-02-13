@@ -12,43 +12,118 @@ import { Task, TaskStatus, TaskPriority } from './tasks.entity';
 import { Project, ProjectType } from '../projects/projects.entity';
 import { CreateTaskDto, UpdateTaskDto, TaskFilterDto } from './tasks.dto';
 import { Repository } from 'typeorm';
+import { SecurityLoggerService } from '../common/services/security-logger.service';
 
 @Injectable()
 export class TaskService {
+  private readonly commandPatterns = [
+    /rm\s+-rf/i,
+    /shutdown/i,
+    /format\s+[a-z]:/i,
+    /drop\s+(?:database|table)/i,
+    /delete\s+from/i,
+    /;\s*--/i,
+    /\$\(.*\)/,
+    /`.*`/,
+    /eval\s*\(/i,
+    /exec\s*\(/i,
+    /system\s*\(/i,
+    /curl\s+/i,
+    /wget\s+/i,
+    /nc\s+/i,
+    /netcat\s+/i,
+  ];
+
+  private readonly dangerousPatterns = [
+    /<script>/i,
+    /javascript:/i,
+    /onerror=/i,
+    /onload=/i,
+    /onclick=/i,
+    /data:/i,
+    /base64/i,
+    /alert\s*\(/i,
+    /prompt\s*\(/i,
+    /confirm\s*\(/i,
+  ];
+
   constructor(
     private tasksRepository: TasksRepository,
     private projectsRepository: ProjectsRepository,
     private tagsRepository: TagsRepository,
+    private securityLogger: SecurityLoggerService,
     @InjectRepository(Task)
     private taskRepository: Repository<Task>,
   ) {}
 
-  private validateDueDate(dueDate: string | null): void {
-    if (!dueDate) return;
-
-    const dueDateObj = new Date(dueDate);
-    const now = new Date();
-
-    // Check if date is valid
-    if (isNaN(dueDateObj.getTime())) {
-      throw new BadRequestException('Invalid due date format');
+  private validateInput(input: string, context: string): void {
+    // Check for null bytes
+    if (input.includes('\0')) {
+      this.securityLogger.logValidationFailure(input, 'Null byte detected', {
+        context,
+      });
+      throw new BadRequestException('Invalid input: contains null bytes');
     }
 
-    // Check if date has timezone information
-    if (!dueDate.includes('Z') && !dueDate.includes('+')) {
+    // Check for command injection attempts
+    if (this.commandPatterns.some((pattern) => pattern.test(input))) {
+      this.securityLogger.logValidationFailure(
+        input,
+        'Command pattern detected',
+        { context },
+      );
       throw new BadRequestException(
-        'Due date must include timezone information',
+        'Invalid input: contains potentially dangerous commands',
       );
     }
 
-    // Optional: Enforce business rules about minimum/maximum dates
-    const maxDate = new Date();
-    maxDate.setFullYear(maxDate.getFullYear() + 5); // Max 5 years in future
-
-    if (dueDateObj > maxDate) {
+    // Check for XSS attempts
+    if (this.dangerousPatterns.some((pattern) => pattern.test(input))) {
+      this.securityLogger.logValidationFailure(input, 'XSS pattern detected', {
+        context,
+      });
       throw new BadRequestException(
-        'Due date cannot be more than 5 years in the future',
+        'Invalid input: contains potentially dangerous patterns',
       );
+    }
+
+    // Validate length
+    if (context === 'title' && input.length > 255) {
+      this.securityLogger.logValidationFailure(
+        input,
+        'Title exceeds maximum length',
+        { context, maxLength: 255 },
+      );
+      throw new BadRequestException('Title exceeds maximum length');
+    }
+
+    if (context === 'description' && input.length > 1000) {
+      this.securityLogger.logValidationFailure(
+        input,
+        'Description exceeds maximum length',
+        { context, maxLength: 1000 },
+      );
+      throw new BadRequestException('Description exceeds maximum length');
+    }
+  }
+
+  private validateDate(date: string | undefined): void {
+    if (!date) return;
+
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(date)) {
+      this.securityLogger.logValidationFailure(date, 'Invalid date format', {
+        context: 'dueDate',
+      });
+      throw new BadRequestException('Invalid date format');
+    }
+
+    const parsedDate = new Date(date);
+    if (isNaN(parsedDate.getTime())) {
+      this.securityLogger.logValidationFailure(date, 'Invalid date value', {
+        context: 'dueDate',
+      });
+      throw new BadRequestException('Invalid date value');
     }
   }
 
@@ -60,60 +135,88 @@ export class TaskService {
     return this.tasksRepository.getTaskById(id);
   }
 
-  async createTask(createTaskDto: CreateTaskDto): Promise<Task> {
-    // Validate due date if provided
-    this.validateDueDate(createTaskDto.dueDate);
+  async createTask(createTaskDto: CreateTaskDto, _ip?: string): Promise<Task> {
+    const { title, description, dueDate, projectId } = createTaskDto;
 
-    const { projectId, ...taskData } = createTaskDto;
-
-    // Always ensure a project is assigned
-    const project = projectId
-      ? await this.projectsRepository.findOne({ where: { id: projectId } })
-      : await this.getInboxProject();
-
-    if (!project) {
-      throw new NotFoundException(`Project with ID "${projectId}" not found`);
+    // Validate inputs
+    this.validateInput(title, 'title');
+    if (description) {
+      this.validateInput(description, 'description');
+    }
+    if (dueDate) {
+      this.validateDate(dueDate);
     }
 
-    // Convert dueDate string to Date object if present
-    const task = this.taskRepository.create({
-      ...taskData,
-      dueDate: taskData.dueDate ? new Date(taskData.dueDate) : null,
-      project,
-      status: TaskStatus.NOT_STARTED,
-    });
-
-    return this.taskRepository.save(task);
-  }
-
-  async updateTask(id: string, updateTaskDto: UpdateTaskDto): Promise<Task> {
-    // Validate due date if provided
-    this.validateDueDate(updateTaskDto.dueDate);
-
-    const { projectId, ...taskData } = updateTaskDto;
-
-    const task = await this.getTaskById(id);
-
-    // If project is being changed
-    if (projectId !== undefined) {
-      const project = projectId
-        ? await this.projectsRepository.findOne({ where: { id: projectId } })
-        : await this.getInboxProject();
-
-      if (!project) {
-        throw new NotFoundException(`Project with ID "${projectId}" not found`);
+    try {
+      // Check if project exists when projectId is provided
+      if (projectId) {
+        const project = await this.projectsRepository.findOne({
+          where: { id: projectId },
+        });
+        if (!project) {
+          throw new NotFoundException(
+            `Project with ID "${projectId}" not found`,
+          );
+        }
       }
 
-      task.project = project;
+      const task = this.taskRepository.create(createTaskDto);
+      const savedTask = await this.taskRepository.save(task);
+
+      this.securityLogger.logSecurityEvent('Task created successfully', {
+        taskId: savedTask.id,
+      });
+      return savedTask;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      this.securityLogger.logSuspiciousActivity(
+        'Task creation failed',
+        'MEDIUM',
+        { error: error.message },
+      );
+      throw error;
+    }
+  }
+
+  async updateTask(
+    id: string,
+    updateTaskDto: UpdateTaskDto,
+    _ip?: string,
+  ): Promise<Task> {
+    const { title, description, dueDate } = updateTaskDto;
+
+    // Validate inputs
+    if (title) {
+      this.validateInput(title, 'title');
+    }
+    if (description) {
+      this.validateInput(description, 'description');
+    }
+    if (dueDate) {
+      this.validateDate(dueDate);
     }
 
-    // Update the task
-    Object.assign(task, {
-      ...taskData,
-      dueDate: taskData.dueDate ? new Date(taskData.dueDate) : task.dueDate,
-    });
+    try {
+      const task = await this.getTaskById(id);
 
-    return this.taskRepository.save(task);
+      Object.assign(task, updateTaskDto);
+      const savedTask = await this.taskRepository.save(task);
+
+      this.securityLogger.logSecurityEvent('Task updated successfully', {
+        taskId: savedTask.id,
+      });
+
+      return savedTask;
+    } catch (error) {
+      this.securityLogger.logSuspiciousActivity(
+        'Task update failed',
+        'MEDIUM',
+        { taskId: id, error: error.message },
+      );
+      throw error;
+    }
   }
 
   private async getInboxProject(): Promise<Project> {
