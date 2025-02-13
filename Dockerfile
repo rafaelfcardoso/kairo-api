@@ -1,5 +1,5 @@
-# Build stage
-FROM node:20-alpine AS builder
+# Development stage
+FROM node:20-alpine
 
 WORKDIR /app
 
@@ -9,36 +9,20 @@ RUN apk add --no-cache python3 make g++
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies with legacy peer deps to handle npm warnings
+# Install ALL dependencies including devDependencies
 RUN npm ci --legacy-peer-deps
 
 # Copy source code
 COPY . .
 
-# Build the application
+# Build the application (needed for first run)
 RUN npm run build
-
-# Production stage
-FROM node:20-alpine
-
-WORKDIR /app
-
-# Install production dependencies
-COPY package*.json ./
-
-# Install production dependencies with legacy peer deps
-RUN apk add --no-cache python3 make g++ && \
-    npm ci --only=production --legacy-peer-deps && \
-    apk del python3 make g++
-
-# Copy built application from builder stage
-COPY --from=builder /app/dist ./dist
 
 # Expose port (this is for documentation, Railway will override with PORT env var)
 EXPOSE 8080
 
-# Set NODE_ENV
-ENV NODE_ENV=production
+# Set NODE_ENV (will be overridden by Railway environment variables)
+ENV NODE_ENV=development
 
-# Start the application using the PORT environment variable
-CMD ["sh", "-c", "npm run start:prod"] 
+# Start the application in development mode
+CMD ["sh", "-c", "npm run start:dev"] 
