@@ -54,8 +54,8 @@ async function bootstrap() {
   );
 
   // Get the public URL based on environment
-  const nodeEnv = process.env.NODE_ENV || 'local';
-  const port = process.env.PORT || 3001;
+  const nodeEnv = configService.get('nodeEnv') || 'local';
+  const port = configService.get('port') || 3001;
 
   // Allow override through environment variable
   const publicUrl =
@@ -74,9 +74,14 @@ async function bootstrap() {
       }
     })();
 
+  // Set global prefix based on environment
+  if (nodeEnv !== 'local') {
+    app.setGlobalPrefix('api');
+  }
+
   // Debug environment variables
   console.log('Environment Variables:', {
-    PORT: process.env.PORT,
+    PORT: port,
     NODE_ENV: nodeEnv,
     PUBLIC_URL: publicUrl,
     RAILWAY_STATIC_URL: process.env.RAILWAY_STATIC_URL,
