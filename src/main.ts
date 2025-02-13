@@ -18,8 +18,15 @@ async function bootstrap() {
   // Get DataSource and run migrations
   const dataSource = app.get(DataSource);
   try {
+    console.log('Starting database migrations...');
+    const pendingMigrations = await dataSource.showMigrations();
+    console.log('Pending migrations:', pendingMigrations);
     await dataSource.runMigrations();
     console.log('Database migrations completed successfully');
+    const migrations = await dataSource.query(
+      'SELECT * FROM migrations ORDER BY timestamp DESC',
+    );
+    console.log('Applied migrations:', migrations);
   } catch (error) {
     console.error('Error running migrations:', error);
     throw error;
