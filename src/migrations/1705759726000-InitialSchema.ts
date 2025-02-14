@@ -9,6 +9,17 @@ export class InitialSchema1705759726000 extends BaseMigration {
     // First ensure uuid-ossp extension exists
     await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`);
 
+    // Check if task_priority_enum exists
+    const priorityEnumExists = await this.enumExists(
+      queryRunner,
+      'task_priority_enum',
+    );
+    if (!priorityEnumExists) {
+      await queryRunner.query(`
+        CREATE TYPE "task_priority_enum" AS ENUM ('low', 'medium', 'high');
+      `);
+    }
+
     // Create enum type if it doesn't exist
     const statusEnumExists = await this.enumExists(
       queryRunner,
@@ -24,11 +35,6 @@ export class InitialSchema1705759726000 extends BaseMigration {
         );
       `);
     }
-
-    // Create initial priority enum
-    await queryRunner.query(`
-      CREATE TYPE "task_priority_enum" AS ENUM ('low', 'medium', 'high');
-    `);
 
     // Create tables if they don't exist
     await queryRunner.query(`
