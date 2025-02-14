@@ -42,7 +42,7 @@ export class FixProjectColors1738362321118 implements MigrationInterface {
 
     // Record this migration
     await queryRunner.query(
-      `INSERT INTO migrations (timestamp, name) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING`,
+      `INSERT INTO migrations (timestamp, name) VALUES ($1, $2)`,
       [1738362321118, this.name],
     );
   }

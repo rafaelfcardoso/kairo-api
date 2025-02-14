@@ -7,6 +7,39 @@ export class InitialSchema1705759726000 implements MigrationInterface {
     // First ensure uuid-ossp extension exists
     await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`);
 
+    // Ensure migrations table exists with proper constraints
+    await queryRunner.query(`
+      DO $$ 
+      BEGIN
+        -- Create the migrations table if it doesn't exist
+        CREATE TABLE IF NOT EXISTS "migrations" (
+          "id" SERIAL,
+          "timestamp" bigint NOT NULL,
+          "name" varchar NOT NULL
+        );
+
+        -- Add primary key if it doesn't exist
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint 
+          WHERE conname = 'PK_migrations_id'
+        ) THEN
+          ALTER TABLE "migrations" 
+          ADD CONSTRAINT "PK_migrations_id" 
+          PRIMARY KEY ("id");
+        END IF;
+
+        -- Add unique constraint on name if it doesn't exist
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint 
+          WHERE conname = 'UQ_migrations_name'
+        ) THEN
+          ALTER TABLE "migrations" 
+          ADD CONSTRAINT "UQ_migrations_name" 
+          UNIQUE ("name");
+        END IF;
+      END $$;
+    `);
+
     // Create enum type if it doesn't exist
     await queryRunner.query(`
       DO $$ 
@@ -86,6 +119,12 @@ export class InitialSchema1705759726000 implements MigrationInterface {
         END IF;
       END $$;
     `);
+
+    // Record this migration
+    await queryRunner.query(
+      `INSERT INTO migrations (timestamp, name) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING`,
+      [1705759726000, this.name],
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
@@ -102,5 +141,10 @@ export class InitialSchema1705759726000 implements MigrationInterface {
 
     // Drop enum type
     await queryRunner.query(`DROP TYPE IF EXISTS "task_status_enum"`);
+
+    // Remove this migration record
+    await queryRunner.query(`DELETE FROM migrations WHERE name = $1`, [
+      this.name,
+    ]);
   }
 }
