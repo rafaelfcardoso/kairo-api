@@ -37,56 +37,88 @@ export class InitialSchema1705759726000 extends BaseMigration {
     }
 
     // Create tables if they don't exist
-    await queryRunner.query(`
-      CREATE TABLE IF NOT EXISTS "task" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
-        "title" character varying NOT NULL,
-        "description" character varying,
-        "status" "${ENUM_TYPES.TASK_STATUS}" NOT NULL DEFAULT 'todo',
-        "priority" "task_priority_enum" NOT NULL DEFAULT 'medium',
-        "dueDate" TIMESTAMP,
-        "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
-        "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
-        "projectId" uuid,
-        CONSTRAINT "PK_task" PRIMARY KEY ("id")
+    const taskTableExists = await queryRunner.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'task'
       );
     `);
 
-    await queryRunner.query(`
-      CREATE TABLE IF NOT EXISTS "project" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
-        "name" character varying NOT NULL,
-        "description" character varying,
-        "isArchived" boolean NOT NULL DEFAULT false,
-        "isSystem" boolean NOT NULL DEFAULT false,
-        "color" character varying,
-        "order" integer NOT NULL DEFAULT 0,
-        "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
-        "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
-        "parentId" uuid,
-        CONSTRAINT "PK_project" PRIMARY KEY ("id")
+    if (!taskTableExists[0].exists) {
+      await queryRunner.query(`
+        CREATE TABLE "task" (
+          "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+          "title" character varying NOT NULL,
+          "description" character varying,
+          "status" "${ENUM_TYPES.TASK_STATUS}" NOT NULL DEFAULT 'todo',
+          "priority" "task_priority_enum" NOT NULL DEFAULT 'medium',
+          "dueDate" TIMESTAMP,
+          "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
+          "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
+          "projectId" uuid,
+          CONSTRAINT "PK_task" PRIMARY KEY ("id")
+        );
+      `);
+    }
+
+    const projectTableExists = await queryRunner.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'project'
       );
     `);
 
-    await queryRunner.query(`
-      CREATE TABLE IF NOT EXISTS "tag" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
-        "name" character varying NOT NULL,
-        "color" character varying,
-        "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
-        "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
-        CONSTRAINT "PK_tag" PRIMARY KEY ("id")
+    if (!projectTableExists[0].exists) {
+      await queryRunner.query(`
+        CREATE TABLE "project" (
+          "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+          "name" character varying NOT NULL,
+          "description" character varying,
+          "isArchived" boolean NOT NULL DEFAULT false,
+          "isSystem" boolean NOT NULL DEFAULT false,
+          "color" character varying,
+          "order" integer NOT NULL DEFAULT 0,
+          "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
+          "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
+          "parentId" uuid,
+          CONSTRAINT "PK_project" PRIMARY KEY ("id")
+        );
+      `);
+    }
+
+    const tagTableExists = await queryRunner.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'tag'
       );
     `);
 
-    // Add foreign key constraints if they don't exist
-    const taskProjectFkExists = await this.constraintExists(
-      queryRunner,
-      'task',
-      'FK_task_project',
-    );
+    if (!tagTableExists[0].exists) {
+      await queryRunner.query(`
+        CREATE TABLE "tag" (
+          "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+          "name" character varying NOT NULL,
+          "color" character varying,
+          "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
+          "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
+          CONSTRAINT "PK_tag" PRIMARY KEY ("id")
+        );
+      `);
+    }
 
-    if (!taskProjectFkExists) {
+    // Check for existing constraints
+    const taskProjectFkExists = await queryRunner.query(`
+      SELECT COUNT(*) 
+      FROM information_schema.table_constraints 
+      WHERE table_schema = 'public' 
+      AND table_name = 'task' 
+      AND constraint_name = 'FK_task_project';
+    `);
+
+    if (taskProjectFkExists[0].count === '0') {
       await queryRunner.query(`
         ALTER TABLE "task" 
         ADD CONSTRAINT "FK_task_project" 
@@ -96,13 +128,15 @@ export class InitialSchema1705759726000 extends BaseMigration {
       `);
     }
 
-    const projectParentFkExists = await this.constraintExists(
-      queryRunner,
-      'project',
-      'FK_project_parent',
-    );
+    const projectParentFkExists = await queryRunner.query(`
+      SELECT COUNT(*) 
+      FROM information_schema.table_constraints 
+      WHERE table_schema = 'public' 
+      AND table_name = 'project' 
+      AND constraint_name = 'FK_project_parent';
+    `);
 
-    if (!projectParentFkExists) {
+    if (projectParentFkExists[0].count === '0') {
       await queryRunner.query(`
         ALTER TABLE "project" 
         ADD CONSTRAINT "FK_project_parent" 
