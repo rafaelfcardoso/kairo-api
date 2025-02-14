@@ -31,7 +31,10 @@
     "typeorm": "typeorm-ts-node-commonjs",
     "migration:generate": "npm run typeorm -- migration:generate",
     "migration:run": "npm run typeorm -- migration:run -d src/config/typeorm.config.ts",
-    "migration:revert": "npm run typeorm -- migration:revert -d src/config/typeorm.config.ts"
+    "migration:revert": "npm run typeorm -- migration:revert -d src/config/typeorm.config.ts",
+    "migration:verify": "ts-node src/scripts/verify-migrations.ts",
+    "predeploy": "npm run migration:verify",
+    "deploy": "railway up"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.15",

@@ -1,7 +1,10 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { QueryRunner } from 'typeorm';
+import { BaseMigration } from './base/BaseMigration';
 
-export class AddNonePriorityEnum1710000000000 implements MigrationInterface {
-  public async up(queryRunner: QueryRunner): Promise<void> {
+export class AddNonePriorityEnum1710000000000 extends BaseMigration {
+  name = 'AddNonePriorityEnum1710000000000';
+
+  protected async executeUp(queryRunner: QueryRunner): Promise<void> {
     // Temporarily change existing medium values to low
     await queryRunner.query(`
       UPDATE "task" SET priority = 'low' WHERE priority = 'medium';
@@ -26,7 +29,7 @@ export class AddNonePriorityEnum1710000000000 implements MigrationInterface {
     `);
   }
 
-  public async down(queryRunner: QueryRunner): Promise<void> {
+  protected async executeDown(queryRunner: QueryRunner): Promise<void> {
     // Revert none values to medium
     await queryRunner.query(`
       UPDATE "task" SET priority = 'medium' WHERE priority = 'none';

@@ -33,12 +33,6 @@ export abstract class BaseMigration implements MigrationInterface {
       console.log(`Executing up migration: ${this.name}`);
       await this.executeUp(queryRunner);
 
-      // Record successful migration
-      await queryRunner.query(
-        `INSERT INTO migrations (timestamp, name) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING`,
-        [Date.now(), this.name],
-      );
-
       await queryRunner.commitTransaction();
       console.log(`Successfully completed migration: ${this.name}`);
     } catch (error) {
@@ -60,11 +54,6 @@ export abstract class BaseMigration implements MigrationInterface {
     try {
       console.log(`Executing down migration: ${this.name}`);
       await this.executeDown(queryRunner);
-
-      // Remove migration record
-      await queryRunner.query(`DELETE FROM migrations WHERE name = $1`, [
-        this.name,
-      ]);
 
       await queryRunner.commitTransaction();
       console.log(`Successfully rolled back migration: ${this.name}`);

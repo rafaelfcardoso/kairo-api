@@ -1,4 +1,5 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { QueryRunner } from 'typeorm';
+import { BaseMigration } from './base/BaseMigration';
 
 const colorMappings = {
   gray: '#808080',
@@ -6,21 +7,10 @@ const colorMappings = {
   black: '#000000',
 };
 
-export class FixProjectColors1738362321118 implements MigrationInterface {
+export class FixProjectColors1738362321118 extends BaseMigration {
   name = 'FixProjectColors1738362321118';
 
-  public async up(queryRunner: QueryRunner): Promise<void> {
-    // Check if this migration has already been applied
-    const migrationExists = await queryRunner.query(
-      `SELECT COUNT(*) FROM migrations WHERE name = $1`,
-      [this.name],
-    );
-
-    if (parseInt(migrationExists[0].count) > 0) {
-      console.log(`Migration ${this.name} has already been applied`);
-      return;
-    }
-
+  protected async executeUp(queryRunner: QueryRunner): Promise<void> {
     // Add # to hex colors that are missing it
     await queryRunner.query(`
       UPDATE project 
@@ -39,19 +29,10 @@ export class FixProjectColors1738362321118 implements MigrationInterface {
         [hexColor, namedColor],
       );
     }
-
-    // Record this migration
-    await queryRunner.query(
-      `INSERT INTO migrations (timestamp, name) VALUES ($1, $2)`,
-      [1738362321118, this.name],
-    );
   }
 
-  public async down(queryRunner: QueryRunner): Promise<void> {
+  protected async executeDown(queryRunner: QueryRunner): Promise<void> {
     // No need for down migration as we don't want to revert to inconsistent colors
-    // But we should remove the migration record
-    await queryRunner.query(`DELETE FROM migrations WHERE name = $1`, [
-      this.name,
-    ]);
+    console.log('No down migration needed for color fixes');
   }
 }

@@ -74,7 +74,7 @@ const baseConfig: DatabaseConfig = {
   migrationsTableName: 'migrations',
   synchronize: false,
   logging: process.env.NODE_ENV === ('development' as LoggerOptions),
-  ssl: process.env.NODE_ENV !== 'local' ? { rejectUnauthorized: false } : false,
+  ssl: process.env.NODE_ENV === 'local' ? false : { rejectUnauthorized: false },
   retryAttempts: DATABASE_CONFIG.RETRY_ATTEMPTS,
   retryDelay: DATABASE_CONFIG.RETRY_DELAY,
   keepConnectionAlive: true,
