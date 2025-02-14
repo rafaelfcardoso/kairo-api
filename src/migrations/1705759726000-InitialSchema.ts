@@ -4,6 +4,20 @@ export class InitialSchema1705759726000 implements MigrationInterface {
   name = 'InitialSchema1705759726000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    // First ensure uuid-ossp extension exists
+    await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`);
+
+    // Create migrations table with TypeORM's expected structure if it doesn't exist
+    await queryRunner.query(`
+      CREATE TABLE IF NOT EXISTS "migrations" (
+        "id" SERIAL,
+        "timestamp" bigint NOT NULL,
+        "name" varchar NOT NULL,
+        CONSTRAINT "PK_migrations_id" PRIMARY KEY ("id"),
+        CONSTRAINT "UQ_migrations_name" UNIQUE ("name")
+      )
+    `);
+
     // Check if this migration has already been applied
     const migrationExists = await queryRunner.query(
       `SELECT COUNT(*) FROM migrations WHERE name = $1`,
