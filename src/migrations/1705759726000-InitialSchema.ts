@@ -1,91 +1,125 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class InitialSchema1705759726000 implements MigrationInterface {
+  name = 'InitialSchema1705759726000';
+
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // Create uuid-ossp extension
-    await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`);
+    // Check if this migration has already been applied
+    const migrationExists = await queryRunner.query(
+      `SELECT COUNT(*) FROM migrations WHERE name = $1`,
+      [this.name],
+    );
 
-    // Create TaskStatus enum
+    if (parseInt(migrationExists[0].count) > 0) {
+      console.log(`Migration ${this.name} has already been applied`);
+      return;
+    }
+
+    // Create enum type if it doesn't exist
     await queryRunner.query(`
-      CREATE TYPE "task_status_enum" AS ENUM ('todo', 'in_progress', 'pending', 'completed')
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'task_status_enum') THEN
+          CREATE TYPE "task_status_enum" AS ENUM ('todo', 'in_progress', 'pending', 'completed');
+        END IF;
+      END $$;
     `);
 
-    // Create TaskPriority enum
+    // Create tables if they don't exist
     await queryRunner.query(`
-      CREATE TYPE "task_priority_enum" AS ENUM ('none', 'low', 'medium', 'high')
+      CREATE TABLE IF NOT EXISTS "task" (
+        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "title" character varying NOT NULL,
+        "description" character varying,
+        "status" "task_status_enum" NOT NULL DEFAULT 'todo',
+        "dueDate" TIMESTAMP,
+        "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
+        "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
+        "projectId" uuid,
+        CONSTRAINT "PK_task" PRIMARY KEY ("id")
+      );
     `);
 
-    // Create Project table
     await queryRunner.query(`
-      CREATE TABLE "project" (
-        "id" uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
+      CREATE TABLE IF NOT EXISTS "project" (
+        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "name" character varying NOT NULL,
         "description" character varying,
         "isArchived" boolean NOT NULL DEFAULT false,
+        "isSystem" boolean NOT NULL DEFAULT false,
         "color" character varying,
         "order" integer NOT NULL DEFAULT 0,
         "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
         "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
-        "parentId" uuid REFERENCES "project"("id")
-      )
+        "parentId" uuid,
+        CONSTRAINT "PK_project" PRIMARY KEY ("id")
+      );
     `);
 
-    // Create Tag table
     await queryRunner.query(`
-      CREATE TABLE "tag" (
-        "id" uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
+      CREATE TABLE IF NOT EXISTS "tag" (
+        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "name" character varying NOT NULL,
-        "color" character(7) NOT NULL,
-        "description" character varying,
-        "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
-        "updatedAt" TIMESTAMP NOT NULL DEFAULT now()
-      )
-    `);
-
-    // Create Task table
-    await queryRunner.query(`
-      CREATE TABLE "task" (
-        "id" uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
-        "title" character varying NOT NULL,
-        "description" character varying,
-        "status" task_status_enum NOT NULL DEFAULT 'pending',
-        "priority" task_priority_enum NOT NULL DEFAULT 'medium',
-        "dueDate" TIMESTAMP,
-        "estimatedMinutes" integer NOT NULL DEFAULT 0,
-        "isArchived" boolean NOT NULL DEFAULT false,
+        "color" character varying,
         "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
         "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
-        "projectId" uuid REFERENCES "project"("id")
-      )
+        CONSTRAINT "PK_tag" PRIMARY KEY ("id")
+      );
     `);
 
-    // Create Task-Tag join table
+    // Add foreign key constraints if they don't exist
     await queryRunner.query(`
-      CREATE TABLE "task_tags_tag" (
-        "taskId" uuid REFERENCES "task"("id") ON DELETE CASCADE,
-        "tagId" uuid REFERENCES "tag"("id") ON DELETE CASCADE,
-        PRIMARY KEY ("taskId", "tagId")
-      )
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.table_constraints 
+          WHERE constraint_name = 'FK_task_project'
+        ) THEN
+          ALTER TABLE "task" 
+          ADD CONSTRAINT "FK_task_project" 
+          FOREIGN KEY ("projectId") 
+          REFERENCES "project"("id") 
+          ON DELETE SET NULL;
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.table_constraints 
+          WHERE constraint_name = 'FK_project_parent'
+        ) THEN
+          ALTER TABLE "project" 
+          ADD CONSTRAINT "FK_project_parent" 
+          FOREIGN KEY ("parentId") 
+          REFERENCES "project"("id") 
+          ON DELETE SET NULL;
+        END IF;
+      END $$;
     `);
 
-    // Create Project closure table
-    await queryRunner.query(`
-      CREATE TABLE "project_closure" (
-        "id_ancestor" uuid REFERENCES "project"("id") ON DELETE CASCADE,
-        "id_descendant" uuid REFERENCES "project"("id") ON DELETE CASCADE,
-        PRIMARY KEY ("id_ancestor", "id_descendant")
-      )
-    `);
+    // Record this migration
+    await queryRunner.query(
+      `INSERT INTO migrations (timestamp, name) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING`,
+      [1705759726000, this.name],
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DROP TABLE "project_closure"`);
-    await queryRunner.query(`DROP TABLE "task_tags_tag"`);
-    await queryRunner.query(`DROP TABLE "task"`);
-    await queryRunner.query(`DROP TABLE "tag"`);
-    await queryRunner.query(`DROP TABLE "project"`);
-    await queryRunner.query(`DROP TYPE "task_priority_enum"`);
-    await queryRunner.query(`DROP TYPE "task_status_enum"`);
-    await queryRunner.query(`DROP EXTENSION IF EXISTS "uuid-ossp"`);
+    // Remove foreign key constraints
+    await queryRunner.query(`
+      ALTER TABLE "task" DROP CONSTRAINT IF EXISTS "FK_task_project";
+      ALTER TABLE "project" DROP CONSTRAINT IF EXISTS "FK_project_parent";
+    `);
+
+    // Drop tables
+    await queryRunner.query(`DROP TABLE IF EXISTS "tag"`);
+    await queryRunner.query(`DROP TABLE IF EXISTS "task"`);
+    await queryRunner.query(`DROP TABLE IF EXISTS "project"`);
+
+    // Drop enum type
+    await queryRunner.query(`DROP TYPE IF EXISTS "task_status_enum"`);
+
+    // Remove migration record
+    await queryRunner.query(`DELETE FROM migrations WHERE name = $1`, [
+      this.name,
+    ]);
   }
 }
