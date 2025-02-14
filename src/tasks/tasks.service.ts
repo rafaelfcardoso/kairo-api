@@ -110,20 +110,32 @@ export class TaskService {
   private validateDate(date: string | undefined): void {
     if (!date) return;
 
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(date)) {
-      this.securityLogger.logValidationFailure(date, 'Invalid date format', {
+    try {
+      const parsedDate = new Date(date);
+      if (isNaN(parsedDate.getTime())) {
+        this.securityLogger.logValidationFailure(date, 'Invalid date value', {
+          context: 'dueDate',
+        });
+        throw new BadRequestException('Invalid date value');
+      }
+
+      // Validate that it's a proper ISO 8601 date
+      const isoRegex =
+        /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d{1,3})?(Z|[+-]\d{2}:?\d{2})?)?$/;
+      if (!isoRegex.test(date)) {
+        this.securityLogger.logValidationFailure(date, 'Invalid date format', {
+          context: 'dueDate',
+        });
+        throw new BadRequestException('Invalid date format - must be ISO 8601');
+      }
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      this.securityLogger.logValidationFailure(date, 'Date parsing failed', {
         context: 'dueDate',
       });
       throw new BadRequestException('Invalid date format');
-    }
-
-    const parsedDate = new Date(date);
-    if (isNaN(parsedDate.getTime())) {
-      this.securityLogger.logValidationFailure(date, 'Invalid date value', {
-        context: 'dueDate',
-      });
-      throw new BadRequestException('Invalid date value');
     }
   }
 
