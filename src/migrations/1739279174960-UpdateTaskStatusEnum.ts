@@ -1,18 +1,21 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { QueryRunner } from 'typeorm';
+import { BaseMigration } from './base/BaseMigration';
+import { ENUM_TYPES, TaskStatus } from '../config/constants';
 
-export class UpdateTaskStatusEnum1739279174960 implements MigrationInterface {
+export class UpdateTaskStatusEnum1739279174960 extends BaseMigration {
   name = 'UpdateTaskStatusEnum1739279174960';
 
-  public async up(queryRunner: QueryRunner): Promise<void> {
+  protected async executeUp(queryRunner: QueryRunner): Promise<void> {
     // First, drop the existing enum type constraint
     await queryRunner.query(`
       ALTER TABLE "task" 
       ALTER COLUMN "status" DROP DEFAULT;
     `);
 
-    // Create the new enum type
+    // Create the new enum type with a temporary name
+    const newEnumName = `${ENUM_TYPES.TASK_STATUS}_new`;
     await queryRunner.query(`
-      CREATE TYPE "public"."task_status_enum_new" AS ENUM (
+      CREATE TYPE "public"."${newEnumName}" AS ENUM (
         'not_started', 
         'in_progress', 
         'blocked', 
@@ -24,18 +27,18 @@ export class UpdateTaskStatusEnum1739279174960 implements MigrationInterface {
     // First, create a temporary column with the new type
     await queryRunner.query(`
       ALTER TABLE "task" 
-      ADD COLUMN "status_new" "public"."task_status_enum_new";
+      ADD COLUMN "status_new" "public"."${newEnumName}";
     `);
 
-    // Migrate the data
+    // Migrate the data with explicit type casting
     await queryRunner.query(`
       UPDATE "task" 
       SET "status_new" = CASE 
-        WHEN "status"::text = 'todo' THEN 'not_started'::task_status_enum_new
-        WHEN "status"::text = 'pending' THEN 'not_started'::task_status_enum_new
-        WHEN "status"::text = 'in_progress' THEN 'in_progress'::task_status_enum_new
-        WHEN "status"::text = 'completed' THEN 'completed'::task_status_enum_new
-        ELSE 'not_started'::task_status_enum_new
+        WHEN "status"::text = 'todo' THEN 'not_started'::${newEnumName}
+        WHEN "status"::text = 'pending' THEN 'not_started'::${newEnumName}
+        WHEN "status"::text = 'in_progress' THEN 'in_progress'::${newEnumName}
+        WHEN "status"::text = 'completed' THEN 'completed'::${newEnumName}
+        ELSE 'not_started'::${newEnumName}
       END;
     `);
 
@@ -54,25 +57,26 @@ export class UpdateTaskStatusEnum1739279174960 implements MigrationInterface {
     await queryRunner.query(`
       ALTER TABLE "task" 
       ALTER COLUMN "status" 
-      SET DEFAULT 'not_started'::task_status_enum_new;
+      SET DEFAULT 'not_started'::${newEnumName};
     `);
 
-    // Drop the old enum type
+    // Drop the old enum type if it exists
     await queryRunner.query(`
-      DROP TYPE IF EXISTS "public"."task_status_enum";
+      DROP TYPE IF EXISTS "public"."${ENUM_TYPES.TASK_STATUS}";
     `);
 
     // Rename the new enum type to the original name
     await queryRunner.query(`
-      ALTER TYPE "public"."task_status_enum_new" 
-      RENAME TO "task_status_enum";
+      ALTER TYPE "public"."${newEnumName}" 
+      RENAME TO "${ENUM_TYPES.TASK_STATUS}";
     `);
   }
 
-  public async down(queryRunner: QueryRunner): Promise<void> {
-    // Create the old enum type
+  protected async executeDown(queryRunner: QueryRunner): Promise<void> {
+    // Create the old enum type with a temporary name
+    const oldEnumName = `${ENUM_TYPES.TASK_STATUS}_old`;
     await queryRunner.query(`
-      CREATE TYPE "public"."task_status_enum_old" AS ENUM (
+      CREATE TYPE "public"."${oldEnumName}" AS ENUM (
         'todo', 
         'in_progress', 
         'pending', 
@@ -89,18 +93,18 @@ export class UpdateTaskStatusEnum1739279174960 implements MigrationInterface {
     // Add temporary column with old type
     await queryRunner.query(`
       ALTER TABLE "task" 
-      ADD COLUMN "status_old" "public"."task_status_enum_old";
+      ADD COLUMN "status_old" "public"."${oldEnumName}";
     `);
 
-    // Migrate data back
+    // Migrate data back with explicit type casting
     await queryRunner.query(`
       UPDATE "task" 
       SET "status_old" = CASE 
-        WHEN "status"::text = 'not_started' THEN 'todo'::task_status_enum_old
-        WHEN "status"::text = 'in_progress' THEN 'in_progress'::task_status_enum_old
-        WHEN "status"::text = 'blocked' THEN 'pending'::task_status_enum_old
-        WHEN "status"::text = 'completed' THEN 'completed'::task_status_enum_old
-        ELSE 'todo'::task_status_enum_old
+        WHEN "status"::text = 'not_started' THEN 'todo'::${oldEnumName}
+        WHEN "status"::text = 'in_progress' THEN 'in_progress'::${oldEnumName}
+        WHEN "status"::text = 'blocked' THEN 'pending'::${oldEnumName}
+        WHEN "status"::text = 'completed' THEN 'completed'::${oldEnumName}
+        ELSE 'todo'::${oldEnumName}
       END;
     `);
 
@@ -119,18 +123,18 @@ export class UpdateTaskStatusEnum1739279174960 implements MigrationInterface {
     await queryRunner.query(`
       ALTER TABLE "task" 
       ALTER COLUMN "status" 
-      SET DEFAULT 'todo'::task_status_enum_old;
+      SET DEFAULT 'todo'::${oldEnumName};
     `);
 
     // Drop new enum type
     await queryRunner.query(`
-      DROP TYPE IF EXISTS "public"."task_status_enum";
+      DROP TYPE IF EXISTS "public"."${ENUM_TYPES.TASK_STATUS}";
     `);
 
     // Rename old enum type back to original name
     await queryRunner.query(`
-      ALTER TYPE "public"."task_status_enum_old" 
-      RENAME TO "task_status_enum";
+      ALTER TYPE "public"."${oldEnumName}" 
+      RENAME TO "${ENUM_TYPES.TASK_STATUS}";
     `);
   }
 }

@@ -1,6 +1,6 @@
 // src/config/typeorm.config.ts
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
+import { DataSource, LoggerOptions } from 'typeorm';
 import { Task } from '../tasks/tasks.entity';
 import { Project } from '../projects/projects.entity';
 import { Tag } from '../tags/tags.entity';
@@ -13,10 +13,26 @@ import { AddHasTimeToTasks1738934197033 } from '../migrations/1738934197033-AddH
 import { UpdateTaskStatusEnum1739279174960 } from '../migrations/1739279174960-UpdateTaskStatusEnum';
 import { EnsureValidTaskStatuses1739279174961 } from '../migrations/1739279174961-EnsureValidTaskStatuses';
 import { AddProjectTypeEnum1739279174962 } from '../migrations/1739279174962-AddProjectTypeEnum';
+import { AddNonePriorityEnum1710000000000 } from '../migrations/1710000000000-AddNonePriorityEnum';
+import { DATABASE_CONFIG } from './constants';
+
+// Define interface for database configuration
+interface DatabaseConfig extends Omit<TypeOrmModuleOptions, 'type'> {
+  type: 'postgres';
+  host?: string;
+  port?: number;
+  username?: string;
+  password?: string;
+  database?: string;
+  url?: string;
+  ssl?: boolean | { rejectUnauthorized: boolean };
+  connectTimeoutMS?: number;
+}
 
 // Define all migrations in one place for better maintenance
 const migrations = [
   InitialSchema1705759726000,
+  AddNonePriorityEnum1710000000000,
   FixProjectColors1738362321118,
   EnsureInboxProject1738362321119,
   AddHasTimeToTasks1738934197033,
@@ -28,8 +44,17 @@ const migrations = [
 // Define all entities in one place for better maintenance
 const entities = [Task, Project, Tag, FocusSession, BlockRule];
 
+interface DatabaseLogConfig {
+  url?: string;
+  host?: string;
+  port?: number;
+  database?: string;
+  ssl?: boolean | { rejectUnauthorized: boolean };
+  environment?: string;
+}
+
 // Log database configuration (safely)
-const logDatabaseConfig = (config: any) => {
+const logDatabaseConfig = (config: DatabaseLogConfig): void => {
   console.log('Database Configuration:', {
     url: config.url ? 'URL provided' : 'Using individual params',
     host: config.url ? 'From URL' : config.host,
@@ -41,23 +66,23 @@ const logDatabaseConfig = (config: any) => {
 };
 
 // Base configuration
-const baseConfig = {
+const baseConfig: DatabaseConfig = {
   type: 'postgres' as const,
   entities,
   migrations,
   migrationsRun: true,
   migrationsTableName: 'migrations',
   synchronize: false,
-  logging: true,
+  logging: process.env.NODE_ENV === ('development' as LoggerOptions),
   ssl: process.env.NODE_ENV !== 'local' ? { rejectUnauthorized: false } : false,
-  retryAttempts: 10,
-  retryDelay: 3000,
+  retryAttempts: DATABASE_CONFIG.RETRY_ATTEMPTS,
+  retryDelay: DATABASE_CONFIG.RETRY_DELAY,
   keepConnectionAlive: true,
-  connectTimeoutMS: 10000,
+  connectTimeoutMS: DATABASE_CONFIG.CONNECTION_TIMEOUT,
 };
 
 // Create the configuration based on whether we have a DATABASE_URL
-export const typeOrmConfig: TypeOrmModuleOptions = process.env.DATABASE_URL
+export const typeOrmConfig: DatabaseConfig = process.env.DATABASE_URL
   ? {
       ...baseConfig,
       url: process.env.DATABASE_URL,
@@ -78,16 +103,21 @@ logDatabaseConfig(typeOrmConfig);
 const dataSource = new DataSource({
   ...typeOrmConfig,
   type: 'postgres',
-} as any);
-
-// Add error handler
-dataSource.initialize().catch((error) => {
-  console.error('Database initialization error:', {
-    message: error.message,
-    code: error.code,
-    detail: error.detail,
-    where: error.where,
-  });
 });
+
+// Add error handler with structured logging
+dataSource
+  .initialize()
+  .catch(
+    (error: Error & { code?: string; detail?: string; where?: string }) => {
+      console.error('Database initialization error:', {
+        message: error.message,
+        code: error.code,
+        detail: error.detail,
+        where: error.where,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      });
+    },
+  );
 
 export default dataSource;
