@@ -75,7 +75,6 @@ describe('TaskService', () => {
     const createTaskDto = {
       title: 'Test Task',
       description: 'Test Description',
-      dueDate: '2024-12-31',
       projectId: projectId,
     };
 
@@ -84,7 +83,6 @@ describe('TaskService', () => {
         id: 'test-task-id',
         title: createTaskDto.title,
         description: createTaskDto.description,
-        dueDate: createTaskDto.dueDate,
         project: mockProject,
       };
 

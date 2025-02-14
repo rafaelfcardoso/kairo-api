@@ -131,14 +131,46 @@ describe('TaskService', () => {
   });
 
   describe('Date Validation', () => {
-    it('should accept valid ISO date with UTC timezone', async () => {
-      const validDate = '2025-02-14';
+    it('should accept valid future date', async () => {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const validDate = tomorrow.toISOString().split('T')[0];
       expect(() => service['validateDate'](validDate)).not.toThrow();
     });
 
-    it('should accept valid ISO date with timezone offset', async () => {
-      const validDate = '2025-02-14';
+    it('should accept valid future date with time', async () => {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const validDate = tomorrow.toISOString();
       expect(() => service['validateDate'](validDate)).not.toThrow();
+    });
+
+    it('should reject past date', async () => {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const pastDate = yesterday.toISOString().split('T')[0];
+      expect(() => service['validateDate'](pastDate)).toThrow(
+        'Due date cannot be in the past',
+      );
+    });
+
+    it('should reject past date with time', async () => {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const pastDate = yesterday.toISOString();
+      expect(() => service['validateDate'](pastDate)).toThrow(
+        'Due date cannot be in the past',
+      );
+    });
+
+    it('should accept today date', async () => {
+      const today = new Date();
+      const todayDate = today.toISOString().split('T')[0];
+      expect(() => service['validateDate'](todayDate)).not.toThrow();
+    });
+
+    it('should accept null date', async () => {
+      expect(() => service['validateDate'](null)).not.toThrow();
     });
 
     it('should reject invalid date format', async () => {
@@ -147,15 +179,13 @@ describe('TaskService', () => {
         BadRequestException,
       );
     });
-
-    it('should accept null date', async () => {
-      expect(() => service['validateDate'](null)).not.toThrow();
-    });
   });
 
   describe('Task Creation', () => {
     it('should create task with valid due date', async () => {
-      const validDate = '2025-02-14';
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const validDate = tomorrow.toISOString().split('T')[0];
       const createTaskDto = {
         title: 'Test Task',
         description: 'Test Description',

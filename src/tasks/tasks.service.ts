@@ -107,19 +107,11 @@ export class TaskService {
     }
   }
 
-  private validateDate(date: string | undefined): void {
-    if (!date) return;
+  private validateDate(date: string | null): void {
+    if (date === null || date === undefined) return;
 
     try {
-      const parsedDate = new Date(date);
-      if (isNaN(parsedDate.getTime())) {
-        this.securityLogger.logValidationFailure(date, 'Invalid date value', {
-          context: 'dueDate',
-        });
-        throw new BadRequestException('Invalid date value');
-      }
-
-      // Validate that it's a proper ISO 8601 date
+      // Validate that it's a proper ISO 8601 date first
       const isoRegex =
         /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d{1,3})?(Z|[+-]\d{2}:?\d{2})?)?$/;
       if (!isoRegex.test(date)) {
@@ -127,6 +119,33 @@ export class TaskService {
           context: 'dueDate',
         });
         throw new BadRequestException('Invalid date format - must be ISO 8601');
+      }
+
+      // Then check if the date is in the past
+      const taskDate = new Date(date);
+      const now = new Date(Date.now()); // Use actual system time
+
+      // Set both dates to midnight UTC for comparison
+      const todayUTC = Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate(),
+      );
+      const taskDateUTC = Date.UTC(
+        taskDate.getUTCFullYear(),
+        taskDate.getUTCMonth(),
+        taskDate.getUTCDate(),
+      );
+
+      if (taskDateUTC < todayUTC) {
+        this.securityLogger.logValidationFailure(
+          date,
+          'Past date not allowed',
+          {
+            context: 'dueDate',
+          },
+        );
+        throw new BadRequestException('Due date cannot be in the past');
       }
     } catch (error) {
       if (error instanceof BadRequestException) {
@@ -155,7 +174,7 @@ export class TaskService {
     if (description) {
       this.validateInput(description, 'description');
     }
-    if (dueDate) {
+    if (dueDate !== undefined && dueDate !== null) {
       this.validateDate(dueDate);
     }
 
