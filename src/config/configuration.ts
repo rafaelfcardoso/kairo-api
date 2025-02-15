@@ -11,7 +11,14 @@ export default () => {
     PGUSER: process.env.PGUSER,
     PGDATABASE: process.env.PGDATABASE,
     RAILWAY_STATIC_URL: railwayUrl,
+    JWT_SECRET: process.env.JWT_SECRET ? '[REDACTED]' : 'undefined',
   });
+
+  // Validate required environment variables
+  if (!process.env.JWT_SECRET && nodeEnv !== 'local') {
+    console.error('JWT_SECRET is required but not set!');
+    throw new Error('JWT_SECRET environment variable is required');
+  }
 
   // Base configuration shared across all environments
   const baseConfig = {
@@ -22,14 +29,14 @@ export default () => {
     // API URL - Remove any duplicate domain parts
     api: {
       url: railwayUrl
-        ? railwayUrl.replace(/\/[^/]+\.up\.railway\.app/, '')
+        ? `https://${railwayUrl}`
         : process.env.API_URL || `http://localhost:${process.env.PORT || 3001}`,
     },
 
     // JWT
     jwt: {
-      secret: process.env.JWT_SECRET || 'your_jwt_secret_key_here',
-      expiresIn: '24h',
+      secret: process.env.JWT_SECRET || 'your_local_secret_key_here',
+      expiresIn: process.env.JWT_EXPIRES_IN || '24h',
     },
 
     // CORS
@@ -42,6 +49,16 @@ export default () => {
       level: process.env.LOG_LEVEL || 'info',
     },
   };
+
+  // Log configuration (excluding sensitive data)
+  console.log('Loaded configuration:', {
+    nodeEnv: baseConfig.nodeEnv,
+    port: baseConfig.port,
+    apiUrl: baseConfig.api.url,
+    jwtConfigured: !!baseConfig.jwt.secret,
+    corsOrigin: baseConfig.cors.origin,
+    logLevel: baseConfig.logging.level,
+  });
 
   // Environment-specific configurations
   const envConfigs = {
