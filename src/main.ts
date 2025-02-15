@@ -12,6 +12,11 @@ async function bootstrap() {
     logger: ['error', 'warn', 'log', 'debug', 'verbose'],
   });
 
+  // Set global prefix for API versioning
+  app.setGlobalPrefix('api/v1', {
+    exclude: ['/health', '/api'], // Exclude health check and Swagger endpoints
+  });
+
   // Get ConfigService
   const configService = app.get(ConfigService);
 
@@ -98,6 +103,7 @@ async function bootstrap() {
     'http://localhost',
     'http://localhost:8080',
     'http://localhost:8100',
+    'https://localhost:8000', // AI service
   ];
 
   // Add the Railway URL if it exists
@@ -168,8 +174,14 @@ async function bootstrap() {
 
       ## Base URLs
       - Application Root: ${apiUrl}
+      - API Base: ${apiUrl}/api/v1
       - API Documentation: ${apiUrl}/api
       - Health Check: ${apiUrl}/health
+
+      ## API Versioning
+      All API endpoints are prefixed with /api/v1 except:
+      - /health (Health check endpoint)
+      - /api (This documentation)
     `,
     )
     .setVersion('1.0')
@@ -188,8 +200,8 @@ async function bootstrap() {
       },
       'JWT-auth',
     )
-    //.addServer(`${apiUrl}/api`, 'API Endpoints')
-    //.addServer(apiUrl, 'Health Check')
+    .addServer(`${apiUrl}/api/v1`, 'API v1 Endpoints')
+    .addServer(`${apiUrl}`, 'Base URL')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
@@ -215,6 +227,7 @@ async function bootstrap() {
   console.log(`Server is listening on port ${port}`);
   console.log('Available endpoints:');
   console.log(`- Application Root: ${baseUrl}`);
+  console.log(`- API Base: ${baseUrl}/api/v1`);
   console.log(`- API Documentation: ${baseUrl}/api`);
   console.log(`- Health Check: ${baseUrl}/health`);
   console.log('\nDatabase Configuration:', {

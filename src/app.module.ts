@@ -8,6 +8,7 @@ import { SecurityModule } from './common/security.module';
 import { AppController } from './app.controller';
 import configuration from './config/configuration';
 import { typeOrmConfig } from './config/typeorm.config';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -65,6 +66,7 @@ import { typeOrmConfig } from './config/typeorm.config';
     ProjectsModule,
     TagsModule,
     SecurityModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [],
