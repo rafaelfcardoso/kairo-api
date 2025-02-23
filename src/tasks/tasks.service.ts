@@ -167,7 +167,7 @@ export class TaskService {
   }
 
   async createTask(createTaskDto: CreateTaskDto, _ip?: string): Promise<Task> {
-    const { title, description, dueDate, projectId } = createTaskDto;
+    const { title, description, dueDate } = createTaskDto;
 
     // Validate inputs
     this.validateInput(title, 'title');
@@ -179,20 +179,7 @@ export class TaskService {
     }
 
     try {
-      // Check if project exists when projectId is provided
-      if (projectId) {
-        const project = await this.projectsRepository.findOne({
-          where: { id: projectId },
-        });
-        if (!project) {
-          throw new NotFoundException(
-            `Project with ID "${projectId}" not found`,
-          );
-        }
-      }
-
-      const task = this.taskRepository.create(createTaskDto);
-      const savedTask = await this.taskRepository.save(task);
+      const savedTask = await this.tasksRepository.createTask(createTaskDto);
 
       this.securityLogger.logSecurityEvent('Task created successfully', {
         taskId: savedTask.id,
@@ -230,10 +217,10 @@ export class TaskService {
     }
 
     try {
-      const task = await this.getTaskById(id);
-
-      Object.assign(task, updateTaskDto);
-      const savedTask = await this.taskRepository.save(task);
+      const savedTask = await this.tasksRepository.updateTask(
+        id,
+        updateTaskDto,
+      );
 
       this.securityLogger.logSecurityEvent('Task updated successfully', {
         taskId: savedTask.id,
@@ -389,5 +376,46 @@ export class TaskService {
       title: `${taskData.title} (Copy)`,
       dueDate: dueDate ? (dueDate.toISOString() as any) : null,
     } as CreateTaskDto);
+  }
+
+  async assignOrphanedTasksToInbox(): Promise<{
+    tasksAssigned: number;
+    inboxProjectId: string;
+    summary: string;
+    tasks: Task[];
+  }> {
+    // Get the Inbox project
+    const inboxProject = await this.getInboxProject();
+
+    // Find all tasks without a project
+    const orphanedTasks = await this.tasksRepository.getTasksWithoutProject();
+
+    // Assign each task to the Inbox project
+    const updatedTasks = await Promise.all(
+      orphanedTasks.map(async (task) => {
+        return this.tasksRepository.updateTask(task.id, {
+          projectId: inboxProject.id,
+        });
+      }),
+    );
+
+    this.securityLogger.logSecurityEvent(
+      'Assigned orphaned tasks to Inbox project',
+      {
+        tasksCount: orphanedTasks.length,
+        inboxProjectId: inboxProject.id,
+      },
+    );
+
+    return {
+      tasksAssigned: orphanedTasks.length,
+      inboxProjectId: inboxProject.id,
+      summary: `Found and fixed ${orphanedTasks.length} task${
+        orphanedTasks.length === 1 ? '' : 's'
+      } that ${
+        orphanedTasks.length === 1 ? 'was' : 'were'
+      } not assigned to any project`,
+      tasks: updatedTasks,
+    };
   }
 }

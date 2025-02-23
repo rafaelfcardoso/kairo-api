@@ -1,13 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { TaskService } from '../tasks.service';
+import { TaskService } from '../../tasks.service';
 import { Repository } from 'typeorm';
-import { Task } from '../tasks.entity';
-import { Project } from '../../projects/projects.entity';
-import { SecurityLoggerService } from '../../common/services/security-logger.service';
+import { Task } from '../../tasks.entity';
+import { Project } from '../../../projects/projects.entity';
+import { SecurityLoggerService } from '../../../common/services/security-logger.service';
 import { NotFoundException } from '@nestjs/common';
-import { TasksRepository } from '../tasks.repository';
-import { ProjectsRepository } from '../../projects/projects.repository';
-import { TagsRepository } from '../../tags/tags.repository';
+import { TasksRepository } from '../../tasks.repository';
+import { ProjectsRepository } from '../../../projects/projects.repository';
+import { TagsRepository } from '../../../tags/tags.repository';
 import { getRepositoryToken } from '@nestjs/typeorm';
 
 describe('TaskService', () => {
@@ -86,35 +86,38 @@ describe('TaskService', () => {
         project: mockProject,
       };
 
-      (mockProjectsRepository.findOne as jest.Mock).mockResolvedValue(
-        mockProject,
+      (mockTasksRepository.createTask as jest.Mock).mockImplementation(
+        async (dto) => {
+          if (dto.projectId === projectId) {
+            return mockTask;
+          }
+          throw new NotFoundException(
+            `Project with ID "${dto.projectId}" not found`,
+          );
+        },
       );
-      (mockTaskRepository.create as jest.Mock).mockReturnValue(mockTask);
-      (mockTaskRepository.save as jest.Mock).mockResolvedValue(mockTask);
 
       const result = await service.createTask(createTaskDto);
 
       expect(result).toBeDefined();
       expect(result.project).toBeDefined();
       expect(result.project.id).toBe(projectId);
-      expect(mockProjectsRepository.findOne).toHaveBeenCalledWith({
-        where: { id: projectId },
-      });
+      expect(mockTasksRepository.createTask).toHaveBeenCalledWith(
+        createTaskDto,
+      );
     });
 
     it('should throw error when specified project does not exist', async () => {
-      (mockProjectsRepository.findOne as jest.Mock).mockResolvedValue(null);
-      (mockTaskRepository.create as jest.Mock).mockReturnValue({
-        id: 'test-task-id',
-        ...createTaskDto,
-      });
+      (mockTasksRepository.createTask as jest.Mock).mockRejectedValue(
+        new NotFoundException(`Project with ID "${projectId}" not found`),
+      );
 
       await expect(service.createTask(createTaskDto)).rejects.toThrow(
         NotFoundException,
       );
-      expect(mockProjectsRepository.findOne).toHaveBeenCalledWith({
-        where: { id: projectId },
-      });
+      expect(mockTasksRepository.createTask).toHaveBeenCalledWith(
+        createTaskDto,
+      );
     });
   });
 });

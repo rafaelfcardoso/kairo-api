@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { TaskController } from './tasks.controller';
-import { TaskService } from './tasks.service';
-import { SecurityLoggerService } from '../common/services/security-logger.service';
+import { TaskController } from '../../tasks.controller';
+import { TaskService } from '../../tasks.service';
+import { SecurityLoggerService } from '../../../common/services/security-logger.service';
 import { Reflector } from '@nestjs/core';
 
 describe('TaskController', () => {

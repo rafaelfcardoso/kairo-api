@@ -7,6 +7,7 @@ import {
   JoinTable,
   CreateDateColumn,
   UpdateDateColumn,
+  JoinColumn,
 } from 'typeorm';
 import { Project } from '../projects/projects.entity';
 import { Tag } from '../tags/tags.entity';
@@ -102,6 +103,7 @@ export class Task {
 
   @ApiProperty({ type: () => Project })
   @ManyToOne(() => Project, (project) => project.tasks)
+  @JoinColumn({ name: 'projectId' })
   project: Project;
 
   @ApiProperty({ type: () => [Tag] })

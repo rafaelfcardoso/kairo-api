@@ -1,13 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { TaskService } from '../tasks.service';
-import { TasksRepository } from '../tasks.repository';
-import { ProjectsRepository } from '../../projects/projects.repository';
-import { TagsRepository } from '../../tags/tags.repository';
+import { TaskService } from '../../tasks.service';
+import { TasksRepository } from '../../tasks.repository';
+import { ProjectsRepository } from '../../../projects/projects.repository';
+import { TagsRepository } from '../../../tags/tags.repository';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Task } from '../tasks.entity';
+import { Task } from '../../tasks.entity';
 import { BadRequestException } from '@nestjs/common';
-import { CreateTaskDto } from '../tasks.dto';
-import { SecurityLoggerService } from '../../common/services/security-logger.service';
+import { CreateTaskDto } from '../../tasks.dto';
+import { SecurityLoggerService } from '../../../common/services/security-logger.service';
+import { Repository } from 'typeorm';
 
 describe('TaskService - Security Tests', () => {
   let service: TaskService;

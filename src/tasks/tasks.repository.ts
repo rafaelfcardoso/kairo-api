@@ -4,6 +4,9 @@ import { DataSource, Repository, SelectQueryBuilder } from 'typeorm';
 import { Task, TaskStatus } from './tasks.entity';
 import { CreateTaskDto, UpdateTaskDto, TaskFilterDto } from './tasks.dto';
 import { NotFoundException } from '@nestjs/common';
+import { Project } from '../projects/projects.entity';
+import { Tag } from '../tags/tags.entity';
+import { In } from 'typeorm';
 
 @Injectable()
 export class TasksRepository extends Repository<Task> {
@@ -74,26 +77,96 @@ export class TasksRepository extends Repository<Task> {
 
   async createTask(createTaskDto: CreateTaskDto): Promise<Task> {
     const { projectId, tagIds, ...taskData } = createTaskDto;
-    const task = this.create({
-      ...taskData,
-      project: projectId ? { id: projectId } : null,
-      tags: tagIds?.map((id) => ({ id })) || [],
-    });
+
+    // Create the base task
+    const task = this.create(taskData);
+
+    // Handle project assignment
+    if (projectId) {
+      const project = await this.manager.findOne(Project, {
+        where: { id: projectId },
+      });
+      if (!project) {
+        throw new NotFoundException(`Project with ID "${projectId}" not found`);
+      }
+      task.project = project;
+    }
+
+    // Handle tags
+    if (tagIds?.length > 0) {
+      const tags = await this.manager.findBy(Tag, {
+        id: In(tagIds),
+      });
+      task.tags = tags;
+    } else {
+      task.tags = [];
+    }
+
     await this.save(task);
     return this.getTaskById(task.id);
   }
 
   async updateTask(id: string, updateTaskDto: UpdateTaskDto): Promise<Task> {
     const { projectId, tagIds, ...taskData } = updateTaskDto;
+
+    // Get existing task with relations
     const task = await this.getTaskById(id);
 
-    Object.assign(task, {
-      ...taskData,
-      project: projectId ? { id: projectId } : task.project,
-      tags: tagIds?.map((id) => ({ id })) || task.tags,
-    });
+    // Handle project assignment
+    if (projectId !== undefined) {
+      if (projectId) {
+        // Find the project
+        const project = await this.manager.findOne(Project, {
+          where: { id: projectId },
+        });
 
-    await this.save(task);
+        if (!project) {
+          throw new NotFoundException(
+            `Project with ID "${projectId}" not found`,
+          );
+        }
+
+        // Update using direct query to set project
+        await this.createQueryBuilder()
+          .update(Task)
+          .set({ project })
+          .where('id = :id', { id: task.id })
+          .execute();
+
+        // Update the task instance
+        task.project = project;
+      } else {
+        // Remove project association
+        await this.createQueryBuilder()
+          .update(Task)
+          .set({ project: null })
+          .where('id = :id', { id: task.id })
+          .execute();
+
+        task.project = null;
+      }
+    }
+
+    // Handle tags if provided
+    if (tagIds !== undefined) {
+      if (tagIds.length > 0) {
+        const tags = await this.manager.findBy(Tag, {
+          id: In(tagIds),
+        });
+        task.tags = tags;
+      } else {
+        task.tags = [];
+      }
+      await this.save(task);
+    }
+
+    // Update other task data if any
+    if (Object.keys(taskData).length > 0) {
+      Object.assign(task, taskData);
+      await this.save(task);
+    }
+
+    // Get fresh task with all relations
     return this.getTaskById(id);
   }
 
@@ -170,5 +243,14 @@ export class TasksRepository extends Repository<Task> {
     task.focusSessions.push({ id: sessionId } as any); // Type assertion for brevity
     await this.save(task);
     return this.getTaskById(taskId);
+  }
+
+  async getTasksWithoutProject(): Promise<Task[]> {
+    return this.createQueryBuilder('task')
+      .leftJoinAndSelect('task.project', 'project')
+      .leftJoinAndSelect('task.tags', 'tags')
+      .leftJoinAndSelect('task.focusSessions', 'focusSessions')
+      .where('task.project IS NULL')
+      .getMany();
   }
 }

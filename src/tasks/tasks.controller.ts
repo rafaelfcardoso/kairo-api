@@ -126,23 +126,38 @@ export class TaskController {
     description: 'Invalid input',
   })
   async createTask(
-    @Body(new ValidationPipe(), new SanitizePipe()) createTaskDto: CreateTaskDto,
+    @Body(new ValidationPipe(), new SanitizePipe())
+    createTaskDto: CreateTaskDto,
     @Req() request: Request,
   ): Promise<Task> {
     return this.taskService.createTask(createTaskDto, request.ip);
   }
 
   @Put(':id')
-  @ApiOperation({ summary: 'Update a task' })
+  @ApiOperation({
+    summary: 'Update a task',
+    description:
+      'Update any task properties including title, description, status, priority, project assignment, due date, etc.',
+  })
   @ApiParam({ name: 'id', type: 'string', description: 'Task ID' })
+  @ApiBody({ type: UpdateTaskDto })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Task updated successfully',
     type: Task,
   })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Task not found',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid input data',
+  })
   async updateTask(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body(new ValidationPipe(), new SanitizePipe()) updateTaskDto: UpdateTaskDto,
+    @Body(new ValidationPipe(), new SanitizePipe())
+    updateTaskDto: UpdateTaskDto,
     @Req() request: Request,
   ): Promise<Task> {
     return this.taskService.updateTask(id, updateTaskDto, request.ip);
@@ -228,21 +243,6 @@ export class TaskController {
     @Body('priority') priority: TaskPriority,
   ): Promise<Task> {
     return this.taskService.updateTaskPriority(id, priority);
-  }
-
-  @Put(':id/project')
-  @ApiOperation({ summary: 'Assign task to project' })
-  @ApiParam({ name: 'id', type: 'string', description: 'Task ID' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Task assigned to project successfully',
-    type: Task,
-  })
-  async assignToProject(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body('projectId', ParseUUIDPipe) projectId: string,
-  ): Promise<Task> {
-    return this.taskService.assignToProject(id, projectId);
   }
 
   @Post(':id/tags')
@@ -344,5 +344,46 @@ export class TaskController {
   })
   async duplicateTask(@Param('id', ParseUUIDPipe) id: string): Promise<Task> {
     return this.taskService.duplicateTask(id);
+  }
+
+  @Post('support/assign-orphaned-to-inbox')
+  @ApiOperation({
+    summary: 'Assign all tasks without a project to the Inbox project',
+    description:
+      'Support operation to fix tasks that were not properly assigned to the Inbox project. Returns details about how many tasks were orphaned and fixed.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Tasks assigned successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        tasksAssigned: {
+          type: 'number',
+          description: 'Number of orphaned tasks that were assigned to Inbox',
+          example: 5,
+        },
+        inboxProjectId: {
+          type: 'string',
+          description: 'ID of the Inbox project where tasks were assigned',
+          example: '569c363f-1934-4e69-b324-6c2fad28bc59',
+        },
+        summary: {
+          type: 'string',
+          description: 'Human-readable summary of the operation',
+          example:
+            'Found and fixed 5 tasks that were not assigned to any project',
+        },
+        tasks: {
+          type: 'array',
+          items: { $ref: '#/components/schemas/Task' },
+          description:
+            'List of tasks that were updated with their new project assignment',
+        },
+      },
+    },
+  })
+  async assignOrphanedTasksToInbox() {
+    return this.taskService.assignOrphanedTasksToInbox();
   }
 }

@@ -1,14 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { TaskService } from './tasks.service';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { Task, TaskStatus, TaskPriority } from './tasks.entity';
-import { Project, ProjectType } from '../projects/projects.entity';
-import { TasksRepository } from './tasks.repository';
-import { ProjectsRepository } from '../projects/projects.repository';
-import { TagsRepository } from '../tags/tags.repository';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { TaskService } from '../../tasks.service';
 import { Repository } from 'typeorm';
-import { SecurityLoggerService } from '../common/services/security-logger.service';
+import { Task, TaskStatus, TaskPriority } from '../../tasks.entity';
+import { Project, ProjectType } from '../../../projects/projects.entity';
+import { TasksRepository } from '../../tasks.repository';
+import { ProjectsRepository } from '../../../projects/projects.repository';
+import { TagsRepository } from '../../../tags/tags.repository';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { SecurityLoggerService } from '../../../common/services/security-logger.service';
 
 describe('TaskService', () => {
   let service: TaskService;
@@ -193,17 +193,10 @@ describe('TaskService', () => {
         dueDate: validDate,
       };
 
-      (mockProjectsRepository.findOne as jest.Mock).mockResolvedValue(
-        mockInboxProject,
-      );
-      (mockTaskRepository.create as jest.Mock).mockReturnValue({
-        ...createTaskDto,
-        project: mockInboxProject,
-        status: TaskStatus.NOT_STARTED,
-      });
-      (mockTaskRepository.save as jest.Mock).mockResolvedValue({
+      (mockTasksRepository.createTask as jest.Mock).mockResolvedValue({
         id: '123',
         ...createTaskDto,
+        dueDate: validDate,
         project: mockInboxProject,
         status: TaskStatus.NOT_STARTED,
       });
@@ -242,26 +235,30 @@ describe('TaskService', () => {
         projectId: projectId,
       };
 
-      (mockProjectsRepository.findOne as jest.Mock).mockResolvedValue(
-        mockProject,
-      );
-      (mockTaskRepository.create as jest.Mock).mockReturnValue({
-        ...createTaskDto,
-        project: mockProject,
-      });
-      (mockTaskRepository.save as jest.Mock).mockResolvedValue({
+      const mockTask = {
         id: 'test-task-id',
         ...createTaskDto,
         project: mockProject,
-      });
+      };
+
+      (mockTasksRepository.createTask as jest.Mock).mockImplementation(
+        async (dto) => {
+          if (dto.projectId === projectId) {
+            return mockTask;
+          }
+          throw new NotFoundException(
+            `Project with ID "${dto.projectId}" not found`,
+          );
+        },
+      );
 
       const result = await service.createTask(createTaskDto);
 
       expect(result.project).toBeDefined();
       expect(result.project.id).toBe(projectId);
-      expect(mockProjectsRepository.findOne).toHaveBeenCalledWith({
-        where: { id: projectId },
-      });
+      expect(mockTasksRepository.createTask).toHaveBeenCalledWith(
+        createTaskDto,
+      );
     });
 
     it('should throw error when specified project does not exist', async () => {
@@ -271,14 +268,16 @@ describe('TaskService', () => {
         projectId: projectId,
       };
 
-      (mockProjectsRepository.findOne as jest.Mock).mockResolvedValue(null);
+      (mockTasksRepository.createTask as jest.Mock).mockRejectedValue(
+        new NotFoundException(`Project with ID "${projectId}" not found`),
+      );
 
       await expect(service.createTask(createTaskDto)).rejects.toThrow(
         NotFoundException,
       );
-      expect(mockProjectsRepository.findOne).toHaveBeenCalledWith({
-        where: { id: projectId },
-      });
+      expect(mockTasksRepository.createTask).toHaveBeenCalledWith(
+        createTaskDto,
+      );
     });
   });
 });
