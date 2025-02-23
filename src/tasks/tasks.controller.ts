@@ -187,64 +187,6 @@ export class TaskController {
     return this.taskService.archiveTask(id);
   }
 
-  @Put(':id/status')
-  @ApiOperation({ summary: 'Update task status' })
-  @ApiParam({ name: 'id', type: 'string', description: 'Task ID' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      required: ['status'],
-      properties: {
-        status: {
-          type: 'string',
-          enum: ['not_started', 'in_progress', 'blocked', 'completed'],
-          description: 'The new status for the task',
-          example: 'completed',
-        },
-      },
-    },
-  })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Task status updated successfully',
-    type: Task,
-  })
-  async updateTaskStatus(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body('status') status: TaskStatus,
-  ): Promise<Task> {
-    return this.taskService.updateTaskStatus(id, status);
-  }
-
-  @Put(':id/priority')
-  @ApiOperation({ summary: 'Update task priority' })
-  @ApiParam({ name: 'id', type: 'string', description: 'Task ID' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      required: ['priority'],
-      properties: {
-        priority: {
-          type: 'string',
-          enum: ['none', 'low', 'medium', 'high'],
-          description: 'The new priority for the task',
-          example: 'none',
-        },
-      },
-    },
-  })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Task priority updated successfully',
-    type: Task,
-  })
-  async updateTaskPriority(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body('priority') priority: TaskPriority,
-  ): Promise<Task> {
-    return this.taskService.updateTaskPriority(id, priority);
-  }
-
   @Post(':id/tags')
   @ApiOperation({ summary: 'Add tags to task' })
   @ApiParam({ name: 'id', type: 'string', description: 'Task ID' })

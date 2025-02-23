@@ -280,4 +280,72 @@ describe('TaskService', () => {
       );
     });
   });
+
+  describe('Task Updates', () => {
+    it('should update task with new status', async () => {
+      const taskId = 'test-task-id';
+      const updateTaskDto = {
+        status: TaskStatus.COMPLETED,
+      };
+
+      const mockTask = {
+        id: taskId,
+        title: 'Test Task',
+        status: TaskStatus.NOT_STARTED,
+      };
+
+      const updatedTask = {
+        ...mockTask,
+        status: TaskStatus.COMPLETED,
+      };
+
+      (mockTasksRepository.getTaskById as jest.Mock).mockResolvedValue(
+        mockTask,
+      );
+      (mockTasksRepository.updateTask as jest.Mock).mockResolvedValue(
+        updatedTask,
+      );
+
+      const result = await service.updateTask(taskId, updateTaskDto);
+
+      expect(result.status).toBe(TaskStatus.COMPLETED);
+      expect(mockTasksRepository.updateTask).toHaveBeenCalledWith(
+        taskId,
+        updateTaskDto,
+      );
+    });
+
+    it('should update task with new priority', async () => {
+      const taskId = 'test-task-id';
+      const updateTaskDto = {
+        priority: TaskPriority.HIGH,
+      };
+
+      const mockTask = {
+        id: taskId,
+        title: 'Test Task',
+        priority: TaskPriority.NONE,
+      };
+
+      const updatedTask = {
+        ...mockTask,
+        priority: TaskPriority.HIGH,
+      };
+
+      (mockTasksRepository.getTaskById as jest.Mock).mockResolvedValue(
+        mockTask,
+      );
+      (mockTasksRepository.updateTask as jest.Mock).mockResolvedValue(
+        updatedTask,
+      );
+
+      const result = await service.updateTask(taskId, updateTaskDto);
+
+      expect(result.priority).toBe(TaskPriority.HIGH);
+      expect(mockTasksRepository.updateTask).toHaveBeenCalledWith(
+        taskId,
+        updateTaskDto,
+      );
+    });
+  });
 });

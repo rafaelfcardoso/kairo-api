@@ -274,25 +274,6 @@ export class TaskService {
     return this.tasksRepository.getUpcomingTasks(days);
   }
 
-  async updateTaskStatus(id: string, status: TaskStatus): Promise<Task> {
-    const task = await this.getTaskById(id);
-    const { dueDate, ...taskData } = task;
-    return this.tasksRepository.updateTask(id, {
-      ...taskData,
-      status,
-      dueDate: dueDate ? (dueDate.toISOString() as any) : null,
-    });
-  }
-
-  async updateTaskPriority(id: string, priority: TaskPriority): Promise<Task> {
-    const task = await this.getTaskById(id);
-    const { dueDate, ...taskData } = task;
-    return this.tasksRepository.updateTask(id, {
-      ...taskData,
-      priority,
-      dueDate: dueDate ? (dueDate.toISOString() as any) : null,
-    });
-  }
   async assignToProject(taskId: string, projectId: string): Promise<Task> {
     const project = await this.projectsRepository.findOne({
       where: { id: projectId },
