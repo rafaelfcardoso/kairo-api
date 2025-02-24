@@ -5,14 +5,13 @@ import {
   IsEnum,
   IsUUID,
   IsArray,
-  IsDate,
   IsString,
   IsBoolean,
-  IsInt,
-  Min,
   MinLength,
-  IsDateString,
   Matches,
+  IsISO8601,
+  MaxLength,
+  ValidateIf,
 } from 'class-validator';
 import { TaskStatus, TaskPriority } from './tasks.entity';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -24,7 +23,9 @@ export class CreateTaskDto {
     description: 'The title of the task',
   })
   @IsString()
+  @IsNotEmpty()
   @MinLength(3)
+  @MaxLength(255)
   title: string;
 
   @ApiPropertyOptional({
@@ -33,6 +34,7 @@ export class CreateTaskDto {
   })
   @IsString()
   @IsOptional()
+  @MaxLength(2000)
   description?: string;
 
   @ApiPropertyOptional({
@@ -46,11 +48,20 @@ export class CreateTaskDto {
 
   @ApiPropertyOptional({
     example: '2024-12-31T23:59:59.999Z',
-    description: 'Due date of the task in ISO 8601 format',
+    description: 'Due date of the task in ISO 8601 format with timezone',
   })
-  @IsDateString()
+  @IsISO8601({ strict: true })
+  @ValidateIf((o) => o.dueDate !== null && o.dueDate !== undefined)
   @IsOptional()
   dueDate?: string;
+
+  @ApiPropertyOptional({
+    example: false,
+    description: 'Whether the task has a specific time set for the due date',
+  })
+  @IsBoolean()
+  @IsOptional()
+  hasTime?: boolean;
 
   @ApiPropertyOptional({
     example: ['123e4567-e89b-12d3-a456-426614174000'],
@@ -62,8 +73,9 @@ export class CreateTaskDto {
   tagIds?: string[];
 
   @ApiPropertyOptional({
-    example: '123e4567-e89b-12d3-a456-426614174000',
-    description: 'Project ID to associate the task with',
+    example: '569c363f-1934-4e69-b324-6c2fad28bc59',
+    description:
+      'Project ID to associate the task with (defaults to Inbox project)',
   })
   @IsUUID('4')
   @IsOptional()
@@ -92,7 +104,7 @@ export class TaskFilterDto {
 
   @ApiPropertyOptional({
     enum: TaskStatus,
-    example: TaskStatus.PENDING,
+    example: TaskStatus.NOT_STARTED,
     description: 'Filter tasks by status',
     enumName: 'TaskStatus',
   })

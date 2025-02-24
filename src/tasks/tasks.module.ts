@@ -7,11 +7,18 @@ import { Task } from './tasks.entity';
 import { TasksRepository } from './tasks.repository';
 import { ProjectsRepository } from '../projects/projects.repository';
 import { TagsRepository } from '../tags/tags.repository';
+import { SecurityLoggerService } from '../common/services/security-logger.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Task])],
   controllers: [TaskController],
-  providers: [TaskService, TasksRepository, ProjectsRepository, TagsRepository],
+  providers: [
+    TaskService,
+    TasksRepository,
+    ProjectsRepository,
+    TagsRepository,
+    SecurityLoggerService,
+  ],
   exports: [TaskService],
 })
 export class TasksModule {}

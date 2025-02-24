@@ -7,6 +7,7 @@ import {
   JoinTable,
   CreateDateColumn,
   UpdateDateColumn,
+  JoinColumn,
 } from 'typeorm';
 import { Project } from '../projects/projects.entity';
 import { Tag } from '../tags/tags.entity';
@@ -21,9 +22,9 @@ export enum TaskPriority {
 }
 
 export enum TaskStatus {
-  TODO = 'todo',
+  NOT_STARTED = 'not_started',
   IN_PROGRESS = 'in_progress',
-  PENDING = 'pending',
+  BLOCKED = 'blocked',
   COMPLETED = 'completed',
 }
 
@@ -53,13 +54,13 @@ export class Task {
 
   @ApiProperty({
     enum: TaskStatus,
-    example: TaskStatus.PENDING,
+    example: TaskStatus.NOT_STARTED,
     description: 'Current status of the task',
   })
   @Column({
     type: 'enum',
     enum: TaskStatus,
-    default: TaskStatus.PENDING,
+    default: TaskStatus.NOT_STARTED,
   })
   status: TaskStatus;
 
@@ -83,6 +84,13 @@ export class Task {
   @Column({ nullable: true })
   dueDate: Date;
 
+  @ApiProperty({
+    example: false,
+    description: 'Whether the task has a specific time set for the due date',
+  })
+  @Column({ default: false })
+  hasTime: boolean;
+
   @Column({ default: 0 })
   estimatedMinutes: number;
 
@@ -95,6 +103,7 @@ export class Task {
 
   @ApiProperty({ type: () => Project })
   @ManyToOne(() => Project, (project) => project.tasks)
+  @JoinColumn({ name: 'projectId' })
   project: Project;
 
   @ApiProperty({ type: () => [Tag] })

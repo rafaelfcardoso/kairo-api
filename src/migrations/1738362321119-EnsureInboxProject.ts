@@ -1,7 +1,10 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { QueryRunner } from 'typeorm';
+import { BaseMigration } from './base/BaseMigration';
 
-export class EnsureInboxProject1738362321119 implements MigrationInterface {
-  public async up(queryRunner: QueryRunner): Promise<void> {
+export class EnsureInboxProject1738362321119 extends BaseMigration {
+  name = 'EnsureInboxProject1738362321119';
+
+  protected async executeUp(queryRunner: QueryRunner): Promise<void> {
     // First, ensure isSystem column exists
     await queryRunner.query(`
       DO $$ 
@@ -56,7 +59,7 @@ export class EnsureInboxProject1738362321119 implements MigrationInterface {
     `);
   }
 
-  public async down(queryRunner: QueryRunner): Promise<void> {
+  protected async executeDown(queryRunner: QueryRunner): Promise<void> {
     // We don't want to delete the Inbox project or orphan tasks in the down migration
     // as it could cause data inconsistency. Instead, we'll just log a message.
     console.log(

@@ -3,17 +3,133 @@ import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import helmet from 'helmet';
+import { rateLimit } from 'express-rate-limit';
+import { DataSource } from 'typeorm';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'log', 'debug', 'verbose'],
   });
 
+  // Set global prefix for API versioning
+  app.setGlobalPrefix('api/v1', {
+    exclude: ['/health', '/api'], // Exclude health check and Swagger endpoints
+  });
+
   // Get ConfigService
   const configService = app.get(ConfigService);
 
-  // Enable CORS
-  app.enableCors();
+  // Get DataSource and run migrations
+  const dataSource = app.get(DataSource);
+  try {
+    console.log('Starting database migrations...');
+
+    // Log migration details
+    console.log(
+      'Available migrations:',
+      dataSource.migrations.map((m) => ({
+        name: m.name,
+      })),
+    );
+
+    // Check database connection
+    console.log('Database connection status:', {
+      isInitialized: dataSource.isInitialized,
+      database: dataSource.options.database,
+    });
+
+    // Show pending migrations
+    const pendingMigrations = await dataSource.showMigrations();
+    console.log('Pending migrations:', pendingMigrations);
+
+    // Run migrations
+    await dataSource.runMigrations();
+    console.log('Database migrations completed successfully');
+
+    // Check applied migrations
+    const migrations = await dataSource.query(
+      'SELECT * FROM migrations ORDER BY timestamp DESC',
+    );
+    console.log('Applied migrations:', migrations);
+
+    // Verify the Project table structure
+    const tableInfo = await dataSource.query(
+      `SELECT column_name, data_type, udt_name, is_nullable 
+       FROM information_schema.columns 
+       WHERE table_name = 'project'
+       ORDER BY ordinal_position`,
+    );
+    console.log('Project table structure:', tableInfo);
+
+    // Verify enum types
+    const enumTypes = await dataSource.query(`
+      SELECT t.typname, e.enumlabel
+      FROM pg_type t 
+      JOIN pg_enum e ON t.oid = e.enumtypid  
+      JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
+      WHERE n.nspname = 'public'
+      ORDER BY t.typname, e.enumsortorder;
+    `);
+    console.log('Available enum types:', enumTypes);
+  } catch (error) {
+    console.error('Error running migrations:', error);
+    if (error.code === '42P01') {
+      console.error(
+        'Migrations table does not exist. This might be a fresh database.',
+      );
+    }
+    throw error;
+  }
+
+  // Apply Helmet middleware
+  app.use(helmet());
+
+  // Apply global rate limiting
+  app.use(
+    rateLimit({
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      max: 100, // limit each IP to 100 requests per windowMs
+      message: 'Too many requests from this IP, please try again later',
+      standardHeaders: true,
+      legacyHeaders: false,
+    }),
+  );
+
+  // Enable CORS with configuration
+  const allowedOrigins = [
+    'capacitor://localhost',
+    'ionic://localhost',
+    'http://localhost',
+    'http://localhost:8080',
+    'http://localhost:8100',
+    'https://localhost:8000', // AI service
+  ];
+
+  // Add the Railway URL if it exists
+  const railwayUrl = configService.get('api.url');
+  if (railwayUrl) {
+    allowedOrigins.push(railwayUrl);
+  }
+
+  app.enableCors({
+    origin: allowedOrigins,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+    allowedHeaders: [
+      'Origin',
+      'X-Requested-With',
+      'Content-Type',
+      'Accept',
+      'Authorization',
+      'Access-Control-Allow-Origin',
+    ],
+    exposedHeaders: [
+      'X-RateLimit-Limit',
+      'X-RateLimit-Remaining',
+      'X-RateLimit-Reset',
+    ],
+  });
 
   // Validation pipe with proper settings
   app.useGlobalPipes(
@@ -27,8 +143,18 @@ async function bootstrap() {
     }),
   );
 
-  // Get the public URL for Swagger
-  const publicUrl = 'https://zenith-api-nest-development.up.railway.app';
+  // Get configuration values
+  const nodeEnv = configService.get('nodeEnv') || 'local';
+  const port = configService.get('port') || 3001;
+  const apiUrl = configService.get('api.url');
+
+  // Debug environment variables
+  console.log('Environment Variables:', {
+    PORT: port,
+    NODE_ENV: nodeEnv,
+    API_URL: apiUrl,
+    RAILWAY_STATIC_URL: process.env.RAILWAY_STATIC_URL,
+  });
 
   // Swagger setup with more details
   const config = new DocumentBuilder()
@@ -42,6 +168,20 @@ async function bootstrap() {
       - Project Organization
       - Tag System
       - Authentication
+      - Rate Limiting
+      - Security Headers
+      - Input Sanitization
+
+      ## Base URLs
+      - Application Root: ${apiUrl}
+      - API Base: ${apiUrl}/api/v1
+      - API Documentation: ${apiUrl}/api
+      - Health Check: ${apiUrl}/health
+
+      ## API Versioning
+      All API endpoints are prefixed with /api/v1 except:
+      - /health (Health check endpoint)
+      - /api (This documentation)
     `,
     )
     .setVersion('1.0')
@@ -60,7 +200,7 @@ async function bootstrap() {
       },
       'JWT-auth',
     )
-    .addServer(publicUrl, 'API Server')
+    .addServer(`${apiUrl}`, 'API Server')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
@@ -78,26 +218,22 @@ async function bootstrap() {
     customSiteTitle: 'Zenith API Documentation',
   });
 
-  // Get port from Railway or fallback to default
-  const port = process.env.PORT || 3001;
-
-  // Debug environment variables
-  console.log('Environment Variables:', {
-    PORT: process.env.PORT,
-    NODE_ENV: process.env.NODE_ENV,
-    PUBLIC_URL: publicUrl,
-  });
-
   // Listen on all interfaces (important for Docker)
   await app.listen(port, '0.0.0.0');
 
+  const serverUrl = await app.getUrl();
+  const baseUrl = apiUrl || serverUrl;
   console.log(`Server is listening on port ${port}`);
-  console.log(`Application is running on: ${publicUrl}`);
-  console.log(`Swagger documentation available at: ${publicUrl}/api`);
-  console.log('Database Configuration:', {
-    host: process.env.PGHOST || configService.get('DB_HOST'),
-    port: process.env.PGPORT || configService.get('DB_PORT'),
-    database: process.env.PGDATABASE || configService.get('DB_NAME'),
+  console.log('Available endpoints:');
+  console.log(`- Application Root: ${baseUrl}`);
+  console.log(`- API Base: ${baseUrl}/api/v1`);
+  console.log(`- API Documentation: ${baseUrl}/api`);
+  console.log(`- Health Check: ${baseUrl}/health`);
+  console.log('\nDatabase Configuration:', {
+    host: configService.get('database.host'),
+    port: configService.get('database.port'),
+    database: configService.get('database.database'),
+    ssl: configService.get('database.ssl'),
   });
 }
 bootstrap();

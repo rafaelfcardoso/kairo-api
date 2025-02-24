@@ -12,6 +12,12 @@ import {
 } from 'typeorm';
 import { Task } from '../tasks/tasks.entity';
 
+export enum ProjectType {
+  INBOX = 'inbox',
+  REGULAR = 'regular',
+  ARCHIVE = 'archive',
+}
+
 @Entity()
 @Tree('closure-table') // Using closure table pattern for efficient tree operations
 export class Project {
@@ -29,6 +35,13 @@ export class Project {
 
   @Column({ default: false })
   isSystem: boolean;
+
+  @Column({
+    type: 'enum',
+    enum: ProjectType,
+    default: ProjectType.REGULAR,
+  })
+  type: ProjectType;
 
   @TreeParent()
   parent: Project;
