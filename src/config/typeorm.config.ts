@@ -4,7 +4,7 @@ import { DataSource, LoggerOptions } from 'typeorm';
 import { Task } from '../tasks/tasks.entity';
 import { Project } from '../projects/projects.entity';
 import { Tag } from '../tags/tags.entity';
-import { FocusSession } from '../entities/focus-session.entity';
+import { FocusSession } from '../focus-sessions/focus-sessions.entity';
 import { BlockRule } from '../entities/block-rule.entity';
 import { InitialSchema1705759726000 } from '../migrations/1705759726000-InitialSchema';
 import { FixProjectColors1738362321118 } from '../migrations/1738362321118-FixProjectColors';

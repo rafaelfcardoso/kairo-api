@@ -9,6 +9,7 @@ import { AppController } from './app.controller';
 import configuration from './config/configuration';
 import { typeOrmConfig } from './config/typeorm.config';
 import { AuthModule } from './auth/auth.module';
+import { FocusSessionsModule } from './focus-sessions/focus-sessions.module';
 
 @Module({
   imports: [
@@ -67,6 +68,7 @@ import { AuthModule } from './auth/auth.module';
     TagsModule,
     SecurityModule,
     AuthModule,
+    FocusSessionsModule,
   ],
   controllers: [AppController],
   providers: [],
