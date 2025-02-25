@@ -4,6 +4,22 @@ export class CreateFocusSessionTables1740494148045
   implements MigrationInterface
 {
   public async up(queryRunner: QueryRunner): Promise<void> {
+    // Create energy level enum type if it doesn't exist
+    const energyLevelEnumExists = await queryRunner.query(`
+      SELECT EXISTS (
+        SELECT 1 FROM pg_type 
+        JOIN pg_catalog.pg_namespace ON pg_namespace.oid = pg_type.typnamespace
+        WHERE pg_type.typname = 'focus_session_energylevel_enum' 
+        AND pg_namespace.nspname = 'public'
+      );
+    `);
+
+    if (!energyLevelEnumExists[0].exists) {
+      await queryRunner.query(`
+        CREATE TYPE "focus_session_energylevel_enum" AS ENUM('low', 'medium', 'high')
+      `);
+    }
+
     // Check if focus_session table exists
     const focusSessionTableExists = await queryRunner.hasTable('focus_session');
     if (!focusSessionTableExists) {
@@ -14,7 +30,7 @@ export class CreateFocusSessionTables1740494148045
                     "startTime" TIMESTAMP NOT NULL,
                     "endTime" TIMESTAMP,
                     "durationMinutes" integer NOT NULL DEFAULT 0,
-                    "energyLevel" varchar NOT NULL DEFAULT 'medium',
+                    "energyLevel" "focus_session_energylevel_enum" NOT NULL DEFAULT 'medium',
                     "wasSuccessful" boolean NOT NULL DEFAULT false,
                     "notes" text,
                     "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
@@ -55,5 +71,8 @@ export class CreateFocusSessionTables1740494148045
     // Drop tables in reverse order (junction table first, then main table)
     await queryRunner.query(`DROP TABLE IF EXISTS "focus_session_tasks_task"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "focus_session"`);
+    await queryRunner.query(
+      `DROP TYPE IF EXISTS "focus_session_energylevel_enum"`,
+    );
   }
 }
