@@ -1,0 +1,153 @@
+// src/focus-sessions/focus-sessions.controller.ts
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+  ParseUUIDPipe,
+  HttpStatus,
+  HttpCode,
+} from '@nestjs/common';
+import { FocusSessionsService } from './focus-sessions.service';
+import {
+  CreateFocusSessionDto,
+  UpdateFocusSessionDto,
+  CompleteFocusSessionDto,
+  FocusSessionResponseDto,
+  GetFocusSessionsHistoryDto,
+} from './focus-sessions.dto';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiBody,
+  ApiQuery,
+} from '@nestjs/swagger';
+import { EnergyLevel } from './focus-sessions.entity';
+
+@ApiTags('focus-sessions')
+@Controller('focus-sessions')
+export class FocusSessionsController {
+  constructor(private readonly focusSessionsService: FocusSessionsService) {}
+
+  @Post()
+  @ApiOperation({ summary: 'Create a new focus session' })
+  @ApiResponse({
+    status: 201,
+    description: 'The focus session has been successfully created.',
+    type: FocusSessionResponseDto,
+  })
+  @ApiBody({ type: CreateFocusSessionDto })
+  async create(
+    @Body() createFocusSessionDto: CreateFocusSessionDto,
+  ): Promise<FocusSessionResponseDto> {
+    return this.focusSessionsService.create(createFocusSessionDto);
+  }
+
+  @Get()
+  @ApiOperation({
+    summary: 'Get all focus sessions with optional filters (history)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of focus sessions.',
+    type: [FocusSessionResponseDto],
+  })
+  async findAll(
+    @Query() filters: GetFocusSessionsHistoryDto,
+  ): Promise<FocusSessionResponseDto[]> {
+    return this.focusSessionsService.findAll(filters);
+  }
+
+  @Get('stats')
+  @ApiOperation({ summary: 'Get focus session statistics' })
+  @ApiResponse({
+    status: 200,
+    description: 'Focus session statistics.',
+  })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    type: Date,
+    description: 'Start date for the stats period',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    type: Date,
+    description: 'End date for the stats period',
+  })
+  async getStats(
+    @Query('startDate') startDate?: Date,
+    @Query('endDate') endDate?: Date,
+  ) {
+    return this.focusSessionsService.getSessionStats(startDate, endDate);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get a specific focus session by ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'The focus session.',
+    type: FocusSessionResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Focus session not found.' })
+  @ApiParam({ name: 'id', description: 'Focus session ID', type: 'string' })
+  async findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<FocusSessionResponseDto> {
+    return this.focusSessionsService.findOne(id);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update a focus session' })
+  @ApiResponse({
+    status: 200,
+    description: 'The focus session has been successfully updated.',
+    type: FocusSessionResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Focus session not found.' })
+  @ApiParam({ name: 'id', description: 'Focus session ID', type: 'string' })
+  @ApiBody({ type: UpdateFocusSessionDto })
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateFocusSessionDto: UpdateFocusSessionDto,
+  ): Promise<FocusSessionResponseDto> {
+    return this.focusSessionsService.update(id, updateFocusSessionDto);
+  }
+
+  @Patch(':id/complete')
+  @ApiOperation({ summary: 'Complete a focus session' })
+  @ApiResponse({
+    status: 200,
+    description: 'The focus session has been successfully completed.',
+    type: FocusSessionResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Focus session not found.' })
+  @ApiParam({ name: 'id', description: 'Focus session ID', type: 'string' })
+  @ApiBody({ type: CompleteFocusSessionDto })
+  async complete(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() completeFocusSessionDto: CompleteFocusSessionDto,
+  ): Promise<FocusSessionResponseDto> {
+    return this.focusSessionsService.complete(id, completeFocusSessionDto);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete a focus session' })
+  @ApiResponse({
+    status: 204,
+    description: 'The focus session has been successfully deleted.',
+  })
+  @ApiResponse({ status: 404, description: 'Focus session not found.' })
+  @ApiParam({ name: 'id', description: 'Focus session ID', type: 'string' })
+  async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    return this.focusSessionsService.remove(id);
+  }
+}
