@@ -22,6 +22,8 @@ import { FocusSessionsModule } from './focus-sessions/focus-sessions.module';
       useFactory: (configService: ConfigService) => {
         const dbConfig = configService.get('database');
         const nodeEnv = configService.get('nodeEnv');
+        const isLocalEnv =
+          nodeEnv === 'local' || process.env.DB_SSL === 'false';
 
         console.log('Full config:', configService.get(undefined));
 
@@ -41,7 +43,7 @@ import { FocusSessionsModule } from './focus-sessions/focus-sessions.module';
           host: dbConfig.url ? '(Using connection URL)' : dbConfig.host,
           port: dbConfig.url ? '(Using connection URL)' : dbConfig.port,
           database: dbConfig.url ? '(Using connection URL)' : dbConfig.database,
-          ssl: dbConfig.ssl,
+          ssl: isLocalEnv ? false : dbConfig.ssl,
         });
 
         // Merge TypeORM configs
@@ -55,10 +57,12 @@ import { FocusSessionsModule } from './focus-sessions/focus-sessions.module';
           migrationsTableName: 'migrations',
         };
 
-        // Return final config
+        // Return final config with environment-specific SSL settings
         return {
           ...baseConfig,
           ...(dbConfig.url ? { url: dbConfig.url } : dbConfig),
+          // Only disable SSL for local development
+          ssl: isLocalEnv ? false : dbConfig.ssl,
         };
       },
       inject: [ConfigService],
