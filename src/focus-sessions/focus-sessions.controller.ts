@@ -30,7 +30,7 @@ import {
 } from '@nestjs/swagger';
 import { EnergyLevel } from './focus-sessions.entity';
 
-@ApiTags('focus-sessions')
+@ApiTags('Focus Sessions')
 @Controller('focus-sessions')
 export class FocusSessionsController {
   constructor(private readonly focusSessionsService: FocusSessionsService) {}
