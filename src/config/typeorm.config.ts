@@ -4,7 +4,7 @@ import { DataSource, LoggerOptions } from 'typeorm';
 import { Task } from '../tasks/tasks.entity';
 import { Project } from '../projects/projects.entity';
 import { Tag } from '../tags/tags.entity';
-import { FocusSession } from '../entities/focus-session.entity';
+import { FocusSession } from '../focus-sessions/focus-sessions.entity';
 import { BlockRule } from '../entities/block-rule.entity';
 import { InitialSchema1705759726000 } from '../migrations/1705759726000-InitialSchema';
 import { FixProjectColors1738362321118 } from '../migrations/1738362321118-FixProjectColors';
@@ -14,6 +14,8 @@ import { UpdateTaskStatusEnum1739279174960 } from '../migrations/1739279174960-U
 import { EnsureValidTaskStatuses1739279174961 } from '../migrations/1739279174961-EnsureValidTaskStatuses';
 import { AddProjectTypeEnum1739279174962 } from '../migrations/1739279174962-AddProjectTypeEnum';
 import { AddNonePriorityEnum1710000000000 } from '../migrations/1710000000000-AddNonePriorityEnum';
+import { CreateFocusSessionTables1740494148045 } from '../migrations/1740494148045-CreateFocusSessionTables';
+import { AddProjectIdToFocusSession1740589432291 } from '../migrations/1740589432291-AddProjectIdToFocusSession';
 import { DATABASE_CONFIG } from './constants';
 
 // Define interface for database configuration
@@ -39,6 +41,8 @@ const migrations = [
   UpdateTaskStatusEnum1739279174960,
   EnsureValidTaskStatuses1739279174961,
   AddProjectTypeEnum1739279174962,
+  CreateFocusSessionTables1740494148045,
+  AddProjectIdToFocusSession1740589432291,
 ];
 
 // Define all entities in one place for better maintenance
@@ -74,7 +78,7 @@ const baseConfig: DatabaseConfig = {
   migrationsTableName: 'migrations',
   synchronize: false,
   logging: process.env.NODE_ENV === ('development' as LoggerOptions),
-  ssl: process.env.NODE_ENV === 'local' ? false : { rejectUnauthorized: false },
+  ssl: false,
   retryAttempts: DATABASE_CONFIG.RETRY_ATTEMPTS,
   retryDelay: DATABASE_CONFIG.RETRY_DELAY,
   keepConnectionAlive: true,
