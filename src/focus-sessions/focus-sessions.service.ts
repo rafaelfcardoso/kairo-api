@@ -97,6 +97,7 @@ export class FocusSessionsService {
   async getSessionStats(
     startDate?: Date,
     endDate?: Date,
+    projectId?: string,
   ): Promise<{
     totalSessions: number;
     totalMinutes: number;
@@ -108,10 +109,12 @@ export class FocusSessionsService {
       medium: number;
       high: number;
     };
+    projectDistribution?: Record<string, { name: string; minutes: number }>;
   }> {
     const stats = await this.focusSessionsRepository.getSessionStats(
       startDate,
       endDate,
+      projectId,
     );
 
     return {
@@ -128,6 +131,9 @@ export class FocusSessionsService {
         medium: stats.energyLevelDistribution[EnergyLevel.MEDIUM],
         high: stats.energyLevelDistribution[EnergyLevel.HIGH],
       },
+      ...(stats.projectDistribution
+        ? { projectDistribution: stats.projectDistribution }
+        : {}),
     };
   }
 
@@ -145,6 +151,7 @@ export class FocusSessionsService {
       responseDto.wasSuccessful = session.wasSuccessful;
       responseDto.notes = session.notes;
       responseDto.createdAt = session.createdAt;
+      responseDto.projectId = session.projectId;
 
       // Map related tasks to simpler objects
       responseDto.tasks = session.tasks
@@ -153,6 +160,14 @@ export class FocusSessionsService {
             title: task.title,
           }))
         : [];
+
+      // Map project to a simpler object if it exists
+      if (session.project) {
+        responseDto.project = {
+          id: session.project.id,
+          name: session.project.name,
+        };
+      }
 
       return responseDto;
     });

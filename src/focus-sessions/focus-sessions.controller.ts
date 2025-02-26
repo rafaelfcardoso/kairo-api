@@ -82,11 +82,22 @@ export class FocusSessionsController {
     type: Date,
     description: 'End date for the stats period',
   })
+  @ApiQuery({
+    name: 'projectId',
+    required: false,
+    type: String,
+    description: 'Filter stats by project ID',
+  })
   async getStats(
     @Query('startDate') startDate?: Date,
     @Query('endDate') endDate?: Date,
+    @Query('projectId') projectId?: string,
   ) {
-    return this.focusSessionsService.getSessionStats(startDate, endDate);
+    return this.focusSessionsService.getSessionStats(
+      startDate,
+      endDate,
+      projectId,
+    );
   }
 
   @Get(':id')

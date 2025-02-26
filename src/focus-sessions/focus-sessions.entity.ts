@@ -6,8 +6,11 @@ import {
   ManyToMany,
   CreateDateColumn,
   JoinTable,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { Task } from '../tasks/tasks.entity';
+import { Project } from '../projects/projects.entity';
 import { ApiProperty } from '@nestjs/swagger';
 
 export enum EnergyLevel {
@@ -79,6 +82,20 @@ export class FocusSession {
   @ManyToMany(() => Task, (task) => task.focusSessions)
   @JoinTable()
   tasks: Task[];
+
+  @ApiProperty({ type: () => Project, required: false })
+  @ManyToOne(() => Project, { nullable: true })
+  @JoinColumn({ name: 'projectId' })
+  project: Project;
+
+  @ApiProperty({
+    example: '123e4567-e89b-12d3-a456-426614174000',
+    description:
+      'The ID of the project this session is directly associated with (if any)',
+    required: false,
+  })
+  @Column({ nullable: true })
+  projectId: string;
 
   @ApiProperty()
   @CreateDateColumn()

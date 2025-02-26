@@ -77,6 +77,14 @@ export class CreateFocusSessionDto {
   @IsArray()
   @IsUUID('4', { each: true })
   taskIds?: string[];
+
+  @ApiPropertyOptional({
+    description: 'ID of the project directly associated with the session',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @IsOptional()
+  @IsUUID('4')
+  projectId?: string;
 }
 
 export class UpdateFocusSessionDto extends PartialType(CreateFocusSessionDto) {
@@ -189,6 +197,24 @@ export class FocusSessionResponseDto {
     title: string;
   }>;
 
+  @ApiPropertyOptional({
+    example: '123e4567-e89b-12d3-a456-426614174000',
+    description: 'The ID of the project directly associated with the session',
+  })
+  projectId?: string;
+
+  @ApiPropertyOptional({
+    example: {
+      id: '123e4567-e89b-12d3-a456-426614174000',
+      name: 'Project Name',
+    },
+    description: 'The project directly associated with the session',
+  })
+  project?: {
+    id: string;
+    name: string;
+  };
+
   @ApiProperty({
     example: '2023-04-15T14:30:00Z',
     description: 'When the focus session was created',
@@ -223,6 +249,14 @@ export class GetFocusSessionsHistoryDto {
   @IsOptional()
   @IsUUID('4')
   taskId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter by specific project ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @IsOptional()
+  @IsUUID('4')
+  projectId?: string;
 
   @ApiPropertyOptional({
     description: 'Filter by success status',

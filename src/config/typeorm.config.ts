@@ -15,6 +15,7 @@ import { EnsureValidTaskStatuses1739279174961 } from '../migrations/173927917496
 import { AddProjectTypeEnum1739279174962 } from '../migrations/1739279174962-AddProjectTypeEnum';
 import { AddNonePriorityEnum1710000000000 } from '../migrations/1710000000000-AddNonePriorityEnum';
 import { CreateFocusSessionTables1740494148045 } from '../migrations/1740494148045-CreateFocusSessionTables';
+import { AddProjectIdToFocusSession1740589432291 } from '../migrations/1740589432291-AddProjectIdToFocusSession';
 import { DATABASE_CONFIG } from './constants';
 
 // Define interface for database configuration
@@ -41,6 +42,7 @@ const migrations = [
   EnsureValidTaskStatuses1739279174961,
   AddProjectTypeEnum1739279174962,
   CreateFocusSessionTables1740494148045,
+  AddProjectIdToFocusSession1740589432291,
 ];
 
 // Define all entities in one place for better maintenance

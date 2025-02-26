@@ -6,9 +6,10 @@ import { FocusSessionsService } from './focus-sessions.service';
 import { FocusSessionsRepository } from './focus-sessions.repository';
 import { FocusSession } from './focus-sessions.entity';
 import { Task } from '../tasks/tasks.entity';
+import { Project } from '../projects/projects.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([FocusSession, Task])],
+  imports: [TypeOrmModule.forFeature([FocusSession, Task, Project])],
   controllers: [FocusSessionsController],
   providers: [FocusSessionsService, FocusSessionsRepository],
   exports: [FocusSessionsService],
