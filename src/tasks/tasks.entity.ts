@@ -11,7 +11,7 @@ import {
 } from 'typeorm';
 import { Project } from '../projects/projects.entity';
 import { Tag } from '../tags/tags.entity';
-import { FocusSession } from '../entities/focus-session.entity';
+import { FocusSession } from '../focus-sessions/focus-sessions.entity';
 import { ApiProperty } from '@nestjs/swagger';
 
 export enum TaskPriority {

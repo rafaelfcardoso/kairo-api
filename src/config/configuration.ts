@@ -12,6 +12,7 @@ export default () => {
     PGDATABASE: process.env.PGDATABASE,
     RAILWAY_STATIC_URL: railwayUrl,
     JWT_SECRET: process.env.JWT_SECRET ? '[REDACTED]' : 'undefined',
+    DB_SSL: process.env.DB_SSL,
   });
 
   // Validate required environment variables
@@ -60,6 +61,9 @@ export default () => {
     logLevel: baseConfig.logging.level,
   });
 
+  // Check if SSL should be disabled via environment variable
+  const sslDisabled = process.env.DB_SSL === 'false';
+
   // Environment-specific configurations
   const envConfigs = {
     local: {
@@ -79,7 +83,7 @@ export default () => {
         username: process.env.PGUSER,
         password: process.env.PGPASSWORD,
         database: process.env.PGDATABASE,
-        ssl: { rejectUnauthorized: false },
+        ssl: sslDisabled ? false : { rejectUnauthorized: false },
       },
     },
     staging: {
