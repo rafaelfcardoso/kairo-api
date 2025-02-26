@@ -6,6 +6,7 @@ import { FocusSessionsRepository } from '../focus-sessions.repository';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { FocusSession } from '../focus-sessions.entity';
 import { Task } from '../../tasks/tasks.entity';
+import { Project } from '../../projects/projects.entity';
 
 describe('FocusSessionsController', () => {
   let controller: FocusSessionsController;
@@ -39,6 +40,12 @@ describe('FocusSessionsController', () => {
           provide: getRepositoryToken(Task),
           useValue: {
             findByIds: jest.fn().mockResolvedValue([]),
+          },
+        },
+        {
+          provide: getRepositoryToken(Project),
+          useValue: {
+            findOne: jest.fn().mockResolvedValue(null),
           },
         },
       ],
