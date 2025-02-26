@@ -84,6 +84,9 @@ export default () => {
         password: process.env.PGPASSWORD,
         database: process.env.PGDATABASE,
         ssl: sslDisabled ? false : { rejectUnauthorized: false },
+        connectTimeoutMS: 45000,
+        retryAttempts: 25,
+        retryDelay: 5000,
       },
     },
     staging: {
@@ -94,6 +97,9 @@ export default () => {
         password: process.env.PGPASSWORD,
         database: process.env.PGDATABASE,
         ssl: { rejectUnauthorized: false },
+        connectTimeoutMS: 45000,
+        retryAttempts: 25,
+        retryDelay: 5000,
       },
     },
     production: {
@@ -104,6 +110,9 @@ export default () => {
         password: process.env.PGPASSWORD,
         database: process.env.PGDATABASE,
         ssl: { rejectUnauthorized: false },
+        connectTimeoutMS: 45000,
+        retryAttempts: 25,
+        retryDelay: 5000,
       },
     },
   };

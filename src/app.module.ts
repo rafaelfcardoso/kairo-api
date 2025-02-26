@@ -10,6 +10,7 @@ import configuration from './config/configuration';
 import { typeOrmConfig } from './config/typeorm.config';
 import { AuthModule } from './auth/auth.module';
 import { FocusSessionsModule } from './focus-sessions/focus-sessions.module';
+import { DATABASE_CONFIG } from './config/constants';
 
 @Module({
   imports: [
@@ -44,6 +45,9 @@ import { FocusSessionsModule } from './focus-sessions/focus-sessions.module';
           port: dbConfig.url ? '(Using connection URL)' : dbConfig.port,
           database: dbConfig.url ? '(Using connection URL)' : dbConfig.database,
           ssl: isLocalEnv ? false : dbConfig.ssl,
+          connectionTimeout: DATABASE_CONFIG.CONNECTION_TIMEOUT,
+          retryAttempts: DATABASE_CONFIG.RETRY_ATTEMPTS,
+          retryDelay: DATABASE_CONFIG.RETRY_DELAY,
         });
 
         // Merge TypeORM configs
@@ -55,6 +59,9 @@ import { FocusSessionsModule } from './focus-sessions/focus-sessions.module';
           migrations: typeOrmConfig.migrations, // Include migrations from typeorm.config.ts
           migrationsRun: true,
           migrationsTableName: 'migrations',
+          connectTimeoutMS: DATABASE_CONFIG.CONNECTION_TIMEOUT,
+          retryAttempts: DATABASE_CONFIG.RETRY_ATTEMPTS,
+          retryDelay: DATABASE_CONFIG.RETRY_DELAY,
         };
 
         // Return final config with environment-specific SSL settings

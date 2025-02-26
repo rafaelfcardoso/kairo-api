@@ -3,9 +3,9 @@ export const SYSTEM_IDS = {
 } as const;
 
 export const DATABASE_CONFIG = {
-  RETRY_ATTEMPTS: 10,
-  RETRY_DELAY: 3000,
-  CONNECTION_TIMEOUT: 10000,
+  RETRY_ATTEMPTS: 20,
+  RETRY_DELAY: 5000,
+  CONNECTION_TIMEOUT: 30000,
 } as const;
 
 export const PROJECT_DEFAULTS = {
