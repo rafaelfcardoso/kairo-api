@@ -17,7 +17,7 @@ import {
 } from '@nestjs/common';
 import { TaskService } from './tasks.service';
 import { CreateTaskDto, UpdateTaskDto, TaskFilterDto } from './tasks.dto';
-import { Task, TaskStatus, TaskPriority } from './tasks.entity';
+import { Task, TaskStatus, TaskPriority, TaskType } from './tasks.entity';
 import {
   ApiTags,
   ApiOperation,
@@ -25,17 +25,48 @@ import {
   ApiParam,
   ApiQuery,
   ApiBody,
+  ApiProperty,
 } from '@nestjs/swagger';
 import { ParseUUIDArrayPipe } from './pipes/parse-uuid-array.pipe';
 import { RateLimitGuard } from '../common/guards/rate-limit.guard';
 import { SanitizePipe } from '../common/pipes/sanitize.pipe';
 import { Request } from 'express';
+import {
+  AiService,
+  NaturalLanguageRequest,
+  TaskAnalysisResponse,
+} from '../common/services/ai.service';
+import { IsNotEmpty, IsString, IsOptional } from 'class-validator';
+
+// New DTO for natural language task creation
+class NaturalLanguageTaskDto implements NaturalLanguageRequest {
+  @ApiProperty({
+    description: 'Natural language command to create a task',
+    example: 'Remind me to call Mom every Sunday at 2 PM',
+    required: true,
+  })
+  @IsString()
+  @IsNotEmpty()
+  command: string;
+
+  @ApiProperty({
+    description:
+      'Additional context for the AI to use when processing the command',
+    required: false,
+    example: { timezone: 'America/New_York' },
+  })
+  @IsOptional()
+  user_context?: Record<string, any>;
+}
 
 @ApiTags('Tasks')
 @Controller('tasks')
 @UseGuards(RateLimitGuard)
 export class TaskController {
-  constructor(private taskService: TaskService) {}
+  constructor(
+    private taskService: TaskService,
+    private aiService: AiService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Get all tasks' })
@@ -327,5 +358,79 @@ export class TaskController {
   })
   async assignOrphanedTasksToInbox() {
     return this.taskService.assignOrphanedTasksToInbox();
+  }
+
+  @Post('natural-language')
+  @ApiOperation({
+    summary: 'Create a task using natural language',
+    description:
+      'Process a natural language command and create a task based on the AI interpretation. ' +
+      'Can handle commands like "Create a task to review project proposal by next Friday" or ' +
+      '"Remind me to call Mom every Sunday at 2 PM".',
+  })
+  @ApiBody({ type: NaturalLanguageTaskDto })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Task created successfully from natural language',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid input or could not interpret command',
+  })
+  @ApiResponse({
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    description: 'AI service unavailable',
+  })
+  async createTaskFromNaturalLanguage(
+    @Body() naturalLanguageDto: NaturalLanguageRequest,
+    @Req() request: Request,
+  ): Promise<any> {
+    // Process the natural language input
+    const analysis =
+      await this.aiService.processNaturalLanguage(naturalLanguageDto);
+
+    // Create a task DTO from the parsed data
+    const taskDto: CreateTaskDto = {
+      title: analysis.parsed_data.title,
+      description: analysis.parsed_data.description,
+      priority: analysis.parsed_data.priority as TaskPriority,
+      dueDate: analysis.parsed_data.due_date,
+      // Convert recurrence rule string if present
+      recurrenceRule: analysis.parsed_data.recurrence_rule,
+      // All tasks are now standard type
+      taskType: TaskType.STANDARD,
+      // Use the needsReminder flag for reminder functionality
+      needsReminder:
+        analysis.parsed_data.title.toLowerCase().includes('remind') ||
+        analysis.parsed_data.task_type === 'reminder',
+      // Include a custom message for reminders
+      reminderMessage: analysis.parsed_data.title
+        .toLowerCase()
+        .includes('remind')
+        ? `Auto-generated reminder for: ${analysis.parsed_data.title}`
+        : null,
+    } as CreateTaskDto; // Use type assertion to resolve the linter error
+
+    // Create the task in the database
+    const createdTask = await this.taskService.createTask(taskDto, request.ip);
+
+    // Update the response with the actual task ID
+    analysis.task_id = createdTask.id;
+
+    return analysis;
+  }
+
+  @Get('views/recurring')
+  @ApiOperation({ summary: 'Get recurring tasks' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Retrieved recurring tasks successfully',
+    type: [Task],
+  })
+  async getRecurringTasks(): Promise<Task[]> {
+    // Get all tasks that have a recurrence rule
+    const filterDto = new TaskFilterDto();
+    filterDto.recurring = true;
+    return this.taskService.getTasks(filterDto);
   }
 }

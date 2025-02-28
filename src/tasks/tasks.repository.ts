@@ -23,7 +23,16 @@ export class TasksRepository extends Repository<Task> {
   }
 
   async getTasks(filterDto: TaskFilterDto): Promise<Task[]> {
-    const { status, search, priority, projectId, tagIds, dueDate } = filterDto;
+    const {
+      status,
+      search,
+      priority,
+      projectId,
+      tagIds,
+      dueDate,
+      recurring,
+      dueSoon,
+    } = filterDto;
     const query = this.getTasksQueryBuilder();
 
     if (!filterDto.includeArchived) {
@@ -58,6 +67,18 @@ export class TasksRepository extends Repository<Task> {
         startDate: `${dueDate}T00:00:00.000Z`,
         endDate: `${dueDate}T23:59:59.999Z`,
       });
+    }
+
+    // Filter for tasks due today or in the past
+    if (dueSoon) {
+      const now = new Date();
+      now.setHours(23, 59, 59, 999); // End of today
+      query.andWhere('task.dueDate <= :now', { now });
+    }
+
+    // Filter for recurring tasks
+    if (recurring) {
+      query.andWhere('task.recurrenceRule IS NOT NULL');
     }
 
     return await query.getMany();

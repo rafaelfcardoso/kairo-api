@@ -13,7 +13,7 @@ import {
   MaxLength,
   ValidateIf,
 } from 'class-validator';
-import { TaskStatus, TaskPriority } from './tasks.entity';
+import { TaskStatus, TaskPriority, TaskType } from './tasks.entity';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PartialType } from '@nestjs/swagger';
 
@@ -47,6 +47,23 @@ export class CreateTaskDto {
   priority?: TaskPriority;
 
   @ApiPropertyOptional({
+    enum: TaskType,
+    example: TaskType.STANDARD,
+    description: 'Type of task (standard, reminder, news_update, job_listing)',
+  })
+  @IsEnum(TaskType)
+  @IsOptional()
+  taskType?: TaskType;
+
+  @ApiPropertyOptional({
+    example: 'FREQ=WEEKLY;BYDAY=SU;BYHOUR=14;BYMINUTE=0',
+    description: 'Recurrence rule in iCalendar format for recurring tasks',
+  })
+  @IsString()
+  @IsOptional()
+  recurrenceRule?: string;
+
+  @ApiPropertyOptional({
     example: '2024-12-31T23:59:59.999Z',
     description: 'Due date of the task in ISO 8601 format with timezone',
   })
@@ -54,6 +71,16 @@ export class CreateTaskDto {
   @ValidateIf((o) => o.dueDate !== null && o.dueDate !== undefined)
   @IsOptional()
   dueDate?: string;
+
+  @ApiPropertyOptional({
+    example: '2025-01-07T23:59:59.999Z',
+    description:
+      'Next due date for recurring tasks in ISO 8601 format with timezone',
+  })
+  @IsISO8601({ strict: true })
+  @ValidateIf((o) => o.nextDueDate !== null && o.nextDueDate !== undefined)
+  @IsOptional()
+  nextDueDate?: string;
 
   @ApiPropertyOptional({
     example: false,
@@ -113,6 +140,16 @@ export class TaskFilterDto {
   status?: TaskStatus;
 
   @ApiPropertyOptional({
+    enum: TaskType,
+    example: TaskType.STANDARD,
+    description: 'Filter tasks by type',
+    enumName: 'TaskType',
+  })
+  @IsEnum(TaskType)
+  @IsOptional()
+  taskType?: TaskType;
+
+  @ApiPropertyOptional({
     enum: TaskPriority,
     example: TaskPriority.NONE,
     description: 'Filter tasks by priority',
@@ -158,4 +195,22 @@ export class TaskFilterDto {
   })
   @IsOptional()
   dueDate?: string;
+
+  @ApiPropertyOptional({
+    example: true,
+    description: 'Filter for tasks due today or in the past',
+    type: Boolean,
+  })
+  @IsBoolean()
+  @IsOptional()
+  dueSoon?: boolean;
+
+  @ApiPropertyOptional({
+    example: true,
+    description: 'Filter for recurring tasks only',
+    type: Boolean,
+  })
+  @IsBoolean()
+  @IsOptional()
+  recurring?: boolean;
 }

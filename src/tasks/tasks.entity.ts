@@ -28,6 +28,11 @@ export enum TaskStatus {
   COMPLETED = 'completed',
 }
 
+// Simplify to a single task type - no need for complex types in MVP
+export enum TaskType {
+  STANDARD = 'standard',
+}
+
 @Entity()
 export class Task {
   @ApiProperty({
@@ -77,12 +82,56 @@ export class Task {
   priority: TaskPriority;
 
   @ApiProperty({
+    example: 'standard',
+    description: 'Type of task (standard)',
+    enum: TaskType,
+  })
+  @Column({
+    type: 'enum',
+    enum: TaskType,
+    default: TaskType.STANDARD,
+  })
+  taskType: TaskType;
+
+  @ApiProperty({
+    example: true,
+    description: 'Whether the task needs a reminder',
+    default: false,
+  })
+  @Column({ default: false })
+  needsReminder: boolean;
+
+  @ApiProperty({
+    example: "Don't forget to call John about the meeting",
+    description: 'Custom message to include with the reminder',
+    required: false,
+  })
+  @Column({ nullable: true })
+  reminderMessage: string;
+
+  @ApiProperty({
+    example: 'FREQ=WEEKLY;BYDAY=SU;BYHOUR=14;BYMINUTE=0',
+    description: 'Recurrence rule in iCalendar format for recurring tasks',
+    required: false,
+  })
+  @Column({ nullable: true })
+  recurrenceRule: string;
+
+  @ApiProperty({
     example: '2024-12-31T23:59:59Z',
     description: 'Due date of the task',
     required: false,
   })
   @Column({ nullable: true })
   dueDate: Date;
+
+  @ApiProperty({
+    example: '2025-01-07T23:59:59Z',
+    description: 'Next due date for recurring tasks',
+    required: false,
+  })
+  @Column({ nullable: true })
+  nextDueDate: Date;
 
   @ApiProperty({
     example: false,

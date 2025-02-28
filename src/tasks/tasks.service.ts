@@ -351,12 +351,17 @@ export class TaskService {
 
   async duplicateTask(id: string): Promise<Task> {
     const sourceTask = await this.getTaskById(id);
-    const { dueDate, ...taskData } = sourceTask;
-    return this.tasksRepository.createTask({
+    const { dueDate, nextDueDate, ...taskData } = sourceTask;
+
+    // Create a properly formatted CreateTaskDto
+    const createTaskDto: CreateTaskDto = {
       ...taskData,
       title: `${taskData.title} (Copy)`,
-      dueDate: dueDate ? (dueDate.toISOString() as any) : null,
-    } as CreateTaskDto);
+      dueDate: dueDate ? dueDate.toISOString() : null,
+      nextDueDate: nextDueDate ? nextDueDate.toISOString() : null,
+    };
+
+    return this.tasksRepository.createTask(createTaskDto);
   }
 
   async assignOrphanedTasksToInbox(): Promise<{

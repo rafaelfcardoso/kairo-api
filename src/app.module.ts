@@ -12,6 +12,7 @@ import { AuthModule } from './auth/auth.module';
 import { FocusSessionsModule } from './focus-sessions/focus-sessions.module';
 import { StatsModule } from './stats/stats.module';
 import { DATABASE_CONFIG } from './config/constants';
+import { SchedulerModule } from './common/services/scheduler.module';
 
 @Module({
   imports: [
@@ -82,6 +83,7 @@ import { DATABASE_CONFIG } from './config/constants';
     AuthModule,
     FocusSessionsModule,
     StatsModule,
+    SchedulerModule,
   ],
   controllers: [AppController],
   providers: [],
