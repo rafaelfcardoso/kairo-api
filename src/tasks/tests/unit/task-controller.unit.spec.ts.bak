@@ -3,7 +3,6 @@ import { TaskController } from '../../tasks.controller';
 import { TaskService } from '../../tasks.service';
 import { SecurityLoggerService } from '../../../common/services/security-logger.service';
 import { Reflector } from '@nestjs/core';
-import { AiService } from '../../../common/services/ai.service';
 
 describe('TaskController', () => {
   let controller: TaskController;
@@ -13,11 +12,6 @@ describe('TaskController', () => {
       logSecurityEvent: jest.fn(),
       logValidationFailure: jest.fn(),
       logSuspiciousActivity: jest.fn(),
-    };
-
-    const mockAiService = {
-      processNaturalLanguage: jest.fn(),
-      getSmartReminder: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -36,10 +30,6 @@ describe('TaskController', () => {
         {
           provide: SecurityLoggerService,
           useValue: mockSecurityLogger,
-        },
-        {
-          provide: AiService,
-          useValue: mockAiService,
         },
         Reflector,
       ],
