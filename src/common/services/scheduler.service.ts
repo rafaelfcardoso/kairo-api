@@ -37,6 +37,7 @@ export class SchedulerService {
           dueDate: LessThanOrEqual(new Date()),
           status: Not(TaskStatus.COMPLETED),
           isArchived: false,
+          needsReminder: true,
         },
         relations: ['project', 'tags'],
       });
@@ -63,15 +64,18 @@ export class SchedulerService {
   private async processTask(task: Task): Promise<void> {
     try {
       // Get user email and timezone (in a real app, you'd get these from user records)
-      const userEmail = 'user@example.com'; // Placeholder - would come from user record
+      const userEmail = 'rafael.dev.test@icloud.com'; // Placeholder - would come from user record
       const userTimezone = 'America/New_York'; // Placeholder - would come from user preferences
 
-      // Send notification for the task
-      await this.notificationService.sendTaskNotification(
-        task,
-        userEmail,
-        userTimezone,
-      );
+      // Only send notification if the task needs a reminder
+      if (task.needsReminder) {
+        // Send notification for the task
+        await this.notificationService.sendTaskNotification(
+          task,
+          userEmail,
+          userTimezone,
+        );
+      }
 
       // Handle recurring tasks using the domain service
       if (task.recurrenceRule) {
