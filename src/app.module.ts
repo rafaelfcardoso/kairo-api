@@ -10,6 +10,7 @@ import configuration from './config/configuration';
 import { typeOrmConfig } from './config/typeorm.config';
 import { AuthModule } from './auth/auth.module';
 import { FocusSessionsModule } from './focus-sessions/focus-sessions.module';
+import { StatsModule } from './stats/stats.module';
 import { DATABASE_CONFIG } from './config/constants';
 
 @Module({
@@ -80,6 +81,7 @@ import { DATABASE_CONFIG } from './config/constants';
     SecurityModule,
     AuthModule,
     FocusSessionsModule,
+    StatsModule,
   ],
   controllers: [AppController],
   providers: [],
