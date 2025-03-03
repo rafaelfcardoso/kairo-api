@@ -9,6 +9,8 @@ import { TasksRepository } from '../../tasks.repository';
 import { ProjectsRepository } from '../../../projects/projects.repository';
 import { TagsRepository } from '../../../tags/tags.repository';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { RecurringTaskService } from '../../recurring-task.service';
+import { TaskDomainService } from '../../tasks.domain.service';
 
 describe('TaskService', () => {
   let service: TaskService;
@@ -40,6 +42,30 @@ describe('TaskService', () => {
       logSuspiciousActivity: jest.fn(),
     } as any;
 
+    // Mock for RecurringTaskService
+    const mockRecurringTaskService = {
+      processCompletedTask: jest.fn(),
+      scheduleNextRecurrence: jest.fn(),
+      calculateNextOccurrence: jest.fn(),
+    };
+
+    // Mock for TaskDomainService
+    const mockTaskDomainService = {
+      calculateNextOccurrence: jest.fn(),
+      isTaskDue: jest.fn(),
+      getTasksNeedingReminders: jest.fn(),
+      completeTask: jest.fn().mockReturnValue({
+        updatedTask: {
+          id: 'test-task-id',
+          title: 'Test Task',
+          status: 'completed',
+        },
+        nextTask: null,
+      }),
+      determineNotificationType: jest.fn(),
+      canCompleteTask: jest.fn().mockReturnValue(true),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TaskService,
@@ -62,6 +88,14 @@ describe('TaskService', () => {
         {
           provide: SecurityLoggerService,
           useValue: mockSecurityLogger,
+        },
+        {
+          provide: RecurringTaskService,
+          useValue: mockRecurringTaskService,
+        },
+        {
+          provide: TaskDomainService,
+          useValue: mockTaskDomainService,
         },
       ],
     }).compile();

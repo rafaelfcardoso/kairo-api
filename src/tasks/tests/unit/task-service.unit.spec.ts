@@ -9,6 +9,8 @@ import { TagsRepository } from '../../../tags/tags.repository';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { SecurityLoggerService } from '../../../common/services/security-logger.service';
+import { RecurringTaskService } from '../../recurring-task.service';
+import { TaskDomainService } from '../../tasks.domain.service';
 
 describe('TaskService', () => {
   let service: TaskService;
@@ -21,6 +23,8 @@ describe('TaskService', () => {
   let mockTagsRepository: Partial<TagsRepository>;
   let mockTaskRepository: Partial<Repository<Task>>;
   let mockSecurityLogger: Partial<SecurityLoggerService>;
+  let mockRecurringTaskService: Partial<RecurringTaskService>;
+  let mockTaskDomainService: Partial<TaskDomainService>;
 
   const mockInboxProject = {
     id: '569c363f-1934-4e69-b324-6c2fad28bc59',
@@ -90,6 +94,28 @@ describe('TaskService', () => {
       logSuspiciousActivity: jest.fn(),
     };
 
+    mockRecurringTaskService = {
+      processCompletedTask: jest.fn(),
+      scheduleNextRecurrence: jest.fn(),
+      calculateNextOccurrence: jest.fn(),
+    };
+
+    mockTaskDomainService = {
+      calculateNextOccurrence: jest.fn(),
+      isTaskDue: jest.fn(),
+      getTasksNeedingReminders: jest.fn(),
+      completeTask: jest.fn().mockReturnValue({
+        updatedTask: {
+          id: 'test-task-id',
+          title: 'Test Task',
+          status: 'completed',
+        },
+        nextTask: null,
+      }),
+      determineNotificationType: jest.fn(),
+      canCompleteTask: jest.fn().mockReturnValue(true),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TaskService,
@@ -112,6 +138,14 @@ describe('TaskService', () => {
         {
           provide: SecurityLoggerService,
           useValue: mockSecurityLogger,
+        },
+        {
+          provide: RecurringTaskService,
+          useValue: mockRecurringTaskService,
+        },
+        {
+          provide: TaskDomainService,
+          useValue: mockTaskDomainService,
         },
       ],
     }).compile();
@@ -292,6 +326,7 @@ describe('TaskService', () => {
         id: taskId,
         title: 'Test Task',
         status: TaskStatus.NOT_STARTED,
+        isRecurring: false,
       };
 
       const updatedTask = {
@@ -302,17 +337,20 @@ describe('TaskService', () => {
       (mockTasksRepository.getTaskById as jest.Mock).mockResolvedValue(
         mockTask,
       );
-      (mockTasksRepository.updateTask as jest.Mock).mockResolvedValue(
-        updatedTask,
-      );
+      (mockTasksRepository.save as jest.Mock).mockResolvedValue(updatedTask);
+      (mockTaskDomainService.completeTask as jest.Mock).mockReturnValue({
+        updatedTask: updatedTask,
+        nextTask: null,
+      });
+      (mockTasksRepository.getTaskById as jest.Mock)
+        .mockResolvedValueOnce(mockTask)
+        .mockResolvedValueOnce(updatedTask);
 
       const result = await service.updateTask(taskId, updateTaskDto);
 
       expect(result.status).toBe(TaskStatus.COMPLETED);
-      expect(mockTasksRepository.updateTask).toHaveBeenCalledWith(
-        taskId,
-        updateTaskDto,
-      );
+      expect(mockTaskDomainService.completeTask).toHaveBeenCalledWith(mockTask);
+      expect(mockTasksRepository.save).toHaveBeenCalled();
     });
 
     it('should update task with new priority', async () => {
