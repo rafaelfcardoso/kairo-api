@@ -13,6 +13,8 @@ import { AddBlockRuleTypeEnum1739279174964 } from '../migrations/1739279174964-A
 import { CreateFocusSessionTables1740494148045 } from '../migrations/1740494148045-CreateFocusSessionTables';
 import { AddProjectIdToFocusSession1740589432291 } from '../migrations/1740589432291-AddProjectIdToFocusSession';
 import { AddRecurringTaskFields1740916550124 } from '../migrations/1740916550124-AddRecurringTaskFields';
+import * as fs from 'fs';
+import * as path from 'path';
 
 async function createTestDatabase(queryRunner: any, sourceDb: string) {
   const testDbName = `${sourceDb}_test_migrations`;
@@ -38,12 +40,93 @@ async function createTestDatabase(queryRunner: any, sourceDb: string) {
   }
 }
 
+/**
+ * Verify that all migration files are properly imported and included in the migrations array in typeorm.config.ts
+ */
+async function verifyMigrationImports() {
+  console.log('Verifying migration imports in typeorm.config.ts...');
+
+  // Get all migration files from the migrations directory
+  const migrationsDir = path.resolve(__dirname, '../migrations');
+  const migrationFiles = fs
+    .readdirSync(migrationsDir)
+    .filter(
+      (file) =>
+        file.endsWith('.ts') &&
+        !file.includes('.d.ts') &&
+        !file.includes('index.ts') &&
+        !fs.lstatSync(path.join(migrationsDir, file)).isDirectory(),
+    );
+
+  // Read the typeorm.config.ts file
+  const configPath = path.resolve(__dirname, '../config/typeorm.config.ts');
+  const configContent = fs.readFileSync(configPath, 'utf8');
+
+  // Check if each migration file is imported and included in the migrations array
+  const missingImports = [];
+  const missingInArray = [];
+
+  for (const file of migrationFiles) {
+    // Extract the class name from the file name
+    // Format: 1234567890123-MigrationName.ts
+    const match = file.match(/\d+-([A-Za-z]+)\.ts$/);
+    if (!match) {
+      console.warn(`Could not extract class name from file: ${file}`);
+      continue;
+    }
+
+    const className = match[1];
+
+    // Check if the class is imported
+    const importRegex = new RegExp(`import\\s+{\\s*${className}\\d+\\s*}`, 'i');
+    if (!importRegex.test(configContent)) {
+      missingImports.push(`${className} (${file})`);
+    }
+
+    // Check if the class is included in the migrations array
+    const arrayRegex = new RegExp(
+      `migrations\\s*=\\s*\\[[^\\]]*${className}\\d+[^\\]]*\\]`,
+      's',
+    );
+    if (!arrayRegex.test(configContent)) {
+      missingInArray.push(`${className} (${file})`);
+    }
+  }
+
+  // Report results
+  if (missingImports.length === 0 && missingInArray.length === 0) {
+    console.log(
+      '✅ All migrations are properly imported and included in the migrations array.',
+    );
+    return true;
+  } else {
+    if (missingImports.length > 0) {
+      console.error(
+        '❌ The following migrations are not imported in typeorm.config.ts:',
+      );
+      missingImports.forEach((missing) => console.error(`   - ${missing}`));
+    }
+
+    if (missingInArray.length > 0) {
+      console.error(
+        '❌ The following migrations are imported but not included in the migrations array:',
+      );
+      missingInArray.forEach((missing) => console.error(`   - ${missing}`));
+    }
+
+    throw new Error('Migration import verification failed');
+  }
+}
+
 async function verifyMigrations() {
   let defaultDataSource: DataSource | null = null;
   let testDataSource: DataSource | null = null;
   let testDbName: string | null = null;
 
   try {
+    // First verify that all migrations are properly imported and included in the config
+    await verifyMigrationImports();
+
     // Get the source database name from config
     const sourceDb = typeOrmConfig.database as string;
     if (!sourceDb) {
