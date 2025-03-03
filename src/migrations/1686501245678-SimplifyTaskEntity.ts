@@ -2,17 +2,6 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class SimplifyTaskEntity1686501245678 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // Create the task_type_enum type if it doesn't exist
-    await queryRunner.query(`
-      DO $$ 
-      BEGIN 
-        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'task_type_enum') THEN 
-          CREATE TYPE "task_type_enum" AS ENUM('standard'); 
-        END IF; 
-      END 
-      $$;
-    `);
-
     // Add the needs_reminder column
     await queryRunner.query(
       `ALTER TABLE "task" ADD COLUMN IF NOT EXISTS "needsReminder" boolean DEFAULT false`,
@@ -30,36 +19,17 @@ export class SimplifyTaskEntity1686501245678 implements MigrationInterface {
       WHERE metadata->>'reminderMessage' IS NOT NULL
     `);
 
-    // Update existing tasks that were reminders to have needsReminder = true
-    await queryRunner.query(`
-      UPDATE "task" 
-      SET "needsReminder" = true
-      WHERE "taskType" = 'reminder'
-    `);
-
-    // Create a temporary column for the enum
-    await queryRunner.query(`
-      ALTER TABLE "task" ADD COLUMN IF NOT EXISTS "taskTypeEnum" "task_type_enum" DEFAULT 'standard'
-    `);
-
-    // Convert all tasks to standard type
-    await queryRunner.query(`
-      UPDATE "task" 
-      SET "taskTypeEnum" = 'standard'::task_type_enum
-    `);
-
-    // Drop the string column
-    await queryRunner.query(
-      `ALTER TABLE "task" DROP COLUMN IF EXISTS "taskType"`,
+    // Check if taskType column exists
+    const taskTypeExists = await this.columnExists(
+      queryRunner,
+      'task',
+      'taskType',
     );
 
-    // Rename the enum column to taskType
-    await queryRunner.query(
-      `ALTER TABLE "task" RENAME COLUMN "taskTypeEnum" TO "taskType"`,
-    );
-
-    // Drop the metadata column (optional - you might want to keep it for a while)
-    // await queryRunner.query(`ALTER TABLE "task" DROP COLUMN IF EXISTS "metadata"`);
+    if (taskTypeExists) {
+      // Drop the taskType column if it exists
+      await queryRunner.query(`ALTER TABLE "task" DROP COLUMN "taskType"`);
+    }
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
@@ -75,31 +45,6 @@ export class SimplifyTaskEntity1686501245678 implements MigrationInterface {
       WHERE "reminderMessage" IS NOT NULL
     `);
 
-    // Create a temporary string column
-    await queryRunner.query(
-      `ALTER TABLE "task" ADD COLUMN IF NOT EXISTS "taskTypeString" character varying DEFAULT 'standard'`,
-    );
-
-    // Convert tasks with needsReminder to reminder type
-    await queryRunner.query(`
-      UPDATE "task" 
-      SET "taskTypeString" = 
-        CASE 
-          WHEN "needsReminder" = true THEN 'reminder'
-          ELSE 'standard'
-        END
-    `);
-
-    // Drop the enum column
-    await queryRunner.query(
-      `ALTER TABLE "task" DROP COLUMN IF EXISTS "taskType"`,
-    );
-
-    // Rename the string column to taskType
-    await queryRunner.query(
-      `ALTER TABLE "task" RENAME COLUMN "taskTypeString" TO "taskType"`,
-    );
-
     // Drop the needsReminder and reminderMessage columns
     await queryRunner.query(
       `ALTER TABLE "task" DROP COLUMN IF EXISTS "needsReminder"`,
@@ -107,5 +52,22 @@ export class SimplifyTaskEntity1686501245678 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE "task" DROP COLUMN IF EXISTS "reminderMessage"`,
     );
+  }
+
+  // Helper method to check if a column exists
+  private async columnExists(
+    queryRunner: QueryRunner,
+    table: string,
+    column: string,
+  ): Promise<boolean> {
+    const result = await queryRunner.query(`
+      SELECT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = '${table}'
+        AND column_name = '${column}'
+      );
+    `);
+    return result[0].exists;
   }
 }

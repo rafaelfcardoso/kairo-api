@@ -14,6 +14,7 @@ import { UpdateTaskStatusEnum1739279174960 } from '../migrations/1739279174960-U
 import { EnsureValidTaskStatuses1739279174961 } from '../migrations/1739279174961-EnsureValidTaskStatuses';
 import { AddProjectTypeEnum1739279174962 } from '../migrations/1739279174962-AddProjectTypeEnum';
 import { AddNonePriorityEnum1710000000000 } from '../migrations/1710000000000-AddNonePriorityEnum';
+import { AddNonePriorityEnum1738178127099 } from '../migrations/1738178127099-AddNonePriorityEnum';
 import { CreateFocusSessionTables1740494148045 } from '../migrations/1740494148045-CreateFocusSessionTables';
 import { AddProjectIdToFocusSession1740589432291 } from '../migrations/1740589432291-AddProjectIdToFocusSession';
 import { AddRecurringTaskFields1740916550124 } from '../migrations/1740916550124-AddRecurringTaskFields';
@@ -24,6 +25,7 @@ import { AddSystemProjectAndInbox1738360717263 } from '../migrations/17383607172
 import { AddFocusSessionEnergyLevelEnum1739279174963 } from '../migrations/1739279174963-AddFocusSessionEnergyLevelEnum';
 import { AddTaskTagsTable1739279174963 } from '../migrations/1739279174963-AddTaskTagsTable';
 import { AddBlockRuleTypeEnum1739279174964 } from '../migrations/1739279174964-AddBlockRuleTypeEnum';
+import { RemoveTaskTypeColumn1741011691203 } from '../migrations/1741011691203-RemoveTaskTypeColumn';
 import { DATABASE_CONFIG } from './constants';
 
 // Define interface for database configuration
@@ -46,6 +48,7 @@ const migrations = [
   SimplifyTaskEntity1686501245678,
   CleanupUnusedTaskTypes1686501256789,
   AddNonePriorityEnum1710000000000,
+  AddNonePriorityEnum1738178127099,
   FixProjectColors1738362321118,
   AddSystemProjectAndInbox1738360717263,
   EnsureInboxProject1738362321119,
@@ -59,6 +62,7 @@ const migrations = [
   CreateFocusSessionTables1740494148045,
   AddProjectIdToFocusSession1740589432291,
   AddRecurringTaskFields1740916550124,
+  RemoveTaskTypeColumn1741011691203,
 ];
 
 // Define all entities in one place for better maintenance
