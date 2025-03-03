@@ -16,6 +16,7 @@ import { AddProjectTypeEnum1739279174962 } from '../migrations/1739279174962-Add
 import { AddNonePriorityEnum1710000000000 } from '../migrations/1710000000000-AddNonePriorityEnum';
 import { CreateFocusSessionTables1740494148045 } from '../migrations/1740494148045-CreateFocusSessionTables';
 import { AddProjectIdToFocusSession1740589432291 } from '../migrations/1740589432291-AddProjectIdToFocusSession';
+import { AddRecurringTaskFields1740916550124 } from '../migrations/1740916550124-AddRecurringTaskFields';
 import { DATABASE_CONFIG } from './constants';
 
 // Define interface for database configuration
@@ -43,6 +44,7 @@ const migrations = [
   AddProjectTypeEnum1739279174962,
   CreateFocusSessionTables1740494148045,
   AddProjectIdToFocusSession1740589432291,
+  AddRecurringTaskFields1740916550124,
 ];
 
 // Define all entities in one place for better maintenance

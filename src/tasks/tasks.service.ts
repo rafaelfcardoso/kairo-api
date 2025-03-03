@@ -13,6 +13,8 @@ import { Project, ProjectType } from '../projects/projects.entity';
 import { CreateTaskDto, UpdateTaskDto, TaskFilterDto } from './tasks.dto';
 import { Repository } from 'typeorm';
 import { SecurityLoggerService } from '../common/services/security-logger.service';
+import { RecurringTaskService } from './recurring-task.service';
+import { TaskDomainService } from './tasks.domain.service';
 
 @Injectable()
 export class TaskService {
@@ -48,12 +50,15 @@ export class TaskService {
   ];
 
   constructor(
+    @InjectRepository(TasksRepository)
     private tasksRepository: TasksRepository,
+    @InjectRepository(ProjectsRepository)
     private projectsRepository: ProjectsRepository,
+    @InjectRepository(TagsRepository)
     private tagsRepository: TagsRepository,
     private securityLogger: SecurityLoggerService,
-    @InjectRepository(Task)
-    private taskRepository: Repository<Task>,
+    private recurringTaskService: RecurringTaskService,
+    private taskDomainService: TaskDomainService,
   ) {}
 
   private validateInput(input: string, context: string): void {
@@ -203,7 +208,7 @@ export class TaskService {
     updateTaskDto: UpdateTaskDto,
     _ip?: string,
   ): Promise<Task> {
-    const { title, description, dueDate } = updateTaskDto;
+    const { title, description, dueDate, status } = updateTaskDto;
 
     // Validate inputs
     if (title) {
@@ -217,6 +222,37 @@ export class TaskService {
     }
 
     try {
+      // Check if task is being completed
+      if (status === TaskStatus.COMPLETED) {
+        // Get the task first
+        const task = await this.tasksRepository.getTaskById(id);
+
+        // If it's a recurring task, use RecurringTaskService
+        if (task.isRecurring) {
+          // Mark the task as completed
+          task.status = TaskStatus.COMPLETED;
+          task.updatedAt = new Date();
+
+          // Save the updated task
+          const updatedTask = await this.tasksRepository.save(task);
+
+          // Schedule the next occurrence
+          await this.recurringTaskService.processCompletedTask(task);
+
+          return updatedTask;
+        } else {
+          // For non-recurring tasks, use the domain service
+          const { updatedTask } = this.taskDomainService.completeTask(task);
+
+          // Save the updated task
+          await this.tasksRepository.save(updatedTask);
+
+          // Return the updated task with all relations
+          return this.tasksRepository.getTaskById(id);
+        }
+      }
+
+      // For non-completion updates, use the regular update method
       const savedTask = await this.tasksRepository.updateTask(
         id,
         updateTaskDto,

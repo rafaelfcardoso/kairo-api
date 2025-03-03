@@ -12,7 +12,7 @@ export interface NaturalLanguageRequest {
 
 export interface TaskAnalysisResponse {
   task_id: string;
-  parsed_data: {
+  analysis: {
     title: string;
     description?: string;
     due_date?: string;
@@ -20,21 +20,35 @@ export interface TaskAnalysisResponse {
     tags?: string[];
     project_id?: string;
     recurrence_rule?: string;
-    task_type?: string;
+    has_time?: boolean;
   };
-  suggested_priority: string;
-  tokens_used: number;
+  suggested_priority: number;
+  time_estimate?: number;
+  energy_level_recommendation?: string;
+  tags?: string[];
+  tokens_used: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
 }
 
 export interface SmartReminderRequest {
   task_id: string;
-  context: Record<string, any>;
+  task_title: string;
+  task_description?: string;
+  task_due_date?: string;
+  task_priority?: string;
+  task_tags?: string[];
+  task_project?: string;
+  user_timezone?: string;
 }
 
 export interface SmartReminderResponse {
+  reminder_id: string;
   reminder_text: string;
-  suggested_time: string | null;
   tokens_used: number;
+  suggested_delivery_time?: string;
 }
 
 export interface NewsUpdateResponse {
@@ -54,6 +68,10 @@ export interface JobListingResponse {
   posted_date: string;
 }
 
+/**
+ * AiService is an infrastructure service that integrates with external AI services
+ * to provide natural language processing and smart reminders.
+ */
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
@@ -65,7 +83,7 @@ export class AiService {
   ) {
     this.aiBaseUrl = this.configService.get<string>(
       'AI_SERVICE_URL',
-      'https://zenith-ai-development.up.railway.app/api/v1',
+      'https://zenith-ai-development.up.railway.app',
     );
   }
 
@@ -76,7 +94,7 @@ export class AiService {
       const response: AxiosResponse<TaskAnalysisResponse> =
         await firstValueFrom(
           this.httpService.post(
-            `${this.aiBaseUrl}/tasks/natural-language`,
+            `${this.aiBaseUrl}/api/v1/tasks/natural-language`,
             request,
           ),
         );
@@ -100,7 +118,7 @@ export class AiService {
       const response: AxiosResponse<SmartReminderResponse> =
         await firstValueFrom(
           this.httpService.post(
-            `${this.aiBaseUrl}/tasks/smart-reminder`,
+            `${this.aiBaseUrl}/api/v1/tasks/smart-reminder`,
             request,
           ),
         );
@@ -111,7 +129,7 @@ export class AiService {
         error.stack,
       );
       throw new HttpException(
-        'Failed to get smart reminder',
+        'Failed to generate smart reminder',
         HttpStatus.SERVICE_UNAVAILABLE,
       );
     }

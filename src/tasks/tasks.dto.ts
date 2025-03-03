@@ -13,7 +13,13 @@ import {
   MaxLength,
   ValidateIf,
 } from 'class-validator';
-import { TaskStatus, TaskPriority, TaskType } from './tasks.entity';
+import {
+  TaskStatus,
+  TaskPriority,
+  TaskType,
+  RecurrencePattern,
+  RecurrenceTimeOfDay,
+} from './tasks.entity';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PartialType } from '@nestjs/swagger';
 
@@ -107,6 +113,76 @@ export class CreateTaskDto {
   @IsUUID('4')
   @IsOptional()
   projectId?: string;
+
+  @ApiPropertyOptional({
+    example: true,
+    description: 'Whether the task needs a reminder',
+    default: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  needsReminder?: boolean;
+
+  @ApiPropertyOptional({
+    example: "Don't forget to submit your report!",
+    description: 'Custom message to include with the reminder',
+  })
+  @IsString()
+  @IsOptional()
+  reminderMessage?: string;
+
+  // New fields for recurring tasks
+  @ApiPropertyOptional({
+    example: true,
+    description: 'Whether this is a recurring task',
+    default: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  isRecurring?: boolean;
+
+  @ApiPropertyOptional({
+    enum: RecurrencePattern,
+    example: RecurrencePattern.DAILY,
+    description:
+      'The pattern for task recurrence (daily, weekly, monthly, yearly)',
+  })
+  @IsString()
+  @IsOptional()
+  recurrencePattern?: string;
+
+  @ApiPropertyOptional({
+    example: 'monday,wednesday,friday',
+    description: 'Specific days for weekly recurrence',
+  })
+  @IsString()
+  @IsOptional()
+  recurrenceDays?: string;
+
+  @ApiPropertyOptional({
+    enum: RecurrenceTimeOfDay,
+    example: RecurrenceTimeOfDay.MORNING,
+    description: 'Time of day for the recurring task',
+  })
+  @IsString()
+  @IsOptional()
+  recurrenceTimeOfDay?: string;
+
+  @ApiPropertyOptional({
+    example: '08:00',
+    description: 'Specific time for custom recurrence time',
+  })
+  @IsString()
+  @IsOptional()
+  recurrenceTime?: string;
+
+  @ApiPropertyOptional({
+    example: '123e4567-e89b-12d3-a456-426614174000',
+    description: 'The ID of the parent recurring task if this is an instance',
+  })
+  @IsUUID('4')
+  @IsOptional()
+  recurringParentId?: string;
 }
 
 export class UpdateTaskDto extends PartialType(CreateTaskDto) {

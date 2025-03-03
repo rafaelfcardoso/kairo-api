@@ -10,6 +10,9 @@ import { EnsureValidTaskStatuses1739279174961 } from '../migrations/173927917496
 import { AddProjectTypeEnum1739279174962 } from '../migrations/1739279174962-AddProjectTypeEnum';
 import { AddFocusSessionEnergyLevelEnum1739279174963 } from '../migrations/1739279174963-AddFocusSessionEnergyLevelEnum';
 import { AddBlockRuleTypeEnum1739279174964 } from '../migrations/1739279174964-AddBlockRuleTypeEnum';
+import { CreateFocusSessionTables1740494148045 } from '../migrations/1740494148045-CreateFocusSessionTables';
+import { AddProjectIdToFocusSession1740589432291 } from '../migrations/1740589432291-AddProjectIdToFocusSession';
+import { AddRecurringTaskFields1740916550124 } from '../migrations/1740916550124-AddRecurringTaskFields';
 
 async function createTestDatabase(queryRunner: any, sourceDb: string) {
   const testDbName = `${sourceDb}_test_migrations`;
@@ -106,11 +109,17 @@ async function verifyMigrations() {
       new AddProjectTypeEnum1739279174962(),
       new AddFocusSessionEnergyLevelEnum1739279174963(),
       new AddBlockRuleTypeEnum1739279174964(),
+      new CreateFocusSessionTables1740494148045(),
+      new AddProjectIdToFocusSession1740589432291(),
+      new AddRecurringTaskFields1740916550124(),
     ];
 
     console.log('Running migrations in sequence...');
     for (const migration of migrations) {
-      console.log(`Running migration: ${migration.name}`);
+      // Type assertion to handle migrations that might not have a name property
+      const migrationName =
+        (migration as any).name || migration.constructor.name;
+      console.log(`Running migration: ${migrationName}`);
       await migration.up(testDataSource.createQueryRunner());
     }
     console.log('All migrations completed successfully');

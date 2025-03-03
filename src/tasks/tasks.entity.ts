@@ -33,6 +33,22 @@ export enum TaskType {
   STANDARD = 'standard',
 }
 
+// Define recurrence patterns for recurring tasks
+export enum RecurrencePattern {
+  DAILY = 'daily',
+  WEEKLY = 'weekly',
+  MONTHLY = 'monthly',
+  YEARLY = 'yearly',
+}
+
+// Define time of day options for recurring tasks
+export enum RecurrenceTimeOfDay {
+  MORNING = 'morning',
+  AFTERNOON = 'afternoon',
+  EVENING = 'evening',
+  CUSTOM = 'custom',
+}
+
 @Entity()
 export class Task {
   @ApiProperty({
@@ -139,6 +155,61 @@ export class Task {
   })
   @Column({ default: false })
   hasTime: boolean;
+
+  // New fields for recurring tasks
+  @ApiProperty({
+    example: true,
+    description: 'Whether this is a recurring task',
+    default: false,
+  })
+  @Column({ default: false })
+  isRecurring: boolean;
+
+  @ApiProperty({
+    enum: RecurrencePattern,
+    example: RecurrencePattern.DAILY,
+    description:
+      'The pattern for task recurrence (daily, weekly, monthly, yearly)',
+    required: false,
+  })
+  @Column({
+    type: 'varchar',
+    nullable: true,
+  })
+  recurrencePattern: string;
+
+  @ApiProperty({
+    example: 'monday,wednesday,friday',
+    description: 'Specific days for weekly recurrence',
+    required: false,
+  })
+  @Column({ nullable: true })
+  recurrenceDays: string;
+
+  @ApiProperty({
+    enum: RecurrenceTimeOfDay,
+    example: RecurrenceTimeOfDay.MORNING,
+    description: 'Time of day for the recurring task',
+    required: false,
+  })
+  @Column({ nullable: true })
+  recurrenceTimeOfDay: string;
+
+  @ApiProperty({
+    example: '08:00',
+    description: 'Specific time for custom recurrence time',
+    required: false,
+  })
+  @Column({ nullable: true })
+  recurrenceTime: string;
+
+  @ApiProperty({
+    example: '123e4567-e89b-12d3-a456-426614174000',
+    description: 'The ID of the parent recurring task if this is an instance',
+    required: false,
+  })
+  @Column({ nullable: true })
+  recurringParentId: string;
 
   @Column({ default: 0 })
   estimatedMinutes: number;

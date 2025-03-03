@@ -92,7 +92,13 @@ export class NotificationService {
 
         const smartReminder = await this.aiService.getSmartReminder({
           task_id: task.id,
-          context: reminderContext,
+          task_title: task.title,
+          task_description: task.description,
+          task_due_date: task.dueDate?.toISOString(),
+          task_priority: task.priority,
+          task_tags: task.tags?.map((tag) => tag.name),
+          task_project: task.project?.name,
+          user_timezone: reminderContext.user_timezone,
         });
 
         context.aiReminderText = smartReminder.reminder_text;

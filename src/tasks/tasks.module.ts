@@ -13,6 +13,7 @@ import { TaskDomainService } from './tasks.domain.service';
 import { TaskFactory } from './factories/task.factory';
 import { NotificationDomainService } from './notification.domain.service';
 import { TaskAggregate } from './aggregates/task.aggregate';
+import { RecurringTaskService } from './recurring-task.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Task]), AiModule],
@@ -26,6 +27,7 @@ import { TaskAggregate } from './aggregates/task.aggregate';
     TaskDomainService,
     TaskFactory,
     NotificationDomainService,
+    RecurringTaskService,
   ],
   exports: [
     TaskService,
@@ -33,6 +35,7 @@ import { TaskAggregate } from './aggregates/task.aggregate';
     TaskDomainService,
     TaskFactory,
     NotificationDomainService,
+    RecurringTaskService,
   ],
 })
 export class TasksModule {}

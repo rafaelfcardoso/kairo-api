@@ -4,8 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Task } from '../../tasks/tasks.entity';
 import { SchedulerService } from './scheduler.service';
 import { AiModule } from './ai.module';
-import { TaskDomainService } from '../../tasks/tasks.domain.service';
-import { TasksRepository } from '../../tasks/tasks.repository';
+import { TasksModule } from '../../tasks/tasks.module';
 
 /**
  * SchedulerModule handles the scheduling and execution of tasks.
@@ -16,8 +15,9 @@ import { TasksRepository } from '../../tasks/tasks.repository';
     ScheduleModule.forRoot(),
     TypeOrmModule.forFeature([Task]),
     AiModule,
+    TasksModule,
   ],
-  providers: [SchedulerService, TaskDomainService, TasksRepository],
+  providers: [SchedulerService],
   exports: [SchedulerService],
 })
 export class SchedulerModule {}

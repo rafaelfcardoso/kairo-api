@@ -37,6 +37,7 @@ import {
   TaskAnalysisResponse,
 } from '../common/services/ai.service';
 import { IsNotEmpty, IsString, IsOptional } from 'class-validator';
+import { Logger } from '@nestjs/common';
 
 // New DTO for natural language task creation
 class NaturalLanguageTaskDto implements NaturalLanguageRequest {
@@ -63,6 +64,8 @@ class NaturalLanguageTaskDto implements NaturalLanguageRequest {
 @Controller('tasks')
 @UseGuards(RateLimitGuard)
 export class TaskController {
+  private readonly logger = new Logger(TaskController.name);
+
   constructor(
     private taskService: TaskService,
     private aiService: AiService,
@@ -386,28 +389,28 @@ export class TaskController {
     @Req() request: Request,
   ): Promise<any> {
     // Process the natural language input
-    const analysis =
+    const aiResponse =
       await this.aiService.processNaturalLanguage(naturalLanguageDto);
+
+    this.logger.log(`AI response: ${JSON.stringify(aiResponse)}`);
 
     // Create a task DTO from the parsed data
     const taskDto: CreateTaskDto = {
-      title: analysis.parsed_data.title,
-      description: analysis.parsed_data.description,
-      priority: analysis.parsed_data.priority as TaskPriority,
-      dueDate: analysis.parsed_data.due_date,
+      title: aiResponse.analysis.title,
+      description: aiResponse.analysis.description,
+      priority: aiResponse.analysis.priority as TaskPriority,
+      dueDate: aiResponse.analysis.due_date,
       // Convert recurrence rule string if present
-      recurrenceRule: analysis.parsed_data.recurrence_rule,
+      recurrenceRule: aiResponse.analysis.recurrence_rule,
       // All tasks are now standard type
       taskType: TaskType.STANDARD,
       // Use the needsReminder flag for reminder functionality
-      needsReminder:
-        analysis.parsed_data.title.toLowerCase().includes('remind') ||
-        analysis.parsed_data.task_type === 'reminder',
+      needsReminder: aiResponse.analysis.title.toLowerCase().includes('remind'),
       // Include a custom message for reminders
-      reminderMessage: analysis.parsed_data.title
+      reminderMessage: aiResponse.analysis.title
         .toLowerCase()
         .includes('remind')
-        ? `Auto-generated reminder for: ${analysis.parsed_data.title}`
+        ? `Auto-generated reminder for: ${aiResponse.analysis.title}`
         : null,
     } as CreateTaskDto; // Use type assertion to resolve the linter error
 
@@ -415,9 +418,9 @@ export class TaskController {
     const createdTask = await this.taskService.createTask(taskDto, request.ip);
 
     // Update the response with the actual task ID
-    analysis.task_id = createdTask.id;
+    aiResponse.task_id = createdTask.id;
 
-    return analysis;
+    return aiResponse;
   }
 
   @Get('views/recurring')
