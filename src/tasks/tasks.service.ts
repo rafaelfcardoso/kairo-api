@@ -11,7 +11,6 @@ import { TagsRepository } from '../tags/tags.repository';
 import { Task, TaskStatus, TaskPriority } from './tasks.entity';
 import { Project, ProjectType } from '../projects/projects.entity';
 import { CreateTaskDto, UpdateTaskDto, TaskFilterDto } from './tasks.dto';
-import { Repository } from 'typeorm';
 import { SecurityLoggerService } from '../common/services/security-logger.service';
 import { RecurringTaskService } from './recurring-task.service';
 import { TaskDomainService } from './tasks.domain.service';

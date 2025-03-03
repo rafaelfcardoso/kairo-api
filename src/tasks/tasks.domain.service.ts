@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { RRule } from 'rrule';
 import * as moment from 'moment-timezone';
-import { Task, TaskStatus, TaskType } from './tasks.entity';
+import { Task, TaskStatus } from './tasks.entity';
 
 /**
  * TaskDomainService handles core domain logic related to tasks.

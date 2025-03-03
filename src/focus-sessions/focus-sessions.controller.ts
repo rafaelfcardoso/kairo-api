@@ -28,7 +28,6 @@ import {
   ApiBody,
   ApiQuery,
 } from '@nestjs/swagger';
-import { EnergyLevel } from './focus-sessions.entity';
 
 @ApiTags('Focus Sessions')
 @Controller('focus-sessions')

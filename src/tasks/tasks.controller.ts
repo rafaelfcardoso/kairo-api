@@ -34,7 +34,6 @@ import { Request } from 'express';
 import {
   AiService,
   NaturalLanguageRequest,
-  TaskAnalysisResponse,
 } from '../common/services/ai.service';
 import { IsNotEmpty, IsString, IsOptional } from 'class-validator';
 import { Logger } from '@nestjs/common';

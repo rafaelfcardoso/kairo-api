@@ -12,7 +12,6 @@ import { AiModule } from '../common/services/ai.module';
 import { TaskDomainService } from './tasks.domain.service';
 import { TaskFactory } from './factories/task.factory';
 import { NotificationDomainService } from './notification.domain.service';
-import { TaskAggregate } from './aggregates/task.aggregate';
 import { RecurringTaskService } from './recurring-task.service';
 
 @Module({
