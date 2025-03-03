@@ -32,6 +32,7 @@ export class SchedulerService {
 
     try {
       // Find tasks that are due now or in the past and not completed
+      // Only use columns that are guaranteed to exist
       const dueTasks = await this.taskRepository.find({
         where: {
           dueDate: LessThanOrEqual(new Date()),
@@ -55,6 +56,37 @@ export class SchedulerService {
         `Error checking due tasks: ${error.message}`,
         error.stack,
       );
+
+      // Fallback approach if the query fails
+      try {
+        this.logger.log('Trying fallback approach with simpler query');
+        // Use a simpler query without potentially missing columns
+        const simpleTasks = await this.taskRepository
+          .createQueryBuilder('task')
+          .where('task.dueDate <= :now', { now: new Date() })
+          .andWhere('task.status != :status', { status: TaskStatus.COMPLETED })
+          .andWhere('task.isArchived = :archived', { archived: false })
+          .andWhere('task.needsReminder = :reminder', { reminder: true })
+          .leftJoinAndSelect('task.project', 'project')
+          .leftJoinAndSelect('task.tags', 'tags')
+          .getMany();
+
+        if (simpleTasks.length > 0) {
+          this.logger.log(
+            `Found ${simpleTasks.length} due tasks to process using fallback approach`,
+          );
+
+          // Process each due task
+          for (const task of simpleTasks) {
+            await this.processTask(task);
+          }
+        }
+      } catch (fallbackError) {
+        this.logger.error(
+          `Fallback approach also failed: ${fallbackError.message}`,
+          fallbackError.stack,
+        );
+      }
     }
   }
 
@@ -133,30 +165,34 @@ export class SchedulerService {
     try {
       // Find all recurring tasks that don't have nextDueDate set
       // Use isRecurring as the primary check, fall back to recurrenceRule
+      // Avoid using nextDueDate in the where clause directly to prevent errors
       const recurringTasks = await this.taskRepository.find({
         where: [
           {
             isRecurring: true,
-            nextDueDate: IsNull(),
             status: Not(TaskStatus.COMPLETED),
             isArchived: false,
           },
           {
             recurrenceRule: Not(IsNull()),
-            nextDueDate: IsNull(),
             status: Not(TaskStatus.COMPLETED),
             isArchived: false,
           },
         ],
       });
 
-      if (recurringTasks.length > 0) {
+      // Filter tasks that don't have nextDueDate set
+      const tasksNeedingUpdate = recurringTasks.filter(
+        (task) => !task.nextDueDate,
+      );
+
+      if (tasksNeedingUpdate.length > 0) {
         this.logger.log(
-          `Found ${recurringTasks.length} recurring tasks that need nextDueDate to be set`,
+          `Found ${tasksNeedingUpdate.length} recurring tasks that need nextDueDate to be set`,
         );
 
         // Update each task
-        for (const task of recurringTasks) {
+        for (const task of tasksNeedingUpdate) {
           await this.scheduleNextOccurrence(task);
         }
       }
