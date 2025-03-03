@@ -7,7 +7,7 @@ import { AxiosResponse } from 'axios';
 
 export interface NaturalLanguageRequest {
   command: string;
-  user_context?: Record<string, any>;
+  context?: Record<string, any>;
 }
 
 export interface TaskAnalysisResponse {
@@ -21,6 +21,8 @@ export interface TaskAnalysisResponse {
     project_id?: string;
     recurrence_rule?: string;
     has_time?: boolean;
+    warning?: string;
+    is_past_date?: boolean;
   };
   suggested_priority: number;
   time_estimate?: number;

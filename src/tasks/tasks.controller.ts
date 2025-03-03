@@ -37,6 +37,8 @@ import {
 } from '../common/services/ai.service';
 import { IsNotEmpty, IsString, IsOptional } from 'class-validator';
 import { Logger } from '@nestjs/common';
+import { format, parseISO, isAfter } from 'date-fns';
+import { toZonedTime } from 'date-fns-tz';
 
 /**
  * DTO for natural language task creation
@@ -58,7 +60,7 @@ class NaturalLanguageTaskDto implements NaturalLanguageRequest {
     example: { timezone: 'America/New_York' },
   })
   @IsOptional()
-  user_context?: Record<string, any>;
+  context?: Record<string, any>;
 }
 
 @ApiTags('Tasks')
@@ -394,6 +396,64 @@ export class TaskController {
       await this.aiService.processNaturalLanguage(naturalLanguageDto);
 
     this.logger.log(`AI response: ${JSON.stringify(aiResponse)}`);
+
+    // Check if the warning about past date is accurate based on timezone
+    if (
+      aiResponse.analysis.is_past_date &&
+      aiResponse.analysis.due_date &&
+      naturalLanguageDto.context?.timezone
+    ) {
+      try {
+        const timezone = naturalLanguageDto.context.timezone;
+        this.logger.log(`Checking timezone: ${timezone}`);
+
+        // Extract the time from the command
+        const commandLower = naturalLanguageDto.command.toLowerCase();
+        this.logger.log(`Command: ${commandLower}`);
+
+        // Check if the command contains a time reference like "8 PM" or "8:00 PM"
+        const timeRegex = /(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i;
+        const timeMatch = commandLower.match(timeRegex);
+
+        if (timeMatch) {
+          const hour = parseInt(timeMatch[1]);
+          const minute = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
+          const isPM = timeMatch[3].toLowerCase() === 'pm';
+
+          // Convert to 24-hour format
+          let hour24 = hour;
+          if (isPM && hour < 12) hour24 += 12;
+          if (!isPM && hour === 12) hour24 = 0;
+
+          this.logger.log(
+            `Extracted time: ${hour24}:${minute} (${isPM ? 'PM' : 'AM'})`,
+          );
+
+          // Get current date and time in the user's timezone
+          const now = new Date();
+          const nowInUserTz = toZonedTime(now, timezone);
+          const nowHour = nowInUserTz.getHours();
+          const nowMinute = nowInUserTz.getMinutes();
+
+          this.logger.log(`Current time in timezone: ${nowHour}:${nowMinute}`);
+
+          // If the specified time is later today
+          if (hour24 > nowHour || (hour24 === nowHour && minute > nowMinute)) {
+            this.logger.log(
+              `Time is in the future today. Removing past date warning.`,
+            );
+            delete aiResponse.analysis.warning;
+            aiResponse.analysis.is_past_date = false;
+          } else {
+            this.logger.log(`Time is in the past today.`);
+          }
+        } else {
+          this.logger.log(`No specific time found in command: ${commandLower}`);
+        }
+      } catch (error) {
+        this.logger.error(`Error processing timezone: ${error.message}`);
+      }
+    }
 
     // Create a task DTO from the parsed data
     const taskDto: CreateTaskDto = {
