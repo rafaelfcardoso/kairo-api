@@ -78,7 +78,8 @@ export class SchedulerService {
       }
 
       // Handle recurring tasks using the domain service
-      if (task.recurrenceRule) {
+      // Check for isRecurring first, then fall back to recurrenceRule if the column exists
+      if (task.isRecurring || task.recurrenceRule) {
         await this.scheduleNextOccurrence(task);
       }
     } catch (error) {
@@ -131,13 +132,22 @@ export class SchedulerService {
   async updateRecurringTasksDueDates(): Promise<void> {
     try {
       // Find all recurring tasks that don't have nextDueDate set
+      // Use isRecurring as the primary check, fall back to recurrenceRule
       const recurringTasks = await this.taskRepository.find({
-        where: {
-          recurrenceRule: Not(IsNull()),
-          nextDueDate: IsNull(),
-          status: Not(TaskStatus.COMPLETED),
-          isArchived: false,
-        },
+        where: [
+          {
+            isRecurring: true,
+            nextDueDate: IsNull(),
+            status: Not(TaskStatus.COMPLETED),
+            isArchived: false,
+          },
+          {
+            recurrenceRule: Not(IsNull()),
+            nextDueDate: IsNull(),
+            status: Not(TaskStatus.COMPLETED),
+            isArchived: false,
+          },
+        ],
       });
 
       if (recurringTasks.length > 0) {

@@ -26,6 +26,7 @@ import { AddFocusSessionEnergyLevelEnum1739279174963 } from '../migrations/17392
 import { AddTaskTagsTable1739279174963 } from '../migrations/1739279174963-AddTaskTagsTable';
 import { AddBlockRuleTypeEnum1739279174964 } from '../migrations/1739279174964-AddBlockRuleTypeEnum';
 import { RemoveTaskTypeColumn1741011691203 } from '../migrations/1741011691203-RemoveTaskTypeColumn';
+import { AddRecurrenceRuleColumn1741013788916 } from '../migrations/1741013788916-AddRecurrenceRuleColumn';
 import { DATABASE_CONFIG } from './constants';
 
 // Define interface for database configuration
@@ -63,6 +64,7 @@ const migrations = [
   AddProjectIdToFocusSession1740589432291,
   AddRecurringTaskFields1740916550124,
   RemoveTaskTypeColumn1741011691203,
+  AddRecurrenceRuleColumn1741013788916,
 ];
 
 // Define all entities in one place for better maintenance
