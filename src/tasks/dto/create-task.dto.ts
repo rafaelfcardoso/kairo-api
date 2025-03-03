@@ -7,7 +7,6 @@ import {
   IsEnum,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { TaskType } from '../tasks.entity';
 
 export class CreateTaskDto {
   @ApiProperty({
@@ -33,16 +32,6 @@ export class CreateTaskDto {
   @Type(() => Date)
   @IsOptional()
   dueDate?: Date;
-
-  @ApiPropertyOptional({
-    description: 'The type of task',
-    example: 'standard',
-    enum: TaskType,
-    default: TaskType.STANDARD,
-  })
-  @IsEnum(TaskType)
-  @IsOptional()
-  taskType?: TaskType = TaskType.STANDARD;
 
   @ApiPropertyOptional({
     description: 'Whether the task is completed',

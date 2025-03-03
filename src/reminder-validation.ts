@@ -4,7 +4,7 @@
  * This script directly tests the core domain logic without loading the full application
  */
 
-import { Task, TaskType } from './tasks/tasks.entity';
+import { Task } from './tasks/tasks.entity';
 import { NotificationContent } from './tasks/notification.domain.service';
 
 // Mock functions to validate
@@ -45,7 +45,6 @@ function createTestReminderTask(): Task {
   task.id = 'test-reminder-task';
   task.title = 'Call Mom';
   task.description = 'Weekly call with Mom';
-  task.taskType = TaskType.STANDARD;
   task.needsReminder = true;
   task.reminderMessage = "Don't forget to ask about the family recipe!";
   task.dueDate = new Date();
@@ -58,7 +57,6 @@ function createTestStandardTask(): Task {
   task.id = 'test-standard-task';
   task.title = 'Submit project report';
   task.description = 'Final report for the Q1 project';
-  task.taskType = TaskType.STANDARD;
   task.needsReminder = false;
   task.dueDate = new Date();
   return task;
@@ -73,7 +71,6 @@ function runTests() {
   console.log('\n=== Testing Reminder Task ===');
   console.log('Task properties:');
   console.log(`- Title: ${reminderTask.title}`);
-  console.log(`- Type: ${reminderTask.taskType}`);
   console.log(`- NeedsReminder: ${reminderTask.needsReminder}`);
   console.log(`- ReminderMessage: ${reminderTask.reminderMessage}`);
 
@@ -91,7 +88,6 @@ function runTests() {
   console.log('\n=== Testing Standard Task ===');
   console.log('Task properties:');
   console.log(`- Title: ${standardTask.title}`);
-  console.log(`- Type: ${standardTask.taskType}`);
   console.log(`- NeedsReminder: ${standardTask.needsReminder}`);
 
   const isStandardReminder = isReminderTask(standardTask);
