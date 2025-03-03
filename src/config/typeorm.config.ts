@@ -20,6 +20,10 @@ import { AddRecurringTaskFields1740916550124 } from '../migrations/1740916550124
 import { UpdateTaskEntityWithMetadata1686501234567 } from '../migrations/1686501234567-UpdateTaskEntityWithMetadata';
 import { SimplifyTaskEntity1686501245678 } from '../migrations/1686501245678-SimplifyTaskEntity';
 import { CleanupUnusedTaskTypes1686501256789 } from '../migrations/1686501256789-CleanupUnusedTaskTypes';
+import { AddSystemProjectAndInbox1738360717263 } from '../migrations/1738360717263-AddSystemProjectAndInbox';
+import { AddFocusSessionEnergyLevelEnum1739279174963 } from '../migrations/1739279174963-AddFocusSessionEnergyLevelEnum';
+import { AddTaskTagsTable1739279174963 } from '../migrations/1739279174963-AddTaskTagsTable';
+import { AddBlockRuleTypeEnum1739279174964 } from '../migrations/1739279174964-AddBlockRuleTypeEnum';
 import { DATABASE_CONFIG } from './constants';
 
 // Define interface for database configuration
@@ -43,11 +47,15 @@ const migrations = [
   CleanupUnusedTaskTypes1686501256789,
   AddNonePriorityEnum1710000000000,
   FixProjectColors1738362321118,
+  AddSystemProjectAndInbox1738360717263,
   EnsureInboxProject1738362321119,
   AddHasTimeToTasks1738934197033,
   UpdateTaskStatusEnum1739279174960,
   EnsureValidTaskStatuses1739279174961,
   AddProjectTypeEnum1739279174962,
+  AddFocusSessionEnergyLevelEnum1739279174963,
+  AddTaskTagsTable1739279174963,
+  AddBlockRuleTypeEnum1739279174964,
   CreateFocusSessionTables1740494148045,
   AddProjectIdToFocusSession1740589432291,
   AddRecurringTaskFields1740916550124,
