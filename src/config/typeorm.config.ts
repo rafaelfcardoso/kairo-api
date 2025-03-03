@@ -17,6 +17,9 @@ import { AddNonePriorityEnum1710000000000 } from '../migrations/1710000000000-Ad
 import { CreateFocusSessionTables1740494148045 } from '../migrations/1740494148045-CreateFocusSessionTables';
 import { AddProjectIdToFocusSession1740589432291 } from '../migrations/1740589432291-AddProjectIdToFocusSession';
 import { AddRecurringTaskFields1740916550124 } from '../migrations/1740916550124-AddRecurringTaskFields';
+import { UpdateTaskEntityWithMetadata1686501234567 } from '../migrations/1686501234567-UpdateTaskEntityWithMetadata';
+import { SimplifyTaskEntity1686501245678 } from '../migrations/1686501245678-SimplifyTaskEntity';
+import { CleanupUnusedTaskTypes1686501256789 } from '../migrations/1686501256789-CleanupUnusedTaskTypes';
 import { DATABASE_CONFIG } from './constants';
 
 // Define interface for database configuration
@@ -35,6 +38,9 @@ interface DatabaseConfig extends Omit<TypeOrmModuleOptions, 'type'> {
 // Define all migrations in one place for better maintenance
 const migrations = [
   InitialSchema1705759726000,
+  UpdateTaskEntityWithMetadata1686501234567,
+  SimplifyTaskEntity1686501245678,
+  CleanupUnusedTaskTypes1686501256789,
   AddNonePriorityEnum1710000000000,
   FixProjectColors1738362321118,
   EnsureInboxProject1738362321119,
