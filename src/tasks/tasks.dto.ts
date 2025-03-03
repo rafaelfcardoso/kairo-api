@@ -137,7 +137,10 @@ export class CreateTaskDto {
     description:
       'The pattern for task recurrence (daily, weekly, monthly, yearly)',
   })
-  @IsString()
+  @IsEnum(RecurrencePattern, {
+    message: 'recurrencePattern must be one of: daily, weekly, monthly, yearly',
+  })
+  @ValidateIf((o) => o.isRecurring === true)
   @IsOptional()
   recurrencePattern?: string;
 

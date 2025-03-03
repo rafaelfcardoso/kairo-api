@@ -121,7 +121,7 @@ export class Task {
     description: 'Due date of the task',
     required: false,
   })
-  @Column({ nullable: true })
+  @Column({ nullable: true, type: 'timestamp' })
   dueDate: Date;
 
   @ApiProperty({
@@ -129,7 +129,7 @@ export class Task {
     description: 'Next due date for recurring tasks',
     required: false,
   })
-  @Column({ nullable: true })
+  @Column({ nullable: true, type: 'timestamp' })
   nextDueDate: Date;
 
   @ApiProperty({
@@ -231,6 +231,6 @@ export class Task {
   createdAt: Date;
 
   @ApiProperty()
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 }
