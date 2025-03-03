@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { Task, TaskType, TaskStatus } from '../tasks.entity';
-import { CreateTaskDto } from '../dto/create-task.dto';
+import { Task, TaskStatus } from '../tasks.entity';
+import { CreateTaskDto } from '../tasks.dto';
 import { TaskAggregate } from '../aggregates/task.aggregate';
+import { Tag } from '../../tags/tags.entity';
+import { Project } from '../../projects/projects.entity';
 
 /**
  * TaskFactory is responsible for creating Task entities and aggregates.
@@ -15,39 +17,27 @@ export class TaskFactory {
    * @returns A new Task entity
    */
   createTask(createTaskDto: CreateTaskDto): Task {
-    // Create the task entity
     const task = new Task();
     task.title = createTaskDto.title;
-    task.description = createTaskDto.description || '';
-    task.taskType = createTaskDto.taskType || TaskType.STANDARD;
-
-    // Handle status (instead of done)
-    if (createTaskDto.done) {
-      task.status = TaskStatus.COMPLETED;
-    }
-
-    // Handle archived
-    if (createTaskDto.archived) {
-      task.isArchived = createTaskDto.archived;
-    }
-
-    // Handle reminder properties
+    task.description = createTaskDto.description || null;
+    task.status = TaskStatus.NOT_STARTED;
+    task.priority = createTaskDto.priority || null;
+    task.dueDate = createTaskDto.dueDate
+      ? new Date(createTaskDto.dueDate)
+      : null;
+    task.hasTime = createTaskDto.hasTime || false;
     task.needsReminder = createTaskDto.needsReminder || false;
     task.reminderMessage = createTaskDto.reminderMessage || null;
-
-    // Set due date if provided
-    if (createTaskDto.dueDate) {
-      task.dueDate = createTaskDto.dueDate;
-      // If this is a reminder, it should have a time
-      if (task.needsReminder) {
-        task.hasTime = true;
-      }
-    }
-
-    // Set recurrence rule if provided
-    if (createTaskDto.recurrenceRule) {
-      task.recurrenceRule = createTaskDto.recurrenceRule;
-    }
+    task.recurrenceRule = createTaskDto.recurrenceRule || null;
+    task.isRecurring = createTaskDto.isRecurring || false;
+    task.recurrencePattern = createTaskDto.recurrencePattern || null;
+    task.recurrenceDays = createTaskDto.recurrenceDays || null;
+    task.recurrenceTimeOfDay = createTaskDto.recurrenceTimeOfDay || null;
+    task.recurrenceTime = createTaskDto.recurrenceTime || null;
+    task.nextDueDate = createTaskDto.nextDueDate
+      ? new Date(createTaskDto.nextDueDate)
+      : null;
+    task.recurringParentId = createTaskDto.recurringParentId || null;
 
     return task;
   }
@@ -66,12 +56,12 @@ export class TaskFactory {
   ): Task {
     const task = new Task();
     task.title = title;
-    task.description = description || '';
-    task.taskType = TaskType.STANDARD;
-
-    if (dueDate) {
-      task.dueDate = dueDate;
-    }
+    task.description = description || null;
+    task.status = TaskStatus.NOT_STARTED;
+    task.dueDate = dueDate || null;
+    task.hasTime = dueDate ? true : false;
+    task.needsReminder = false;
+    task.isRecurring = false;
 
     return task;
   }
@@ -90,22 +80,16 @@ export class TaskFactory {
     reminderMessage?: string,
     recurrenceRule?: string,
   ): Task {
-    if (!dueDate) {
-      throw new Error('Due date is required for reminder tasks');
-    }
-
     const task = new Task();
     task.title = title;
-    task.description = '';
-    task.taskType = TaskType.STANDARD;
+    task.description = null;
+    task.status = TaskStatus.NOT_STARTED;
     task.dueDate = dueDate;
     task.hasTime = true;
     task.needsReminder = true;
     task.reminderMessage = reminderMessage || null;
-
-    if (recurrenceRule) {
-      task.recurrenceRule = recurrenceRule;
-    }
+    task.recurrenceRule = recurrenceRule || null;
+    task.isRecurring = !!recurrenceRule;
 
     return task;
   }

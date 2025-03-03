@@ -16,7 +16,6 @@ import {
 import {
   TaskStatus,
   TaskPriority,
-  TaskType,
   RecurrencePattern,
   RecurrenceTimeOfDay,
 } from './tasks.entity';
@@ -51,15 +50,6 @@ export class CreateTaskDto {
   @IsEnum(TaskPriority)
   @IsOptional()
   priority?: TaskPriority;
-
-  @ApiPropertyOptional({
-    enum: TaskType,
-    example: TaskType.STANDARD,
-    description: 'Type of task (standard, reminder, news_update, job_listing)',
-  })
-  @IsEnum(TaskType)
-  @IsOptional()
-  taskType?: TaskType;
 
   @ApiPropertyOptional({
     example: 'FREQ=WEEKLY;BYDAY=SU;BYHOUR=14;BYMINUTE=0',
@@ -214,16 +204,6 @@ export class TaskFilterDto {
   @IsEnum(TaskStatus)
   @IsOptional()
   status?: TaskStatus;
-
-  @ApiPropertyOptional({
-    enum: TaskType,
-    example: TaskType.STANDARD,
-    description: 'Filter tasks by type',
-    enumName: 'TaskType',
-  })
-  @IsEnum(TaskType)
-  @IsOptional()
-  taskType?: TaskType;
 
   @ApiPropertyOptional({
     enum: TaskPriority,

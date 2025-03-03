@@ -17,7 +17,7 @@ import {
 } from '@nestjs/common';
 import { TaskService } from './tasks.service';
 import { CreateTaskDto, UpdateTaskDto, TaskFilterDto } from './tasks.dto';
-import { Task, TaskStatus, TaskPriority, TaskType } from './tasks.entity';
+import { Task, TaskStatus, TaskPriority } from './tasks.entity';
 import {
   ApiTags,
   ApiOperation,
@@ -38,7 +38,9 @@ import {
 import { IsNotEmpty, IsString, IsOptional } from 'class-validator';
 import { Logger } from '@nestjs/common';
 
-// New DTO for natural language task creation
+/**
+ * DTO for natural language task creation
+ */
 class NaturalLanguageTaskDto implements NaturalLanguageRequest {
   @ApiProperty({
     description: 'Natural language command to create a task',
@@ -401,8 +403,6 @@ export class TaskController {
       dueDate: aiResponse.analysis.due_date,
       // Convert recurrence rule string if present
       recurrenceRule: aiResponse.analysis.recurrence_rule,
-      // All tasks are now standard type
-      taskType: TaskType.STANDARD,
       // Use the needsReminder flag for reminder functionality
       needsReminder: aiResponse.analysis.title.toLowerCase().includes('remind'),
       // Include a custom message for reminders

@@ -28,11 +28,6 @@ export enum TaskStatus {
   COMPLETED = 'completed',
 }
 
-// Simplify to a single task type - no need for complex types in MVP
-export enum TaskType {
-  STANDARD = 'standard',
-}
-
 // Define recurrence patterns for recurring tasks
 export enum RecurrencePattern {
   DAILY = 'daily',
@@ -96,18 +91,6 @@ export class Task {
     default: TaskPriority.NONE,
   })
   priority: TaskPriority;
-
-  @ApiProperty({
-    example: 'standard',
-    description: 'Type of task (standard)',
-    enum: TaskType,
-  })
-  @Column({
-    type: 'enum',
-    enum: TaskType,
-    default: TaskType.STANDARD,
-  })
-  taskType: TaskType;
 
   @ApiProperty({
     example: true,

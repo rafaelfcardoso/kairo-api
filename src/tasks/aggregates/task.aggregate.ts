@@ -1,106 +1,114 @@
-import { Task, TaskStatus, TaskType } from '../tasks.entity';
-import { RecurrenceRule } from '../value-objects/recurrence-rule.value-object';
+import { Task, TaskStatus } from '../tasks.entity';
 import { Tag } from '../../tags/tags.entity';
+import { Logger } from '@nestjs/common';
 
 /**
- * TaskAggregate is the aggregate root for the Task domain.
- * It encapsulates all operations on a Task entity and enforces business invariants.
+ * Aggregate root for Task entity
+ * Encapsulates business logic and domain rules for tasks
  */
 export class TaskAggregate {
   private task: Task;
+  private readonly logger = new Logger(TaskAggregate.name);
 
   constructor(task: Task) {
     this.task = task;
   }
 
   /**
-   * Get the underlying Task entity
+   * Get the underlying task entity
+   * @returns The task entity
    */
   getTask(): Task {
     return this.task;
   }
 
   /**
-   * Mark a task as completed
+   * Mark the task as completed
    * @returns The updated task
-   * @throws Error if the task is already completed
    */
   complete(): Task {
-    if (this.task.isCompleted) {
-      throw new Error(`Task ${this.task.id} is already completed`);
+    if (this.task.status === TaskStatus.COMPLETED) {
+      return this.task;
     }
 
     this.task.status = TaskStatus.COMPLETED;
+    this.task.updatedAt = new Date();
+
     return this.task;
   }
 
   /**
    * Reopen a completed task
    * @returns The updated task
-   * @throws Error if the task is not completed
    */
   reopen(): Task {
-    if (!this.task.isCompleted) {
-      throw new Error(`Task ${this.task.id} is not completed`);
+    if (this.task.status !== TaskStatus.COMPLETED) {
+      return this.task;
     }
 
     this.task.status = TaskStatus.NOT_STARTED;
+    this.task.updatedAt = new Date();
+
     return this.task;
   }
 
   /**
    * Archive a task
    * @returns The updated task
-   * @throws Error if the task is already archived
    */
   archive(): Task {
     if (this.task.isArchived) {
-      throw new Error(`Task ${this.task.id} is already archived`);
+      return this.task;
     }
 
     this.task.isArchived = true;
+    this.task.updatedAt = new Date();
+
     return this.task;
   }
 
   /**
    * Unarchive a task
    * @returns The updated task
-   * @throws Error if the task is not archived
    */
   unarchive(): Task {
     if (!this.task.isArchived) {
-      throw new Error(`Task ${this.task.id} is not archived`);
+      return this.task;
     }
 
     this.task.isArchived = false;
+    this.task.updatedAt = new Date();
+
     return this.task;
   }
 
   /**
-   * Make a task recurring with the specified recurrence rule
-   * @param recurrenceRuleStr A string representing the recurrence rule
+   * Make a task recurring
+   * @param recurrenceRuleStr The recurrence rule in iCalendar format
    * @returns The updated task
    */
   makeRecurring(recurrenceRuleStr: string): Task {
-    // Validate the recurrence rule by attempting to create a RecurrenceRule value object
-    new RecurrenceRule(recurrenceRuleStr);
-
     this.task.recurrenceRule = recurrenceRuleStr;
+    this.task.isRecurring = true;
+    this.task.updatedAt = new Date();
+
     return this.task;
   }
 
   /**
    * Stop a task from recurring
    * @returns The updated task
-   * @throws Error if the task is not recurring
    */
   stopRecurring(): Task {
-    if (!this.task.recurrenceRule) {
-      throw new Error(`Task ${this.task.id} is not recurring`);
+    if (!this.task.isRecurring) {
+      return this.task;
     }
 
     this.task.recurrenceRule = null;
+    this.task.isRecurring = false;
     this.task.nextDueDate = null;
+    this.task.updatedAt = new Date();
+
     return this.task;
   }
 
@@ -108,43 +116,56 @@ export class TaskAggregate {
    * Set the next due date for a recurring task
    * @param nextDueDate The next due date
    * @returns The updated task
-   * @throws Error if the task is not recurring
    */
   setNextDueDate(nextDueDate: Date): Task {
-    if (!this.task.recurrenceRule) {
-      throw new Error(`Task ${this.task.id} is not recurring`);
+    if (!this.task.isRecurring) {
+      this.logger.warn(
+        `Attempted to set next due date for non-recurring task ${this.task.id}`,
+      );
+      return this.task;
     }
 
     this.task.nextDueDate = nextDueDate;
+    this.task.updatedAt = new Date();
+
     return this.task;
   }
 
   /**
-   * Start working on a task
+   * Mark the task as in progress
    * @returns The updated task
-   * @throws Error if the task is already in progress or completed
    */
   startWorking(): Task {
     if (this.task.status === TaskStatus.IN_PROGRESS) {
-      throw new Error(`Task ${this.task.id} is already in progress`);
+      return this.task;
     }
 
-    if (this.task.isCompleted) {
-      throw new Error(`Task ${this.task.id} is already completed`);
+    if (this.task.status === TaskStatus.COMPLETED) {
+      this.logger.warn(
+        `Attempted to start working on completed task ${this.task.id}`,
+      );
+      return this.task;
     }
 
     this.task.status = TaskStatus.IN_PROGRESS;
+    this.task.updatedAt = new Date();
+
     return this.task;
   }
 
   /**
-   * Mark a task as blocked
-   * @param reason Optional reason why the task is blocked
+   * Mark the task as blocked
+   * @param reason Optional reason for the block
    * @returns The updated task
    */
   block(reason?: string): Task {
     if (this.task.status === TaskStatus.BLOCKED) {
-      throw new Error(`Task ${this.task.id} is already blocked`);
+      return this.task;
+    }
+
+    if (this.task.status === TaskStatus.COMPLETED) {
+      this.logger.warn(`Attempted to block completed task ${this.task.id}`);
+      return this.task;
     }
 
     this.task.status = TaskStatus.BLOCKED;
@@ -153,34 +174,25 @@ export class TaskAggregate {
         ? `${this.task.description}\n\nBLOCKED: ${reason}`
         : `BLOCKED: ${reason}`;
     }
+    this.task.updatedAt = new Date();
+
     return this.task;
   }
 
   /**
-   * Convert a task to a specific task type
-   * @param taskType The new task type
-   * @returns The updated task
-   */
-  convertToType(taskType: TaskType): Task {
-    if (this.task.taskType === taskType) {
-      return this.task;
-    }
-
-    this.task.taskType = taskType;
-    return this.task;
-  }
-
-  /**
-   * Check if this task has a specific tag
-   * @param tagId The tag ID to check for
+   * Check if the task has a specific tag
+   * @param tagId The tag ID to check
    * @returns True if the task has the tag
    */
   hasTag(tagId: string): boolean {
-    return this.task.tags?.some((tag) => tag.id === tagId) || false;
+    if (!this.task.tags) {
+      return false;
+    }
+    return this.task.tags.some((tag) => tag.id === tagId);
   }
 
   /**
-   * Add tags to this task
+   * Add tags to the task
    * @param tags The tags to add
    * @returns The updated task
    */
@@ -189,20 +201,21 @@ export class TaskAggregate {
       this.task.tags = [];
     }
 
-    const existingTagIds = new Set(this.task.tags.map((tag) => tag.id));
+    // Filter out tags that are already on the task
+    const newTags = tags.filter((tag) => !this.hasTag(tag.id));
 
-    for (const tag of tags) {
-      if (!existingTagIds.has(tag.id)) {
-        this.task.tags.push(tag);
-        existingTagIds.add(tag.id);
-      }
+    if (newTags.length === 0) {
+      return this.task;
     }
+
+    this.task.tags = [...this.task.tags, ...newTags];
+    this.task.updatedAt = new Date();
 
     return this.task;
   }
 
   /**
-   * Remove tags from this task
+   * Remove tags from the task
    * @param tagIds The tag IDs to remove
    * @returns The updated task
    */
@@ -211,8 +224,13 @@ export class TaskAggregate {
       return this.task;
     }
 
-    const tagIdSet = new Set(tagIds);
-    this.task.tags = this.task.tags.filter((tag) => !tagIdSet.has(tag.id));
+    const originalCount = this.task.tags.length;
+    this.task.tags = this.task.tags.filter((tag) => !tagIds.includes(tag.id));
+
+    if (this.task.tags.length !== originalCount) {
+      this.task.updatedAt = new Date();
+    }
+
     return this.task;
   }
 }

@@ -126,15 +126,14 @@ export class TaskDomainService {
     // Copy properties from the original task
     nextTask.title = task.title;
     nextTask.description = task.description;
-    nextTask.taskType = task.taskType;
     nextTask.priority = task.priority;
-    nextTask.recurrenceRule = task.recurrenceRule;
+    nextTask.status = TaskStatus.NOT_STARTED;
+    nextTask.dueDate = nextDate;
     nextTask.hasTime = task.hasTime;
     nextTask.needsReminder = task.needsReminder;
     nextTask.reminderMessage = task.reminderMessage;
-
-    // Set the due date to the next occurrence
-    nextTask.dueDate = nextDate;
+    nextTask.isRecurring = false;
+    nextTask.recurringParentId = task.id;
 
     // If the original task has a project, copy it
     if (task.project) {
@@ -241,5 +240,31 @@ export class TaskDomainService {
       );
       return [];
     }
+  }
+
+  /**
+   * Creates a new task instance from a recurring task
+   * @param task The recurring task to create an instance from
+   * @returns The new task instance
+   */
+  createTaskInstanceFromRecurring(task: Task): Task {
+    const nextTask = new Task();
+    nextTask.title = task.title;
+    nextTask.description = task.description;
+    nextTask.priority = task.priority;
+    nextTask.status = TaskStatus.NOT_STARTED;
+    nextTask.dueDate = task.nextDueDate;
+    nextTask.hasTime = task.hasTime;
+    nextTask.needsReminder = task.needsReminder;
+    nextTask.reminderMessage = task.reminderMessage;
+    nextTask.isRecurring = false;
+    nextTask.recurringParentId = task.id;
+
+    // Copy project relationship
+    if (task.project) {
+      nextTask.project = task.project;
+    }
+
+    return nextTask;
   }
 }

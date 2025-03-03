@@ -1,5 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Task, RecurrencePattern, RecurrenceTimeOfDay } from './tasks.entity';
+import {
+  Task,
+  RecurrencePattern,
+  RecurrenceTimeOfDay,
+  TaskStatus,
+} from './tasks.entity';
 import { TasksRepository } from './tasks.repository';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CreateTaskDto } from './tasks.dto';
@@ -20,34 +25,41 @@ export class RecurringTaskService {
 
   /**
    * Calculate the next occurrence date based on recurrence pattern
-   * @param task The task to calculate the next occurrence for
+   * @param dueDate The due date of the task
+   * @param recurrenceRule The recurrence rule string
    * @returns The date of the next occurrence
    */
-  calculateNextOccurrence(task: Task): Date {
+  calculateNextOccurrence(dueDate: Date, recurrenceRule: string): Date {
     const now = new Date();
     const nextDate = new Date(now);
 
-    if (!task.recurrencePattern) {
-      this.logger.error(`Task ${task.id} has no recurrence pattern`);
+    // Extract recurrence pattern from the rule
+    const recurrencePattern = this.extractRecurrencePattern(recurrenceRule);
+    const recurrenceDays = this.extractRecurrenceDays(recurrenceRule);
+
+    if (!recurrencePattern) {
+      this.logger.error(
+        `Could not extract recurrence pattern from rule: ${recurrenceRule}`,
+      );
       // Just set it to tomorrow as a fallback
       nextDate.setDate(nextDate.getDate() + 1);
       return nextDate;
     }
 
     // Parse the recurrence pattern
-    switch (task.recurrencePattern) {
+    switch (recurrencePattern) {
       case RecurrencePattern.DAILY:
         // Set next date to tomorrow, same time
         nextDate.setDate(nextDate.getDate() + 1);
         break;
 
       case RecurrencePattern.WEEKLY:
-        if (!task.recurrenceDays) {
+        if (!recurrenceDays) {
           // If no specific days, set to same day next week
           nextDate.setDate(nextDate.getDate() + 7);
         } else {
           // Get days of the week
-          const days = task.recurrenceDays.split(',');
+          const days = recurrenceDays.split(',');
           const dayMap = {
             monday: 1,
             tuesday: 2,
@@ -58,46 +70,40 @@ export class RecurringTaskService {
             sunday: 0,
           };
 
-          // Find the next day in the list that is after today
-          const today = now.getDay(); // 0-6, starting from Sunday
+          // Get current day of week (0-6, 0 is Sunday)
+          const currentDay = now.getDay();
+
+          // Find the next day in the list
           let nextDay = -1;
-          let daysToAdd = 7; // Default to one week if no match
-
           for (const day of days) {
-            const dayNumber = dayMap[day.toLowerCase()];
-            if (dayNumber === undefined) continue;
-
-            const daysUntil = (dayNumber - today + 7) % 7;
-            if (daysUntil > 0 && daysUntil < daysToAdd) {
-              daysToAdd = daysUntil;
-              nextDay = dayNumber;
+            const dayNum = dayMap[day.toLowerCase()];
+            if (dayNum > currentDay) {
+              nextDay = dayNum;
+              break;
             }
           }
 
-          if (nextDay !== -1) {
+          // If no day found, use the first day in the list (for next week)
+          if (nextDay === -1) {
+            nextDay = dayMap[days[0].toLowerCase()];
+            // Add days until we reach the next occurrence
+            const daysToAdd = 7 - currentDay + nextDay;
             nextDate.setDate(nextDate.getDate() + daysToAdd);
           } else {
-            // If no valid day found (or all days already passed this week), use the first day next week
-            const firstDay = dayMap[days[0].toLowerCase()];
-            if (firstDay !== undefined) {
-              daysToAdd = (firstDay - today + 7) % 7;
-              if (daysToAdd === 0) daysToAdd = 7; // Ensure we go to next week if it's the same day
-              nextDate.setDate(nextDate.getDate() + daysToAdd);
-            } else {
-              // No valid days at all, default to one week from now
-              nextDate.setDate(nextDate.getDate() + 7);
-            }
+            // Add days until we reach the next occurrence
+            const daysToAdd = nextDay - currentDay;
+            nextDate.setDate(nextDate.getDate() + daysToAdd);
           }
         }
         break;
 
       case RecurrencePattern.MONTHLY:
-        // Set to the same day in the next month
+        // Set to same day next month
         nextDate.setMonth(nextDate.getMonth() + 1);
         break;
 
       case RecurrencePattern.YEARLY:
-        // Set to the same day in the next year
+        // Set to same day next year
         nextDate.setFullYear(nextDate.getFullYear() + 1);
         break;
 
@@ -107,32 +113,134 @@ export class RecurringTaskService {
     }
 
     // Set the time portion based on recurrence time
-    this.setRecurrenceTime(nextDate, task);
+    const recurrenceTimeOfDay = this.extractRecurrenceTimeOfDay(recurrenceRule);
+    const recurrenceTime = this.extractRecurrenceTime(recurrenceRule);
+    this.setRecurrenceTime(nextDate, recurrenceTimeOfDay, recurrenceTime);
 
     return nextDate;
   }
 
   /**
-   * Sets the time portion of the date based on the task's recurrence time settings
-   * @param date The date to set the time on
-   * @param task The task with the time settings
+   * Extract recurrence pattern from a recurrence rule string
+   * @param recurrenceRule The recurrence rule string
+   * @returns The recurrence pattern or null if not found
    */
-  private setRecurrenceTime(date: Date, task: Task): void {
-    if (
-      task.recurrenceTime &&
-      task.recurrenceTimeOfDay === RecurrenceTimeOfDay.CUSTOM
-    ) {
-      // Parse specific time like "08:00"
-      const [hours, minutes] = task.recurrenceTime.split(':').map(Number);
+  private extractRecurrencePattern(
+    recurrenceRule: string,
+  ): RecurrencePattern | null {
+    if (!recurrenceRule) return null;
 
-      if (!isNaN(hours) && !isNaN(minutes)) {
-        date.setHours(hours, minutes, 0, 0);
-        return;
+    if (recurrenceRule.includes('FREQ=DAILY')) {
+      return RecurrencePattern.DAILY;
+    } else if (recurrenceRule.includes('FREQ=WEEKLY')) {
+      return RecurrencePattern.WEEKLY;
+    } else if (recurrenceRule.includes('FREQ=MONTHLY')) {
+      return RecurrencePattern.MONTHLY;
+    } else if (recurrenceRule.includes('FREQ=YEARLY')) {
+      return RecurrencePattern.YEARLY;
+    }
+
+    return null;
+  }
+
+  /**
+   * Extract recurrence days from a recurrence rule string
+   * @param recurrenceRule The recurrence rule string
+   * @returns The recurrence days string or null if not found
+   */
+  private extractRecurrenceDays(recurrenceRule: string): string | null {
+    if (!recurrenceRule) return null;
+
+    const match = recurrenceRule.match(/BYDAY=([^;]+)/);
+    if (match && match[1]) {
+      // Convert SU,MO,TU to sunday,monday,tuesday
+      const dayMap = {
+        SU: 'sunday',
+        MO: 'monday',
+        TU: 'tuesday',
+        WE: 'wednesday',
+        TH: 'thursday',
+        FR: 'friday',
+        SA: 'saturday',
+      };
+
+      return match[1]
+        .split(',')
+        .map((day) => dayMap[day] || day)
+        .join(',');
+    }
+
+    return null;
+  }
+
+  /**
+   * Extract recurrence time of day from a recurrence rule string
+   * @param recurrenceRule The recurrence rule string
+   * @returns The recurrence time of day or null if not found
+   */
+  private extractRecurrenceTimeOfDay(
+    recurrenceRule: string,
+  ): RecurrenceTimeOfDay | null {
+    if (!recurrenceRule) return null;
+
+    // Check for time indicators in the rule
+    const hourMatch = recurrenceRule.match(/BYHOUR=(\d+)/);
+    if (hourMatch && hourMatch[1]) {
+      const hour = parseInt(hourMatch[1], 10);
+      if (hour >= 5 && hour < 12) {
+        return RecurrenceTimeOfDay.MORNING;
+      } else if (hour >= 12 && hour < 17) {
+        return RecurrenceTimeOfDay.AFTERNOON;
+      } else if (hour >= 17 && hour < 24) {
+        return RecurrenceTimeOfDay.EVENING;
       }
     }
 
-    // Use predefined times if no custom time or parsing failed
-    switch (task.recurrenceTimeOfDay) {
+    return RecurrenceTimeOfDay.CUSTOM;
+  }
+
+  /**
+   * Extract recurrence time from a recurrence rule string
+   * @param recurrenceRule The recurrence rule string
+   * @returns The recurrence time string or null if not found
+   */
+  private extractRecurrenceTime(recurrenceRule: string): string | null {
+    if (!recurrenceRule) return null;
+
+    const hourMatch = recurrenceRule.match(/BYHOUR=(\d+)/);
+    const minuteMatch = recurrenceRule.match(/BYMINUTE=(\d+)/);
+
+    if (hourMatch && hourMatch[1]) {
+      const hour = parseInt(hourMatch[1], 10);
+      const minute =
+        minuteMatch && minuteMatch[1] ? parseInt(minuteMatch[1], 10) : 0;
+
+      return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+    }
+
+    return null;
+  }
+
+  /**
+   * Set the time portion of a date based on recurrence time
+   * @param date The date to modify
+   * @param recurrenceTimeOfDay The time of day setting
+   * @param recurrenceTime The specific time string (HH:MM)
+   */
+  private setRecurrenceTime(
+    date: Date,
+    recurrenceTimeOfDay: RecurrenceTimeOfDay | null,
+    recurrenceTime: string | null,
+  ): void {
+    if (recurrenceTime) {
+      // Parse HH:MM format
+      const [hours, minutes] = recurrenceTime.split(':').map(Number);
+      date.setHours(hours, minutes, 0, 0);
+      return;
+    }
+
+    // Set time based on time of day
+    switch (recurrenceTimeOfDay) {
       case RecurrenceTimeOfDay.MORNING:
         date.setHours(9, 0, 0, 0);
         break;
@@ -143,8 +251,8 @@ export class RecurringTaskService {
         date.setHours(19, 0, 0, 0);
         break;
       default:
-        // Default to 9 AM
-        date.setHours(9, 0, 0, 0);
+        // Keep the current time
+        break;
     }
   }
 
@@ -155,14 +263,16 @@ export class RecurringTaskService {
    */
   async scheduleNextRecurrence(completedTask: Task): Promise<Task> {
     try {
-      const nextDate = this.calculateNextOccurrence(completedTask);
+      const nextDate = this.calculateNextOccurrence(
+        completedTask.dueDate,
+        completedTask.recurrenceRule,
+      );
 
       // Create a DTO for the next task
       const nextTaskDto: CreateTaskDto = {
         title: completedTask.title,
         description: completedTask.description,
         priority: completedTask.priority,
-        taskType: completedTask.taskType,
         dueDate: nextDate.toISOString(),
         hasTime: true, // Always set hasTime for recurring tasks
         needsReminder: completedTask.needsReminder,
@@ -208,5 +318,56 @@ export class RecurringTaskService {
     }
 
     return this.scheduleNextRecurrence(task);
+  }
+
+  /**
+   * Creates a new task instance for the next occurrence of a recurring task
+   * @param completedTask The completed recurring task
+   * @returns The new task instance and the next occurrence date
+   */
+  async createNextTaskInstance(
+    completedTask: Task,
+  ): Promise<{ nextTask: Task; nextDate: Date }> {
+    if (!completedTask.recurrenceRule) {
+      throw new Error('Task is not recurring');
+    }
+
+    const nextDate = this.calculateNextOccurrence(
+      completedTask.dueDate,
+      completedTask.recurrenceRule,
+    );
+
+    if (!nextDate) {
+      throw new Error('Could not calculate next occurrence');
+    }
+
+    // Create a new task for the next occurrence
+    const nextTask = new Task();
+    nextTask.title = completedTask.title;
+    nextTask.description = completedTask.description;
+    nextTask.priority = completedTask.priority;
+    nextTask.status = TaskStatus.NOT_STARTED;
+    nextTask.dueDate = nextDate;
+    nextTask.hasTime = completedTask.hasTime;
+    nextTask.needsReminder = completedTask.needsReminder;
+    nextTask.reminderMessage = completedTask.reminderMessage;
+    nextTask.recurrenceRule = completedTask.recurrenceRule;
+    nextTask.isRecurring = true;
+    nextTask.recurrencePattern = completedTask.recurrencePattern;
+    nextTask.recurrenceDays = completedTask.recurrenceDays;
+    nextTask.recurrenceTimeOfDay = completedTask.recurrenceTimeOfDay;
+    nextTask.recurrenceTime = completedTask.recurrenceTime;
+
+    // Copy project relationship
+    if (completedTask.project) {
+      nextTask.project = completedTask.project;
+    }
+
+    // Copy tags
+    if (completedTask.tags && completedTask.tags.length > 0) {
+      nextTask.tags = [...completedTask.tags];
+    }
+
+    return { nextTask, nextDate };
   }
 }
