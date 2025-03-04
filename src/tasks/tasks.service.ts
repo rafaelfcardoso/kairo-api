@@ -171,7 +171,7 @@ export class TaskService {
   }
 
   async createTask(createTaskDto: CreateTaskDto, _ip?: string): Promise<Task> {
-    const { title, description, dueDate } = createTaskDto;
+    const { title, description, dueDate, recurrenceRule } = createTaskDto;
 
     // Validate inputs
     this.validateInput(title, 'title');
@@ -180,6 +180,14 @@ export class TaskService {
     }
     if (dueDate !== undefined && dueDate !== null) {
       this.validateDate(dueDate);
+    }
+
+    // Fix malformed recurrence rule if present
+    if (recurrenceRule && recurrenceRule.includes('FREQ=DAILYINTERVAL=')) {
+      createTaskDto.recurrenceRule = recurrenceRule.replace(
+        'FREQ=DAILYINTERVAL=',
+        'FREQ=DAILY;INTERVAL=',
+      );
     }
 
     try {
@@ -207,7 +215,8 @@ export class TaskService {
     updateTaskDto: UpdateTaskDto,
     _ip?: string,
   ): Promise<Task> {
-    const { title, description, dueDate, status } = updateTaskDto;
+    const { title, description, dueDate, status, recurrenceRule } =
+      updateTaskDto;
 
     // Validate inputs
     if (title) {
@@ -218,6 +227,14 @@ export class TaskService {
     }
     if (dueDate) {
       this.validateDate(dueDate);
+    }
+
+    // Fix malformed recurrence rule if present
+    if (recurrenceRule && recurrenceRule.includes('FREQ=DAILYINTERVAL=')) {
+      updateTaskDto.recurrenceRule = recurrenceRule.replace(
+        'FREQ=DAILYINTERVAL=',
+        'FREQ=DAILY;INTERVAL=',
+      );
     }
 
     try {
@@ -272,7 +289,7 @@ export class TaskService {
     }
   }
 
-  private async getInboxProject(): Promise<Project> {
+  public async getInboxProject(): Promise<Project> {
     const inboxProject = await this.projectsRepository.findOne({
       where: {
         type: ProjectType.INBOX,

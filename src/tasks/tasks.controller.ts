@@ -455,6 +455,9 @@ export class TaskController {
       }
     }
 
+    // Get the inbox project to use as default
+    const inboxProject = await this.taskService.getInboxProject();
+
     // Create a task DTO from the parsed data
     const taskDto: CreateTaskDto = {
       title: aiResponse.analysis.title,
@@ -471,6 +474,8 @@ export class TaskController {
         .includes('remind')
         ? `Auto-generated reminder for: ${aiResponse.analysis.title}`
         : null,
+      // Assign to the inbox project by default
+      projectId: inboxProject.id,
     } as CreateTaskDto; // Use type assertion to resolve the linter error
 
     // Create the task in the database

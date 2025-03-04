@@ -4,12 +4,15 @@ import { DataSource, Repository, SelectQueryBuilder } from 'typeorm';
 import { Task, TaskStatus } from './tasks.entity';
 import { CreateTaskDto, UpdateTaskDto, TaskFilterDto } from './tasks.dto';
 import { NotFoundException } from '@nestjs/common';
-import { Project } from '../projects/projects.entity';
+import { Project, ProjectType } from '../projects/projects.entity';
 import { Tag } from '../tags/tags.entity';
 import { In } from 'typeorm';
+import { Logger } from '@nestjs/common';
 
 @Injectable()
 export class TasksRepository extends Repository<Task> {
+  private readonly logger = new Logger(TasksRepository.name);
+
   constructor(dataSource: DataSource) {
     super(Task, dataSource.createEntityManager());
   }
@@ -111,6 +114,22 @@ export class TasksRepository extends Repository<Task> {
         throw new NotFoundException(`Project with ID "${projectId}" not found`);
       }
       task.project = project;
+    } else {
+      // If no project specified, assign to the system inbox project
+      const inboxProject = await this.manager.findOne(Project, {
+        where: {
+          isSystem: true,
+          type: ProjectType.INBOX,
+        },
+      });
+
+      if (inboxProject) {
+        task.project = inboxProject;
+      } else {
+        this.logger.warn(
+          'System inbox project not found. Task created without project assignment.',
+        );
+      }
     }
 
     // Handle tags

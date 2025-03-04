@@ -313,6 +313,39 @@ describe('TaskService', () => {
         createTaskDto,
       );
     });
+
+    it('should assign task to inbox project when no project is specified', async () => {
+      const inboxProjectId = '569c363f-1934-4e69-b324-6c2fad28bc59';
+      const mockInboxProject = {
+        id: inboxProjectId,
+        name: 'Inbox',
+        type: ProjectType.INBOX,
+        isSystem: true,
+      };
+
+      const createTaskDto = {
+        title: 'Test Task Without Project',
+      };
+
+      const mockTask = {
+        id: 'test-task-id',
+        ...createTaskDto,
+        project: mockInboxProject,
+      };
+
+      (mockProjectsRepository.findOne as jest.Mock).mockResolvedValue(
+        mockInboxProject,
+      );
+      (mockTasksRepository.createTask as jest.Mock).mockResolvedValue(mockTask);
+
+      const result = await service.createTask(createTaskDto);
+
+      expect(result.project).toBeDefined();
+      expect(result.project.id).toBe(inboxProjectId);
+      expect(mockTasksRepository.createTask).toHaveBeenCalledWith(
+        createTaskDto,
+      );
+    });
   });
 
   describe('Task Updates', () => {

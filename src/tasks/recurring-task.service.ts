@@ -33,6 +33,9 @@ export class RecurringTaskService {
     const now = new Date();
     const nextDate = new Date(now);
 
+    // Fix any malformed recurrence rule
+    recurrenceRule = this.fixRecurrenceRule(recurrenceRule);
+
     // Extract recurrence pattern from the rule
     const recurrencePattern = this.extractRecurrencePattern(recurrenceRule);
     const recurrenceDays = this.extractRecurrenceDays(recurrenceRule);
@@ -121,6 +124,25 @@ export class RecurringTaskService {
   }
 
   /**
+   * Fix common issues with recurrence rules
+   * @param recurrenceRule The recurrence rule string to fix
+   * @returns The fixed recurrence rule string
+   */
+  private fixRecurrenceRule(recurrenceRule: string): string {
+    if (!recurrenceRule) return recurrenceRule;
+
+    // Fix missing semicolon between FREQ=DAILY and INTERVAL=
+    if (recurrenceRule.includes('FREQ=DAILYINTERVAL=')) {
+      return recurrenceRule.replace(
+        'FREQ=DAILYINTERVAL=',
+        'FREQ=DAILY;INTERVAL=',
+      );
+    }
+
+    return recurrenceRule;
+  }
+
+  /**
    * Extract recurrence pattern from a recurrence rule string
    * @param recurrenceRule The recurrence rule string
    * @returns The recurrence pattern or null if not found
@@ -129,6 +151,12 @@ export class RecurringTaskService {
     recurrenceRule: string,
   ): RecurrencePattern | null {
     if (!recurrenceRule) return null;
+
+    // Fix common formatting issue where semicolon is missing
+    if (recurrenceRule.includes('FREQ=DAILYINTERVAL=')) {
+      // This is a malformed rule, but we can still extract the pattern
+      return RecurrencePattern.DAILY;
+    }
 
     if (recurrenceRule.includes('FREQ=DAILY')) {
       return RecurrencePattern.DAILY;
