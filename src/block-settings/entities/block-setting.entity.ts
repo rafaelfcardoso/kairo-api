@@ -1,24 +1,23 @@
-// src/entities/block-rule.entity.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
+import { User } from '../../auth/entities/user.entity';
 
 export enum BlockType {
+  APP = 'app',
   WEBSITE = 'website',
-  APPLICATION = 'application',
 }
 
 @Entity()
-export class BlockRule {
+export class BlockSetting {
   @PrimaryGeneratedColumn('uuid')
   id: string;
-
-  @Column()
-  name: string;
 
   @Column({
     type: 'enum',
@@ -27,17 +26,17 @@ export class BlockRule {
   type: BlockType;
 
   @Column()
-  target: string; // URL or app identifier
+  identifier: string; // bundle ID for apps, domain for websites
 
   @Column({ default: true })
   isActive: boolean;
 
-  @Column({ type: 'jsonb', nullable: true })
-  schedule: {
-    days: number[];
-    startTime: string;
-    endTime: string;
-  };
+  @ManyToOne(() => User, (user) => user.blockSettings, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'userId' })
+  user: User;
+
+  @Column()
+  userId: string;
 
   @CreateDateColumn()
   createdAt: Date;

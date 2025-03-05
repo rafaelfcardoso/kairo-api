@@ -20,7 +20,6 @@ export const ENUM_TYPES = {
   TASK_PRIORITY: 'task_priority_enum',
   PROJECT_TYPE: 'project_type_enum',
   FOCUS_SESSION_ENERGY: 'focus_session_energylevel_enum',
-  BLOCK_RULE_TYPE: 'block_rule_type_enum',
 } as const;
 
 // Type definitions for better type safety
@@ -32,4 +31,3 @@ export type TaskStatus =
 export type TaskPriority = 'none' | 'low' | 'medium' | 'high';
 export type ProjectType = 'inbox' | 'regular' | 'archive';
 export type FocusSessionEnergy = 'low' | 'medium' | 'high';
-export type BlockRuleType = 'website' | 'application';

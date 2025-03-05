@@ -1,0 +1,11 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+
+# Your rule content
+
+- You can @ files here
+- You can use markdown but dont have to
+- When creating a new migration, ensure it is being properly imported on the TypeORM configuration file before running them.

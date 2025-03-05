@@ -13,6 +13,8 @@ import { FocusSessionsModule } from './focus-sessions/focus-sessions.module';
 import { StatsModule } from './stats/stats.module';
 import { DATABASE_CONFIG } from './config/constants';
 import { SchedulerModule } from './common/services/scheduler.module';
+import { BlockSettingsModule } from './block-settings/block-settings.module';
+import { SchedulesModule } from './schedules/schedules.module';
 
 @Module({
   imports: [
@@ -84,6 +86,8 @@ import { SchedulerModule } from './common/services/scheduler.module';
     FocusSessionsModule,
     StatsModule,
     SchedulerModule,
+    BlockSettingsModule,
+    SchedulesModule,
   ],
   controllers: [AppController],
   providers: [],

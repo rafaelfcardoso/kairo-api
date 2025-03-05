@@ -5,7 +5,9 @@ import { Task } from '../tasks/tasks.entity';
 import { Project } from '../projects/projects.entity';
 import { Tag } from '../tags/tags.entity';
 import { FocusSession } from '../focus-sessions/focus-sessions.entity';
-import { BlockRule } from '../entities/block-rule.entity';
+import { User } from '../auth/entities/user.entity';
+import { BlockSetting } from '../block-settings/entities/block-setting.entity';
+import { Schedule } from '../schedules/entities/schedule.entity';
 import { InitialSchema1705759726000 } from '../migrations/1705759726000-InitialSchema';
 import { FixProjectColors1738362321118 } from '../migrations/1738362321118-FixProjectColors';
 import { EnsureInboxProject1738362321119 } from '../migrations/1738362321119-EnsureInboxProject';
@@ -28,6 +30,8 @@ import { AddBlockRuleTypeEnum1739279174964 } from '../migrations/1739279174964-A
 import { RemoveTaskTypeColumn1741011691203 } from '../migrations/1741011691203-RemoveTaskTypeColumn';
 import { AddRecurrenceRuleColumn1741013788916 } from '../migrations/1741013788916-AddRecurrenceRuleColumn';
 import { AddNextDueDateColumn1741014300000 } from '../migrations/1741014300000-AddNextDueDateColumn';
+import { CreateUserBlockSettingsAndSchedules1741450000000 } from '../migrations/1741450000000-CreateUserBlockSettingsAndSchedules';
+import { RemoveBlockRuleTable1741460000000 } from '../migrations/1741460000000-RemoveBlockRuleTable';
 import { DATABASE_CONFIG } from './constants';
 
 // Define interface for database configuration
@@ -67,10 +71,20 @@ const migrations = [
   RemoveTaskTypeColumn1741011691203,
   AddRecurrenceRuleColumn1741013788916,
   AddNextDueDateColumn1741014300000,
+  CreateUserBlockSettingsAndSchedules1741450000000,
+  RemoveBlockRuleTable1741460000000,
 ];
 
 // Define all entities in one place for better maintenance
-const entities = [Task, Project, Tag, FocusSession, BlockRule];
+const entities = [
+  Task,
+  Project,
+  Tag,
+  FocusSession,
+  User,
+  BlockSetting,
+  Schedule,
+];
 
 interface DatabaseLogConfig {
   url?: string;

@@ -9,7 +9,6 @@ import { UpdateTaskStatusEnum1739279174960 } from '../migrations/1739279174960-U
 import { EnsureValidTaskStatuses1739279174961 } from '../migrations/1739279174961-EnsureValidTaskStatuses';
 import { AddProjectTypeEnum1739279174962 } from '../migrations/1739279174962-AddProjectTypeEnum';
 import { AddFocusSessionEnergyLevelEnum1739279174963 } from '../migrations/1739279174963-AddFocusSessionEnergyLevelEnum';
-import { AddBlockRuleTypeEnum1739279174964 } from '../migrations/1739279174964-AddBlockRuleTypeEnum';
 import { CreateFocusSessionTables1740494148045 } from '../migrations/1740494148045-CreateFocusSessionTables';
 import { AddProjectIdToFocusSession1740589432291 } from '../migrations/1740589432291-AddProjectIdToFocusSession';
 import { AddRecurringTaskFields1740916550124 } from '../migrations/1740916550124-AddRecurringTaskFields';
@@ -191,7 +190,6 @@ async function verifyMigrations() {
       new EnsureValidTaskStatuses1739279174961(),
       new AddProjectTypeEnum1739279174962(),
       new AddFocusSessionEnergyLevelEnum1739279174963(),
-      new AddBlockRuleTypeEnum1739279174964(),
       new CreateFocusSessionTables1740494148045(),
       new AddProjectIdToFocusSession1740589432291(),
       new AddRecurringTaskFields1740916550124(),
@@ -308,7 +306,6 @@ async function verifyEnumTypes(dataSource: DataSource) {
     'task_priority_enum',
     'project_type_enum',
     'focus_session_energylevel_enum',
-    'block_rule_type_enum',
   ];
 
   for (const enumType of requiredEnums) {
