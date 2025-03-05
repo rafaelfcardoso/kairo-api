@@ -11,8 +11,9 @@ import { TagsRepository } from '../tags/tags.repository';
 import { Task, TaskStatus, TaskPriority } from './tasks.entity';
 import { Project, ProjectType } from '../projects/projects.entity';
 import { CreateTaskDto, UpdateTaskDto, TaskFilterDto } from './tasks.dto';
-import { Repository } from 'typeorm';
 import { SecurityLoggerService } from '../common/services/security-logger.service';
+import { RecurringTaskService } from './recurring-task.service';
+import { TaskDomainService } from './tasks.domain.service';
 
 @Injectable()
 export class TaskService {
@@ -48,12 +49,15 @@ export class TaskService {
   ];
 
   constructor(
+    @InjectRepository(TasksRepository)
     private tasksRepository: TasksRepository,
+    @InjectRepository(ProjectsRepository)
     private projectsRepository: ProjectsRepository,
+    @InjectRepository(TagsRepository)
     private tagsRepository: TagsRepository,
     private securityLogger: SecurityLoggerService,
-    @InjectRepository(Task)
-    private taskRepository: Repository<Task>,
+    private recurringTaskService: RecurringTaskService,
+    private taskDomainService: TaskDomainService,
   ) {}
 
   private validateInput(input: string, context: string): void {
@@ -167,7 +171,7 @@ export class TaskService {
   }
 
   async createTask(createTaskDto: CreateTaskDto, _ip?: string): Promise<Task> {
-    const { title, description, dueDate } = createTaskDto;
+    const { title, description, dueDate, recurrenceRule } = createTaskDto;
 
     // Validate inputs
     this.validateInput(title, 'title');
@@ -176,6 +180,14 @@ export class TaskService {
     }
     if (dueDate !== undefined && dueDate !== null) {
       this.validateDate(dueDate);
+    }
+
+    // Fix malformed recurrence rule if present
+    if (recurrenceRule && recurrenceRule.includes('FREQ=DAILYINTERVAL=')) {
+      createTaskDto.recurrenceRule = recurrenceRule.replace(
+        'FREQ=DAILYINTERVAL=',
+        'FREQ=DAILY;INTERVAL=',
+      );
     }
 
     try {
@@ -203,7 +215,8 @@ export class TaskService {
     updateTaskDto: UpdateTaskDto,
     _ip?: string,
   ): Promise<Task> {
-    const { title, description, dueDate } = updateTaskDto;
+    const { title, description, dueDate, status, recurrenceRule } =
+      updateTaskDto;
 
     // Validate inputs
     if (title) {
@@ -216,7 +229,46 @@ export class TaskService {
       this.validateDate(dueDate);
     }
 
+    // Fix malformed recurrence rule if present
+    if (recurrenceRule && recurrenceRule.includes('FREQ=DAILYINTERVAL=')) {
+      updateTaskDto.recurrenceRule = recurrenceRule.replace(
+        'FREQ=DAILYINTERVAL=',
+        'FREQ=DAILY;INTERVAL=',
+      );
+    }
+
     try {
+      // Check if task is being completed
+      if (status === TaskStatus.COMPLETED) {
+        // Get the task first
+        const task = await this.tasksRepository.getTaskById(id);
+
+        // If it's a recurring task, use RecurringTaskService
+        if (task.isRecurring) {
+          // Mark the task as completed
+          task.status = TaskStatus.COMPLETED;
+          task.updatedAt = new Date();
+
+          // Save the updated task
+          const updatedTask = await this.tasksRepository.save(task);
+
+          // Schedule the next occurrence
+          await this.recurringTaskService.processCompletedTask(task);
+
+          return updatedTask;
+        } else {
+          // For non-recurring tasks, use the domain service
+          const { updatedTask } = this.taskDomainService.completeTask(task);
+
+          // Save the updated task
+          await this.tasksRepository.save(updatedTask);
+
+          // Return the updated task with all relations
+          return this.tasksRepository.getTaskById(id);
+        }
+      }
+
+      // For non-completion updates, use the regular update method
       const savedTask = await this.tasksRepository.updateTask(
         id,
         updateTaskDto,
@@ -237,7 +289,7 @@ export class TaskService {
     }
   }
 
-  private async getInboxProject(): Promise<Project> {
+  public async getInboxProject(): Promise<Project> {
     const inboxProject = await this.projectsRepository.findOne({
       where: {
         type: ProjectType.INBOX,
@@ -351,12 +403,17 @@ export class TaskService {
 
   async duplicateTask(id: string): Promise<Task> {
     const sourceTask = await this.getTaskById(id);
-    const { dueDate, ...taskData } = sourceTask;
-    return this.tasksRepository.createTask({
+    const { dueDate, nextDueDate, ...taskData } = sourceTask;
+
+    // Create a properly formatted CreateTaskDto
+    const createTaskDto: CreateTaskDto = {
       ...taskData,
       title: `${taskData.title} (Copy)`,
-      dueDate: dueDate ? (dueDate.toISOString() as any) : null,
-    } as CreateTaskDto);
+      dueDate: dueDate ? dueDate.toISOString() : null,
+      nextDueDate: nextDueDate ? nextDueDate.toISOString() : null,
+    };
+
+    return this.tasksRepository.createTask(createTaskDto);
   }
 
   async assignOrphanedTasksToInbox(): Promise<{

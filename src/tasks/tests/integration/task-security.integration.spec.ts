@@ -9,6 +9,8 @@ import { BadRequestException } from '@nestjs/common';
 import { CreateTaskDto } from '../../tasks.dto';
 import { SecurityLoggerService } from '../../../common/services/security-logger.service';
 import { Repository } from 'typeorm';
+import { RecurringTaskService } from '../../recurring-task.service';
+import { TaskDomainService } from '../../tasks.domain.service';
 
 describe('TaskService - Security Tests', () => {
   let service: TaskService;
@@ -44,6 +46,23 @@ describe('TaskService - Security Tests', () => {
       logSuspiciousActivity: jest.fn(),
     };
 
+    // Mock for RecurringTaskService
+    const mockRecurringTaskService = {
+      processCompletedTask: jest.fn(),
+      scheduleNextRecurrence: jest.fn(),
+      calculateNextOccurrence: jest.fn(),
+    };
+
+    // Mock for TaskDomainService
+    const mockTaskDomainService = {
+      calculateNextOccurrence: jest.fn(),
+      isTaskDue: jest.fn(),
+      getTasksNeedingReminders: jest.fn(),
+      completeTask: jest.fn(),
+      determineNotificationType: jest.fn(),
+      canCompleteTask: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TaskService,
@@ -66,6 +85,14 @@ describe('TaskService - Security Tests', () => {
         {
           provide: SecurityLoggerService,
           useValue: mockSecurityLogger,
+        },
+        {
+          provide: RecurringTaskService,
+          useValue: mockRecurringTaskService,
+        },
+        {
+          provide: TaskDomainService,
+          useValue: mockTaskDomainService,
         },
       ],
     }).compile();

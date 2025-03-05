@@ -4,12 +4,15 @@ import { DataSource, Repository, SelectQueryBuilder } from 'typeorm';
 import { Task, TaskStatus } from './tasks.entity';
 import { CreateTaskDto, UpdateTaskDto, TaskFilterDto } from './tasks.dto';
 import { NotFoundException } from '@nestjs/common';
-import { Project } from '../projects/projects.entity';
+import { Project, ProjectType } from '../projects/projects.entity';
 import { Tag } from '../tags/tags.entity';
 import { In } from 'typeorm';
+import { Logger } from '@nestjs/common';
 
 @Injectable()
 export class TasksRepository extends Repository<Task> {
+  private readonly logger = new Logger(TasksRepository.name);
+
   constructor(dataSource: DataSource) {
     super(Task, dataSource.createEntityManager());
   }
@@ -23,7 +26,16 @@ export class TasksRepository extends Repository<Task> {
   }
 
   async getTasks(filterDto: TaskFilterDto): Promise<Task[]> {
-    const { status, search, priority, projectId, tagIds, dueDate } = filterDto;
+    const {
+      status,
+      search,
+      priority,
+      projectId,
+      tagIds,
+      dueDate,
+      recurring,
+      dueSoon,
+    } = filterDto;
     const query = this.getTasksQueryBuilder();
 
     if (!filterDto.includeArchived) {
@@ -60,6 +72,18 @@ export class TasksRepository extends Repository<Task> {
       });
     }
 
+    // Filter for tasks due today or in the past
+    if (dueSoon) {
+      const now = new Date();
+      now.setHours(23, 59, 59, 999); // End of today
+      query.andWhere('task.dueDate <= :now', { now });
+    }
+
+    // Filter for recurring tasks
+    if (recurring) {
+      query.andWhere('task.recurrenceRule IS NOT NULL');
+    }
+
     return await query.getMany();
   }
 
@@ -90,6 +114,22 @@ export class TasksRepository extends Repository<Task> {
         throw new NotFoundException(`Project with ID "${projectId}" not found`);
       }
       task.project = project;
+    } else {
+      // If no project specified, assign to the system inbox project
+      const inboxProject = await this.manager.findOne(Project, {
+        where: {
+          isSystem: true,
+          type: ProjectType.INBOX,
+        },
+      });
+
+      if (inboxProject) {
+        task.project = inboxProject;
+      } else {
+        this.logger.warn(
+          'System inbox project not found. Task created without project assignment.',
+        );
+      }
     }
 
     // Handle tags

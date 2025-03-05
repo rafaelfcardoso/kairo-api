@@ -24,6 +24,75 @@ jobs:
       - name: Install Dependencies
         run: npm ci --legacy-peer-deps
 
+      - name: Verify Migration Imports
+        run: |
+          # Extract migration imports verification from the script
+          node -e "
+          const fs = require('fs');
+          const path = require('path');
+
+          // Get all migration files from the migrations directory
+          const migrationsDir = path.resolve('./src/migrations');
+          const migrationFiles = fs
+            .readdirSync(migrationsDir)
+            .filter(file => 
+              file.endsWith('.ts') && 
+              !file.includes('.d.ts') && 
+              !file.includes('index.ts') &&
+              !fs.lstatSync(path.join(migrationsDir, file)).isDirectory()
+            );
+
+          // Read the typeorm.config.ts file
+          const configPath = path.resolve('./src/config/typeorm.config.ts');
+          const configContent = fs.readFileSync(configPath, 'utf8');
+
+          // Check if each migration file is imported and included in the migrations array
+          const missingImports = [];
+          const missingInArray = [];
+
+          for (const file of migrationFiles) {
+            // Extract the class name from the file name
+            // Format: 1234567890123-MigrationName.ts
+            const match = file.match(/\d+-([A-Za-z]+)\.ts$/);
+            if (!match) {
+              console.warn(\`Could not extract class name from file: \${file}\`);
+              continue;
+            }
+            
+            const className = match[1];
+            
+            // Check if the class is imported
+            const importRegex = new RegExp(\`import\\\\s+{\\\\s*\${className}\\\\d+\\\\s*}\`, 'i');
+            if (!importRegex.test(configContent)) {
+              missingImports.push(\`\${className} (\${file})\`);
+            }
+            
+            // Check if the class is included in the migrations array
+            const arrayRegex = new RegExp(\`migrations\\\\s*=\\\\s*\\\\[[^\\\\]]*\${className}\\\\d+[^\\\\]]*\\\\]\`, 's');
+            if (!arrayRegex.test(configContent)) {
+              missingInArray.push(\`\${className} (\${file})\`);
+            }
+          }
+
+          // Report results
+          if (missingImports.length === 0 && missingInArray.length === 0) {
+            console.log('✅ All migrations are properly imported and included in the migrations array.');
+            process.exit(0);
+          } else {
+            if (missingImports.length > 0) {
+              console.error('❌ The following migrations are not imported in typeorm.config.ts:');
+              missingImports.forEach(missing => console.error(\`   - \${missing}\`));
+            }
+            
+            if (missingInArray.length > 0) {
+              console.error('❌ The following migrations are imported but not included in the migrations array:');
+              missingInArray.forEach(missing => console.error(\`   - \${missing}\`));
+            }
+            
+            process.exit(1);
+          }
+          "
+
       - name: Run Tests
         run: npm test
-        continue-on-error: true 
+        continue-on-error: true

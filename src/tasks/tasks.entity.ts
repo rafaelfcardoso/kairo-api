@@ -28,6 +28,22 @@ export enum TaskStatus {
   COMPLETED = 'completed',
 }
 
+// Define recurrence patterns for recurring tasks
+export enum RecurrencePattern {
+  DAILY = 'daily',
+  WEEKLY = 'weekly',
+  MONTHLY = 'monthly',
+  YEARLY = 'yearly',
+}
+
+// Define time of day options for recurring tasks
+export enum RecurrenceTimeOfDay {
+  MORNING = 'morning',
+  AFTERNOON = 'afternoon',
+  EVENING = 'evening',
+  CUSTOM = 'custom',
+}
+
 @Entity()
 export class Task {
   @ApiProperty({
@@ -77,12 +93,44 @@ export class Task {
   priority: TaskPriority;
 
   @ApiProperty({
+    example: true,
+    description: 'Whether the task needs a reminder',
+    default: false,
+  })
+  @Column({ default: false })
+  needsReminder: boolean;
+
+  @ApiProperty({
+    example: "Don't forget to call John about the meeting",
+    description: 'Custom message to include with the reminder',
+    required: false,
+  })
+  @Column({ nullable: true })
+  reminderMessage: string;
+
+  @ApiProperty({
+    example: 'FREQ=WEEKLY;BYDAY=SU;BYHOUR=14;BYMINUTE=0',
+    description: 'Recurrence rule in iCalendar format for recurring tasks',
+    required: false,
+  })
+  @Column({ nullable: true })
+  recurrenceRule: string;
+
+  @ApiProperty({
     example: '2024-12-31T23:59:59Z',
     description: 'Due date of the task',
     required: false,
   })
-  @Column({ nullable: true })
+  @Column({ nullable: true, type: 'timestamp' })
   dueDate: Date;
+
+  @ApiProperty({
+    example: '2025-01-07T23:59:59Z',
+    description: 'Next due date for recurring tasks',
+    required: false,
+  })
+  @Column({ nullable: true, type: 'timestamp' })
+  nextDueDate: Date;
 
   @ApiProperty({
     example: false,
@@ -90,6 +138,61 @@ export class Task {
   })
   @Column({ default: false })
   hasTime: boolean;
+
+  // New fields for recurring tasks
+  @ApiProperty({
+    example: true,
+    description: 'Whether this is a recurring task',
+    default: false,
+  })
+  @Column({ default: false })
+  isRecurring: boolean;
+
+  @ApiProperty({
+    enum: RecurrencePattern,
+    example: RecurrencePattern.DAILY,
+    description:
+      'The pattern for task recurrence (daily, weekly, monthly, yearly)',
+    required: false,
+  })
+  @Column({
+    type: 'varchar',
+    nullable: true,
+  })
+  recurrencePattern: string;
+
+  @ApiProperty({
+    example: 'monday,wednesday,friday',
+    description: 'Specific days for weekly recurrence',
+    required: false,
+  })
+  @Column({ nullable: true })
+  recurrenceDays: string;
+
+  @ApiProperty({
+    enum: RecurrenceTimeOfDay,
+    example: RecurrenceTimeOfDay.MORNING,
+    description: 'Time of day for the recurring task',
+    required: false,
+  })
+  @Column({ nullable: true })
+  recurrenceTimeOfDay: string;
+
+  @ApiProperty({
+    example: '08:00',
+    description: 'Specific time for custom recurrence time',
+    required: false,
+  })
+  @Column({ nullable: true })
+  recurrenceTime: string;
+
+  @ApiProperty({
+    example: '123e4567-e89b-12d3-a456-426614174000',
+    description: 'The ID of the parent recurring task if this is an instance',
+    required: false,
+  })
+  @Column({ nullable: true })
+  recurringParentId: string;
 
   @Column({ default: 0 })
   estimatedMinutes: number;
@@ -128,6 +231,6 @@ export class Task {
   createdAt: Date;
 
   @ApiProperty()
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 }

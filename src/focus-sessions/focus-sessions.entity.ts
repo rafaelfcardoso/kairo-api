@@ -32,7 +32,7 @@ export class FocusSession {
     example: '2023-04-15T14:30:00Z',
     description: 'When the focus session started',
   })
-  @Column()
+  @Column({ type: 'timestamp' })
   startTime: Date;
 
   @ApiProperty({
@@ -40,7 +40,7 @@ export class FocusSession {
     description: 'When the focus session ended',
     required: false,
   })
-  @Column({ nullable: true })
+  @Column({ nullable: true, type: 'timestamp' })
   endTime: Date;
 
   @ApiProperty({
@@ -98,6 +98,6 @@ export class FocusSession {
   projectId: string;
 
   @ApiProperty()
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 }

@@ -13,7 +13,12 @@ import {
   MaxLength,
   ValidateIf,
 } from 'class-validator';
-import { TaskStatus, TaskPriority } from './tasks.entity';
+import {
+  TaskStatus,
+  TaskPriority,
+  RecurrencePattern,
+  RecurrenceTimeOfDay,
+} from './tasks.entity';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PartialType } from '@nestjs/swagger';
 
@@ -47,6 +52,14 @@ export class CreateTaskDto {
   priority?: TaskPriority;
 
   @ApiPropertyOptional({
+    example: 'FREQ=WEEKLY;BYDAY=SU;BYHOUR=14;BYMINUTE=0',
+    description: 'Recurrence rule in iCalendar format for recurring tasks',
+  })
+  @IsString()
+  @IsOptional()
+  recurrenceRule?: string;
+
+  @ApiPropertyOptional({
     example: '2024-12-31T23:59:59.999Z',
     description: 'Due date of the task in ISO 8601 format with timezone',
   })
@@ -54,6 +67,16 @@ export class CreateTaskDto {
   @ValidateIf((o) => o.dueDate !== null && o.dueDate !== undefined)
   @IsOptional()
   dueDate?: string;
+
+  @ApiPropertyOptional({
+    example: '2025-01-07T23:59:59.999Z',
+    description:
+      'Next due date for recurring tasks in ISO 8601 format with timezone',
+  })
+  @IsISO8601({ strict: true })
+  @ValidateIf((o) => o.nextDueDate !== null && o.nextDueDate !== undefined)
+  @IsOptional()
+  nextDueDate?: string;
 
   @ApiPropertyOptional({
     example: false,
@@ -80,6 +103,79 @@ export class CreateTaskDto {
   @IsUUID('4')
   @IsOptional()
   projectId?: string;
+
+  @ApiPropertyOptional({
+    example: true,
+    description: 'Whether the task needs a reminder',
+    default: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  needsReminder?: boolean;
+
+  @ApiPropertyOptional({
+    example: "Don't forget to submit your report!",
+    description: 'Custom message to include with the reminder',
+  })
+  @IsString()
+  @IsOptional()
+  reminderMessage?: string;
+
+  // New fields for recurring tasks
+  @ApiPropertyOptional({
+    example: true,
+    description: 'Whether this is a recurring task',
+    default: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  isRecurring?: boolean;
+
+  @ApiPropertyOptional({
+    enum: RecurrencePattern,
+    example: RecurrencePattern.DAILY,
+    description:
+      'The pattern for task recurrence (daily, weekly, monthly, yearly)',
+  })
+  @IsEnum(RecurrencePattern, {
+    message: 'recurrencePattern must be one of: daily, weekly, monthly, yearly',
+  })
+  @ValidateIf((o) => o.isRecurring === true)
+  @IsOptional()
+  recurrencePattern?: string;
+
+  @ApiPropertyOptional({
+    example: 'monday,wednesday,friday',
+    description: 'Specific days for weekly recurrence',
+  })
+  @IsString()
+  @IsOptional()
+  recurrenceDays?: string;
+
+  @ApiPropertyOptional({
+    enum: RecurrenceTimeOfDay,
+    example: RecurrenceTimeOfDay.MORNING,
+    description: 'Time of day for the recurring task',
+  })
+  @IsString()
+  @IsOptional()
+  recurrenceTimeOfDay?: string;
+
+  @ApiPropertyOptional({
+    example: '08:00',
+    description: 'Specific time for custom recurrence time',
+  })
+  @IsString()
+  @IsOptional()
+  recurrenceTime?: string;
+
+  @ApiPropertyOptional({
+    example: '123e4567-e89b-12d3-a456-426614174000',
+    description: 'The ID of the parent recurring task if this is an instance',
+  })
+  @IsUUID('4')
+  @IsOptional()
+  recurringParentId?: string;
 }
 
 export class UpdateTaskDto extends PartialType(CreateTaskDto) {
@@ -158,4 +254,22 @@ export class TaskFilterDto {
   })
   @IsOptional()
   dueDate?: string;
+
+  @ApiPropertyOptional({
+    example: true,
+    description: 'Filter for tasks due today or in the past',
+    type: Boolean,
+  })
+  @IsBoolean()
+  @IsOptional()
+  dueSoon?: boolean;
+
+  @ApiPropertyOptional({
+    example: true,
+    description: 'Filter for recurring tasks only',
+    type: Boolean,
+  })
+  @IsBoolean()
+  @IsOptional()
+  recurring?: boolean;
 }
