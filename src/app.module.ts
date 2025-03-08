@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TasksModule } from './tasks/tasks.module';
@@ -15,6 +15,7 @@ import { DATABASE_CONFIG } from './config/constants';
 import { SchedulerModule } from './common/services/scheduler.module';
 import { BlockSettingsModule } from './block-settings/block-settings.module';
 import { SchedulesModule } from './schedules/schedules.module';
+import { SwaggerAuthMiddleware } from './middleware/swagger-auth.middleware';
 
 @Module({
   imports: [
@@ -92,4 +93,9 @@ import { SchedulesModule } from './schedules/schedules.module';
   controllers: [AppController],
   providers: [],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Apply the SwaggerAuthMiddleware to all routes
+    consumer.apply(SwaggerAuthMiddleware).forRoutes('*');
+  }
+}

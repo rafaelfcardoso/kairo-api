@@ -6,6 +6,9 @@ import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import { DataSource } from 'typeorm';
+import * as cookieParser from 'cookie-parser';
+import * as path from 'path';
+import * as express from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -14,7 +17,17 @@ async function bootstrap() {
 
   // Set global prefix for API versioning
   app.setGlobalPrefix('api/v1', {
-    exclude: ['/health', '/api'], // Exclude health check and Swagger endpoints
+    exclude: ['/health', '/api', '/swagger-helper'], // Exclude helper pages
+  });
+
+  // Add cookie parser middleware
+  app.use(cookieParser());
+
+  // Serve the Swagger UI helper page - useful for troubleshooting authentication issues
+  // This provides a user-friendly interface for managing auth tokens with Swagger UI
+  // Keep this endpoint as a backup solution if standard Swagger authentication breaks
+  app.use('/swagger-helper', (req, res) => {
+    res.sendFile(path.join(process.cwd(), 'src/assets/swagger-helper.html'));
   });
 
   // Get ConfigService

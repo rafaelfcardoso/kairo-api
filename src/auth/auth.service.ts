@@ -87,4 +87,15 @@ export class AuthService {
 
     return user;
   }
+
+  /**
+   * Verifies a JWT token and returns the payload
+   */
+  verifyToken(token: string): any {
+    try {
+      return this.jwtService.verify(token);
+    } catch (error) {
+      throw new UnauthorizedException('Invalid token');
+    }
+  }
 }
