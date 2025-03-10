@@ -6,8 +6,12 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  ManyToMany,
+  JoinTable,
 } from 'typeorm';
 import { User } from '../../auth/entities/user.entity';
+import { BlockList } from '../../block-settings/entities/block-list.entity';
+import { BlockItem } from '../../block-settings/entities/block-item.entity';
 
 @Entity()
 export class Schedule {
@@ -38,6 +42,34 @@ export class Schedule {
 
   @Column()
   userId: string;
+
+  @ManyToMany(() => BlockList, (blockList) => blockList.schedules)
+  @JoinTable({
+    name: 'schedule_block_lists',
+    joinColumn: {
+      name: 'scheduleId',
+      referencedColumnName: 'id',
+    },
+    inverseJoinColumn: {
+      name: 'blockListId',
+      referencedColumnName: 'id',
+    },
+  })
+  blockLists: BlockList[];
+
+  @ManyToMany(() => BlockItem)
+  @JoinTable({
+    name: 'schedule_direct_block_items',
+    joinColumn: {
+      name: 'scheduleId',
+      referencedColumnName: 'id',
+    },
+    inverseJoinColumn: {
+      name: 'blockItemId',
+      referencedColumnName: 'id',
+    },
+  })
+  directBlockItems: BlockItem[];
 
   @CreateDateColumn()
   createdAt: Date;

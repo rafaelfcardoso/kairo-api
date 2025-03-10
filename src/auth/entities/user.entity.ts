@@ -7,6 +7,7 @@ import {
   OneToMany,
 } from 'typeorm';
 import { BlockSetting } from '../../block-settings/entities/block-setting.entity';
+import { BlockList } from '../../block-settings/entities/block-list.entity';
 import { Schedule } from '../../schedules/entities/schedule.entity';
 
 @Entity()
@@ -28,6 +29,9 @@ export class User {
 
   @OneToMany(() => BlockSetting, (blockSetting) => blockSetting.user)
   blockSettings: BlockSetting[];
+
+  @OneToMany(() => BlockList, (blockList) => blockList.user)
+  blockLists: BlockList[];
 
   @OneToMany(() => Schedule, (schedule) => schedule.user)
   schedules: Schedule[];
