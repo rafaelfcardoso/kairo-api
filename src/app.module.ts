@@ -13,6 +13,7 @@ import { FocusSessionsModule } from './focus-sessions/focus-sessions.module';
 import { StatsModule } from './stats/stats.module';
 import { DATABASE_CONFIG } from './config/constants';
 import { SchedulerModule } from './common/services/scheduler.module';
+import { McpModule } from './mcp/mcp.module';
 
 @Module({
   imports: [
@@ -84,6 +85,7 @@ import { SchedulerModule } from './common/services/scheduler.module';
     FocusSessionsModule,
     StatsModule,
     SchedulerModule,
+    McpModule,
   ],
   controllers: [AppController],
   providers: [],
