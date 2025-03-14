@@ -59,3 +59,40 @@ export interface ResourceQueryParams {
     size?: number;
   };
 }
+
+// MCP Action definition
+export interface Action {
+  name: string;
+  description: string;
+  parameters: Record<string, ActionParameterDefinition>;
+  returns: ActionReturnDefinition;
+}
+
+// MCP Action parameter definition
+export interface ActionParameterDefinition {
+  type: string;
+  description: string;
+  required?: boolean;
+}
+
+// MCP Action return definition
+export interface ActionReturnDefinition {
+  type: string;
+  description: string;
+}
+
+// MCP Action execution request
+export interface ActionExecutionRequest {
+  name: string;
+  parameters: Record<string, any>;
+}
+
+// MCP Action execution response
+export interface ActionExecutionResponse {
+  data: any;
+}
+
+// MCP Tools response (collection of available actions)
+export interface ToolsResponse {
+  actions: Action[];
+}

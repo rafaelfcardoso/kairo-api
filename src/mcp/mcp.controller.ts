@@ -1,8 +1,10 @@
 import {
   Controller,
   Get,
+  Post,
   Param,
   Query,
+  Body,
   UseGuards,
   NotFoundException,
   InternalServerErrorException,
@@ -11,13 +13,14 @@ import {
 } from '@nestjs/common';
 import { McpService } from './mcp.service';
 import { AuthGuard } from '@nestjs/passport';
-import { ResourceQueryParams } from './mcp.types';
+import { ResourceQueryParams, ActionExecutionRequest } from './mcp.types';
 import {
   ApiTags,
   ApiOperation,
   ApiParam,
   ApiQuery,
   ApiResponse,
+  ApiBody,
 } from '@nestjs/swagger';
 
 @ApiTags('MCP')
@@ -151,6 +154,68 @@ export class McpController {
         throw new BadRequestException(error.message);
       }
       throw new InternalServerErrorException('Failed to retrieve resource');
+    }
+  }
+
+  @Post('resources/:type')
+  @ApiOperation({ summary: 'Create a new resource' })
+  @ApiParam({ name: 'type', description: 'Resource type (e.g., task)' })
+  @ApiBody({ description: 'Resource data' })
+  @ApiResponse({ status: 201, description: 'Resource created successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid resource data' })
+  @ApiResponse({ status: 404, description: 'Resource type not found' })
+  async createResource(
+    @Param('type') resourceType: string,
+    @Body() resourceData: any,
+  ) {
+    try {
+      return await this.mcpService.createResource(resourceType, resourceData);
+    } catch (error) {
+      this.logger.error(
+        `Error creating resource of type ${resourceType}: ${error.message}`,
+      );
+      if (error.message.includes('Unknown resource type')) {
+        throw new NotFoundException(`Resource type ${resourceType} not found`);
+      }
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(
+        `Failed to create resource: ${error.message}`,
+      );
+    }
+  }
+
+  @Get('tools')
+  @ApiOperation({ summary: 'Get available MCP tools/actions' })
+  @ApiResponse({ status: 200, description: 'Tools retrieved successfully' })
+  async getTools() {
+    try {
+      return this.mcpService.getTools();
+    } catch (error) {
+      this.logger.error(`Error retrieving MCP tools: ${error.message}`);
+      throw new InternalServerErrorException('Failed to retrieve MCP tools');
+    }
+  }
+
+  @Post('actions')
+  @ApiOperation({ summary: 'Execute an MCP action' })
+  @ApiBody({ description: 'Action execution request' })
+  @ApiResponse({ status: 200, description: 'Action executed successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid action request' })
+  async executeAction(@Body() request: ActionExecutionRequest) {
+    try {
+      return await this.mcpService.executeAction(request);
+    } catch (error) {
+      this.logger.error(
+        `Error executing action ${request.name}: ${error.message}`,
+      );
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(
+        `Failed to execute action: ${error.message}`,
+      );
     }
   }
 }

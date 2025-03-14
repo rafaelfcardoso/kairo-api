@@ -9,6 +9,8 @@ The MCP module provides:
 1. Resource schemas - describing the structure of resources
 2. Resource retrieval - allowing querying for resources with filtering
 3. Resource by ID - fetching specific resources
+4. Resource creation - creating new resources
+5. MCP tools/actions - executing operations like natural language task creation
 
 ## Endpoints
 
@@ -17,6 +19,9 @@ The MCP module provides:
 | GET    | `/mcp/resources/:type/schema` | Get the schema for a resource type    |
 | GET    | `/mcp/resources/:type`        | Get resources with optional filtering |
 | GET    | `/mcp/resources/:type/:id`    | Get a specific resource by ID         |
+| POST   | `/mcp/resources/:type`        | Create a new resource                 |
+| GET    | `/mcp/tools`                  | Get available MCP tools/actions       |
+| POST   | `/mcp/actions`                | Execute an MCP action                 |
 
 ## Resource Types
 
@@ -36,6 +41,23 @@ When retrieving resources, the following query parameters are supported:
 - `include=relation1,relation2` - Include related resources
 - `sort=field1,-field2` - Sort results (prefix with - for descending)
 - `page[number]=1&page[size]=10` - Pagination
+
+## MCP Actions
+
+The following MCP actions are available:
+
+### createTaskFromNLP
+
+Creates a new task from a natural language description.
+
+**Parameters:**
+
+- `input` (string, required): Natural language description of the task to create
+- `projectId` (string, optional): ID of the project to assign the task to
+
+**Returns:**
+
+- The newly created task resource
 
 ## Example Usage
 
@@ -67,4 +89,49 @@ GET /mcp/resources/task?include=project,tags
 
 ```
 GET /mcp/resources/task/123e4567-e89b-12d3-a456-426614174000
+```
+
+### Create a New Task
+
+```
+POST /mcp/resources/task
+Content-Type: application/json
+
+{
+  "properties": {
+    "title": "Complete documentation",
+    "description": "Finish writing the API documentation",
+    "priority": "high",
+    "dueDate": "2025-01-01T12:00:00Z"
+  },
+  "relationships": {
+    "project": {
+      "data": {
+        "id": "123e4567-e89b-12d3-a456-426614174000",
+        "type": "project"
+      }
+    }
+  }
+}
+```
+
+### Get Available MCP Tools
+
+```
+GET /mcp/tools
+```
+
+### Create Task from Natural Language
+
+```
+POST /mcp/actions
+Content-Type: application/json
+
+{
+  "name": "createTaskFromNLP",
+  "parameters": {
+    "input": "Remind me to call John tomorrow at 9am",
+    "projectId": "123e4567-e89b-12d3-a456-426614174000"
+  }
+}
 ```
