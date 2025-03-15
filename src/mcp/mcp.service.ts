@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { TaskService } from '../tasks/tasks.service';
 import { TagsService } from '../tags/tags.service';
+import { ProjectsService } from '../projects/projects.service';
 import {
   Resource,
   ResourceInstance,
@@ -25,8 +26,10 @@ import {
   RecurrenceTimeOfDay,
 } from '../tasks/tasks.entity';
 import { Tag } from '../tags/tags.entity';
+import { Project, ProjectType } from '../projects/projects.entity';
 import { CreateTaskDto } from '../tasks/tasks.dto';
 import { CreateTagDto } from '../tags/tags.dto';
+import { CreateProjectDto } from '../projects/projects.dto';
 import {
   NaturalLanguageRequest,
   AiService,
@@ -38,6 +41,7 @@ export class McpService {
   constructor(
     private tasksService: TaskService,
     private tagsService: TagsService,
+    private projectsService: ProjectsService,
     @Inject(forwardRef(() => AiService))
     private aiService: AiService,
   ) {}
@@ -51,6 +55,8 @@ export class McpService {
         return this.getTaskResourceSchema();
       case 'tag':
         return this.getTagResourceSchema();
+      case 'project':
+        return this.getProjectResourceSchema();
       default:
         throw new Error(`Unknown resource type: ${resourceType}`);
     }
@@ -68,6 +74,8 @@ export class McpService {
         return this.getTaskResources(params);
       case 'tag':
         return this.getTagResources(params);
+      case 'project':
+        return this.getProjectResources(params);
       default:
         throw new Error(`Unknown resource type: ${resourceType}`);
     }
@@ -85,6 +93,8 @@ export class McpService {
         return this.getTaskResource(id);
       case 'tag':
         return this.getTagResource(id);
+      case 'project':
+        return this.getProjectResource(id);
       default:
         throw new Error(`Unknown resource type: ${resourceType}`);
     }
@@ -102,6 +112,8 @@ export class McpService {
         return this.createTaskResource(data);
       case 'tag':
         return this.createTagResource(data);
+      case 'project':
+        return this.createProjectResource(data);
       default:
         throw new Error(`Unknown resource type: ${resourceType}`);
     }
@@ -693,6 +705,231 @@ export class McpService {
       return this.mapTagToResource(tag);
     } catch (error) {
       throw new BadRequestException(`Failed to create tag: ${error.message}`);
+    }
+  }
+
+  /**
+   * Transform Project entity to MCP Resource schema
+   */
+  private getProjectResourceSchema(): Resource {
+    const projectTypeOptions = Object.values(ProjectType);
+
+    const properties: Record<string, PropertyDefinition> = {
+      id: {
+        type: 'string',
+        description: 'The unique identifier of the project',
+        required: true,
+      },
+      name: {
+        type: 'string',
+        description: 'The name of the project',
+        required: true,
+      },
+      description: {
+        type: 'string',
+        description: 'Detailed description of the project',
+        nullable: true,
+      },
+      type: {
+        type: 'string',
+        description: 'Type of project (inbox, regular, archive)',
+        enum: projectTypeOptions,
+        default: ProjectType.REGULAR,
+      },
+      color: {
+        type: 'string',
+        description: 'The color of the project in hex format (e.g., #FF0000)',
+        nullable: true,
+      },
+      isArchived: {
+        type: 'boolean',
+        description: 'Whether the project is archived',
+        default: false,
+      },
+      isSystem: {
+        type: 'boolean',
+        description: 'Whether this is a system project that cannot be deleted',
+        default: false,
+      },
+      order: {
+        type: 'number',
+        description: 'Order position of the project',
+        default: 0,
+      },
+      createdAt: {
+        type: 'string',
+        format: 'date-time',
+        description: 'When the project was created',
+      },
+      updatedAt: {
+        type: 'string',
+        format: 'date-time',
+        description: 'When the project was last updated',
+      },
+    };
+
+    return {
+      type: 'project',
+      title: 'Project',
+      description: 'A project that can contain tasks',
+      properties,
+      relationships: {
+        parent: {
+          resourceType: 'project',
+          cardinality: 'one',
+          description: 'The parent project, if this is a sub-project',
+          required: false,
+        },
+        children: {
+          resourceType: 'project',
+          cardinality: 'many',
+          description: 'Child sub-projects of this project',
+        },
+        tasks: {
+          resourceType: 'task',
+          cardinality: 'many',
+          description: 'Tasks within this project',
+        },
+      },
+    };
+  }
+
+  /**
+   * Transform Project entity to MCP Resource instance
+   */
+  private mapProjectToResource(project: Project): ResourceInstance {
+    // Validate required properties
+    if (!project.id) {
+      throw new Error('Project ID is required');
+    }
+
+    if (!project.name) {
+      throw new Error('Project name is required');
+    }
+
+    const resourceInstance: ResourceInstance = {
+      id: project.id,
+      type: 'project',
+      properties: {
+        name: project.name,
+        description: project.description,
+        type: project.type,
+        color: project.color,
+        isArchived: project.isArchived,
+        isSystem: project.isSystem,
+        order: project.order,
+        createdAt: project.createdAt.toISOString(),
+        updatedAt: project.updatedAt.toISOString(),
+      },
+      relationships: {},
+    };
+
+    // Add parent relationship if exists
+    if (project.parent) {
+      resourceInstance.relationships.parent = {
+        data: {
+          id: project.parent.id,
+          type: 'project',
+        },
+      };
+    }
+
+    // Add children relationships if exist
+    if (project.children && project.children.length > 0) {
+      resourceInstance.relationships.children = {
+        data: project.children.map((child) => ({
+          id: child.id,
+          type: 'project',
+        })),
+      };
+    }
+
+    // Add tasks relationships if exist
+    if (project.tasks && project.tasks.length > 0) {
+      resourceInstance.relationships.tasks = {
+        data: project.tasks.map((task) => ({
+          id: task.id,
+          type: 'task',
+        })),
+      };
+    }
+
+    return resourceInstance;
+  }
+
+  /**
+   * Get project resources with filtering
+   */
+  private async getProjectResources(
+    params: ResourceQueryParams,
+  ): Promise<ResourceInstance[]> {
+    // Convert MCP query params to our project filter params
+    const filterDto = {
+      search: params.filter?.search,
+      includeArchived: params.filter?.includeArchived === 'true',
+      includeSystem: params.filter?.includeSystem === 'true',
+      parentId: params.filter?.parentId,
+    };
+
+    const projects = await this.projectsService.getProjects(filterDto);
+
+    // Map projects to resources
+    return projects
+      .map((project) => {
+        try {
+          return this.mapProjectToResource(project);
+        } catch (error) {
+          console.error(
+            `Error mapping project ${project.id}: ${error.message}`,
+          );
+          return null;
+        }
+      })
+      .filter((resource) => resource !== null);
+  }
+
+  /**
+   * Get a specific project by ID
+   */
+  private async getProjectResource(id: string): Promise<ResourceInstance> {
+    const project = await this.projectsService.getProjectById(id);
+
+    try {
+      return this.mapProjectToResource(project);
+    } catch (error) {
+      throw new Error(
+        `Project with ID ${id} does not meet required criteria: ${error.message}`,
+      );
+    }
+  }
+
+  /**
+   * Create a new project resource
+   */
+  private async createProjectResource(data: any): Promise<ResourceInstance> {
+    try {
+      // Convert MCP resource data to CreateProjectDto
+      const createProjectDto: CreateProjectDto = {
+        name: data.properties.name,
+        description: data.properties.description,
+        color: data.properties.color,
+      };
+
+      // Handle parent relationship
+      if (data.relationships?.parent?.data?.id) {
+        createProjectDto.parentId = data.relationships.parent.data.id;
+      }
+
+      // Create the project
+      const project =
+        await this.projectsService.createProject(createProjectDto);
+
+      // Map the created project to a resource instance
+      return this.mapProjectToResource(project);
+    } catch (error) {
+      throw new BadRequestException(
+        `Failed to create project: ${error.message}`,
+      );
     }
   }
 }

@@ -29,6 +29,7 @@ Currently supported resource types:
 
 - `task` - Tasks in the system with properties like title, description, status, etc.
 - `tag` - Tags that can be applied to tasks, with properties like name, color, and goal status.
+- `project` - Projects that can contain tasks and subprojects, with properties like name, description, type, etc.
 
 ## Authentication
 
@@ -110,6 +111,59 @@ Content-Type: application/json
     "color": "#4A90E2",
     "description": "Career development related tasks",
     "isGoal": true
+  }
+}
+```
+
+### Get Project Schema
+
+```
+GET /mcp/resources/project/schema
+```
+
+### Get All Projects
+
+```
+GET /mcp/resources/project
+```
+
+### Get Non-Archived Projects
+
+```
+GET /mcp/resources/project?filter[includeArchived]=false
+```
+
+### Get Root Projects (no parent)
+
+```
+GET /mcp/resources/project?filter[parentId]=null
+```
+
+### Get Subprojects of a Project
+
+```
+GET /mcp/resources/project?filter[parentId]=123e4567-e89b-12d3-a456-426614174000
+```
+
+### Create a New Project
+
+```
+POST /mcp/resources/project
+Content-Type: application/json
+
+{
+  "properties": {
+    "name": "New Development Project",
+    "description": "Project for developing new features",
+    "color": "#4CAF50"
+  },
+  "relationships": {
+    "parent": {
+      "data": {
+        "id": "123e4567-e89b-12d3-a456-426614174000",
+        "type": "project"
+      }
+    }
   }
 }
 ```
