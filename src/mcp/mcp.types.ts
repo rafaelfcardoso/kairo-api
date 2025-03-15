@@ -20,6 +20,7 @@ export interface PropertyDefinition {
   enum?: string[];
   nullable?: boolean;
   required?: boolean;
+  default?: any;
 }
 
 // Relationship definition

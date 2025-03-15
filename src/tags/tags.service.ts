@@ -50,4 +50,13 @@ export class TagsService {
     const stats = await this.getTagStats();
     return stats.filter((stat) => stat.taskCount === 0).map((stat) => stat.tag);
   }
+
+  async getGoalTags(): Promise<Tag[]> {
+    return this.tagsRepository.getGoalTags();
+  }
+
+  async toggleGoalStatus(id: string): Promise<Tag> {
+    const tag = await this.getTagById(id);
+    return this.tagsRepository.updateTag(id, { isGoal: !tag.isGoal });
+  }
 }

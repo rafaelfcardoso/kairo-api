@@ -6,6 +6,7 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { TaskService } from '../tasks/tasks.service';
+import { TagsService } from '../tags/tags.service';
 import {
   Resource,
   ResourceInstance,
@@ -23,7 +24,9 @@ import {
   RecurrencePattern,
   RecurrenceTimeOfDay,
 } from '../tasks/tasks.entity';
+import { Tag } from '../tags/tags.entity';
 import { CreateTaskDto } from '../tasks/tasks.dto';
+import { CreateTagDto } from '../tags/tags.dto';
 import {
   NaturalLanguageRequest,
   AiService,
@@ -34,6 +37,7 @@ import {
 export class McpService {
   constructor(
     private tasksService: TaskService,
+    private tagsService: TagsService,
     @Inject(forwardRef(() => AiService))
     private aiService: AiService,
   ) {}
@@ -45,6 +49,8 @@ export class McpService {
     switch (resourceType.toLowerCase()) {
       case 'task':
         return this.getTaskResourceSchema();
+      case 'tag':
+        return this.getTagResourceSchema();
       default:
         throw new Error(`Unknown resource type: ${resourceType}`);
     }
@@ -60,6 +66,8 @@ export class McpService {
     switch (resourceType.toLowerCase()) {
       case 'task':
         return this.getTaskResources(params);
+      case 'tag':
+        return this.getTagResources(params);
       default:
         throw new Error(`Unknown resource type: ${resourceType}`);
     }
@@ -75,6 +83,8 @@ export class McpService {
     switch (resourceType.toLowerCase()) {
       case 'task':
         return this.getTaskResource(id);
+      case 'tag':
+        return this.getTagResource(id);
       default:
         throw new Error(`Unknown resource type: ${resourceType}`);
     }
@@ -90,6 +100,8 @@ export class McpService {
     switch (resourceType.toLowerCase()) {
       case 'task':
         return this.createTaskResource(data);
+      case 'tag':
+        return this.createTagResource(data);
       default:
         throw new Error(`Unknown resource type: ${resourceType}`);
     }
@@ -514,6 +526,173 @@ export class McpService {
       throw new Error(
         `Task with ID ${id} does not meet required criteria: ${error.message}`,
       );
+    }
+  }
+
+  /**
+   * Transform Tag entity to MCP Resource schema
+   */
+  private getTagResourceSchema(): Resource {
+    const properties: Record<string, PropertyDefinition> = {
+      id: {
+        type: 'string',
+        description: 'The unique identifier of the tag',
+        required: true,
+      },
+      name: {
+        type: 'string',
+        description: 'The name of the tag',
+        required: true,
+      },
+      color: {
+        type: 'string',
+        description: 'The color of the tag in hex format (e.g., #FF0000)',
+        required: true,
+      },
+      description: {
+        type: 'string',
+        description: 'Optional description of the tag',
+        nullable: true,
+      },
+      isGoal: {
+        type: 'boolean',
+        description: 'Whether this tag represents a user goal',
+        default: false,
+      },
+      createdAt: {
+        type: 'string',
+        format: 'date-time',
+        description: 'When the tag was created',
+      },
+      updatedAt: {
+        type: 'string',
+        format: 'date-time',
+        description: 'When the tag was last updated',
+      },
+    };
+
+    return {
+      type: 'tag',
+      title: 'Tag',
+      description: 'A tag that can be applied to tasks',
+      properties,
+      relationships: {
+        tasks: {
+          resourceType: 'task',
+          cardinality: 'many',
+          description: 'Tasks associated with this tag',
+        },
+      },
+    };
+  }
+
+  /**
+   * Transform Tag entity to MCP Resource instance
+   */
+  private mapTagToResource(tag: Tag): ResourceInstance {
+    // Validate required properties
+    if (!tag.id) {
+      throw new Error('Tag ID is required');
+    }
+
+    if (!tag.name) {
+      throw new Error('Tag name is required');
+    }
+
+    if (!tag.color) {
+      throw new Error('Tag color is required');
+    }
+
+    const resourceInstance: ResourceInstance = {
+      id: tag.id,
+      type: 'tag',
+      properties: {
+        name: tag.name,
+        color: tag.color,
+        description: tag.description,
+        isGoal: tag.isGoal,
+        createdAt: tag.createdAt.toISOString(),
+        updatedAt: tag.updatedAt.toISOString(),
+      },
+      relationships: {},
+    };
+
+    // Add tasks relationships if they exist
+    if (tag.tasks && tag.tasks.length > 0) {
+      resourceInstance.relationships.tasks = {
+        data: tag.tasks.map((task) => ({
+          id: task.id,
+          type: 'task',
+        })),
+      };
+    }
+
+    return resourceInstance;
+  }
+
+  /**
+   * Get tag resources with filtering
+   */
+  private async getTagResources(
+    params: ResourceQueryParams,
+  ): Promise<ResourceInstance[]> {
+    // Check if we're looking for goal tags specifically
+    if (params.filter?.isGoal === 'true') {
+      const tags = await this.tagsService.getGoalTags();
+      return tags.map((tag) => this.mapTagToResource(tag));
+    }
+
+    // Default to getting all tags
+    const tags = await this.tagsService.getTags();
+
+    // Map tags to resources
+    return tags
+      .map((tag) => {
+        try {
+          return this.mapTagToResource(tag);
+        } catch (error) {
+          console.error(`Error mapping tag ${tag.id}: ${error.message}`);
+          return null;
+        }
+      })
+      .filter((resource) => resource !== null);
+  }
+
+  /**
+   * Get a specific tag by ID
+   */
+  private async getTagResource(id: string): Promise<ResourceInstance> {
+    const tag = await this.tagsService.getTagById(id);
+
+    try {
+      return this.mapTagToResource(tag);
+    } catch (error) {
+      throw new Error(
+        `Tag with ID ${id} does not meet required criteria: ${error.message}`,
+      );
+    }
+  }
+
+  /**
+   * Create a new tag resource
+   */
+  private async createTagResource(data: any): Promise<ResourceInstance> {
+    try {
+      // Convert MCP resource data to CreateTagDto
+      const createTagDto: CreateTagDto = {
+        name: data.properties.name,
+        color: data.properties.color,
+        description: data.properties.description,
+        isGoal: data.properties.isGoal,
+      };
+
+      // Create the tag
+      const tag = await this.tagsService.createTag(createTagDto);
+
+      // Map the created tag to a resource instance
+      return this.mapTagToResource(tag);
+    } catch (error) {
+      throw new BadRequestException(`Failed to create tag: ${error.message}`);
     }
   }
 }

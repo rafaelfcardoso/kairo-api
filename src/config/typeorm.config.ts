@@ -28,6 +28,7 @@ import { AddBlockRuleTypeEnum1739279174964 } from '../migrations/1739279174964-A
 import { RemoveTaskTypeColumn1741011691203 } from '../migrations/1741011691203-RemoveTaskTypeColumn';
 import { AddRecurrenceRuleColumn1741013788916 } from '../migrations/1741013788916-AddRecurrenceRuleColumn';
 import { AddNextDueDateColumn1741014300000 } from '../migrations/1741014300000-AddNextDueDateColumn';
+import { AddIsGoalToTagTable1741607800000 } from '../migrations/1741607800000-AddIsGoalToTagTable';
 import { DATABASE_CONFIG } from './constants';
 
 // Define interface for database configuration
@@ -67,6 +68,7 @@ const migrations = [
   RemoveTaskTypeColumn1741011691203,
   AddRecurrenceRuleColumn1741013788916,
   AddNextDueDateColumn1741014300000,
+  AddIsGoalToTagTable1741607800000,
 ];
 
 // Define all entities in one place for better maintenance

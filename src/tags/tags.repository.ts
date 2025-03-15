@@ -74,4 +74,12 @@ export class TagsRepository extends Repository<Tag> {
       .where('LOWER(tag.name) LIKE LOWER(:name)', { name: `%${name}%` })
       .getMany();
   }
+
+  async getGoalTags(): Promise<Tag[]> {
+    return this.createQueryBuilder('tag')
+      .where('tag.isGoal = :isGoal', { isGoal: true })
+      .leftJoinAndSelect('tag.tasks', 'tasks')
+      .orderBy('tag.name', 'ASC')
+      .getMany();
+  }
 }

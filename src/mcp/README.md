@@ -28,6 +28,7 @@ The MCP module provides:
 Currently supported resource types:
 
 - `task` - Tasks in the system with properties like title, description, status, etc.
+- `tag` - Tags that can be applied to tasks, with properties like name, color, and goal status.
 
 ## Authentication
 
@@ -79,6 +80,40 @@ GET /mcp/resources/task
 GET /mcp/resources/task?filter[status]=in_progress
 ```
 
+### Get Tag Schema
+
+```
+GET /mcp/resources/tag/schema
+```
+
+### Get All Tags
+
+```
+GET /mcp/resources/tag
+```
+
+### Get Goal Tags Only
+
+```
+GET /mcp/resources/tag?filter[isGoal]=true
+```
+
+### Create a New Tag
+
+```
+POST /mcp/resources/tag
+Content-Type: application/json
+
+{
+  "properties": {
+    "name": "Career Growth",
+    "color": "#4A90E2",
+    "description": "Career development related tasks",
+    "isGoal": true
+  }
+}
+```
+
 ### Get Tasks with Related Resources
 
 ```
@@ -110,6 +145,14 @@ Content-Type: application/json
         "id": "123e4567-e89b-12d3-a456-426614174000",
         "type": "project"
       }
+    },
+    "tags": {
+      "data": [
+        {
+          "id": "123e4567-e89b-12d3-a456-426614174001",
+          "type": "tag"
+        }
+      ]
     }
   }
 }

@@ -39,6 +39,14 @@ export class Tag {
   @Column({ nullable: true })
   description: string;
 
+  @ApiProperty({
+    example: false,
+    description: 'Whether this tag represents a user goal',
+    default: false,
+  })
+  @Column({ default: false })
+  isGoal: boolean;
+
   @ApiProperty()
   @CreateDateColumn()
   createdAt: Date;
