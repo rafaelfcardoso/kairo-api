@@ -456,4 +456,38 @@ export class TaskService {
       tasks: updatedTasks,
     };
   }
+
+  /**
+   * Count tasks based on filter criteria
+   * @param filters Object with filter criteria
+   * @returns Number of tasks matching the filters
+   */
+  async countTasks(filters: Record<string, any>): Promise<number> {
+    // Convert the MCP filter format to our internal TaskFilterDto format
+    const filterDto = new TaskFilterDto();
+
+    // Map common filter keys
+    if (filters.status) {
+      filterDto.status = filters.status;
+    }
+    if (filters.priority) {
+      filterDto.priority = filters.priority;
+    }
+    if (filters.project_id) {
+      filterDto.projectId = filters.project_id;
+    }
+    if (filters.due_date) {
+      filterDto.dueDate = filters.due_date;
+    }
+    if (filters.search) {
+      filterDto.search = filters.search;
+    }
+    if (filters.tag_ids) {
+      filterDto.tagIds = Array.isArray(filters.tag_ids)
+        ? filters.tag_ids
+        : [filters.tag_ids];
+    }
+
+    return this.tasksRepository.countTasks(filterDto);
+  }
 }

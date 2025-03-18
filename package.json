@@ -38,7 +38,8 @@
     "migration:verify": "ts-node src/scripts/verify-migrations.ts",
     "predeploy": "npm run migration:verify",
     "deploy": "railway up",
-    "verify:migrations": "ts-node scripts/verify-migrations.ts"
+    "verify:migrations": "ts-node scripts/verify-migrations.ts",
+    "test:coverage": "jest --coverage"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.0",
@@ -51,6 +52,7 @@
     "@nestjs/platform-express": "^10.4.15",
     "@nestjs/schedule": "^5.0.1",
     "@nestjs/swagger": "^8.1.1",
+    "@nestjs/terminus": "^11.0.0",
     "@nestjs/typeorm": "^10.0.2",
     "@types/passport-jwt": "^4.0.1",
     "axios": "^1.8.1",

@@ -97,3 +97,68 @@ export interface ActionExecutionResponse {
 export interface ToolsResponse {
   actions: Action[];
 }
+
+// Standardized response envelope for API responses
+export interface ApiResponse<T> {
+  data: T;
+  meta: ResponseMetadata;
+  links?: ResponseLinks;
+  included?: ResourceInstance[];
+}
+
+// Collection response for multiple resources
+export interface CollectionResponse<T> {
+  data: T[];
+  meta: ResponseMetadata;
+  links: ResponseLinks;
+  included?: ResourceInstance[];
+}
+
+// Metadata information for responses
+export interface ResponseMetadata {
+  apiVersion: string;
+  timestamp: string;
+  count?: number;
+  totalCount?: number;
+  pageCount?: number;
+}
+
+// Links for pagination and related resources
+export interface ResponseLinks {
+  self: string;
+  first?: string;
+  prev?: string;
+  next?: string;
+  last?: string;
+}
+
+// Standardized error response
+export interface ErrorResponse {
+  errors: ApiError[];
+  meta: ResponseMetadata;
+}
+
+// Individual API error
+export interface ApiError {
+  status: string;
+  code: string;
+  title: string;
+  detail: string;
+  source?: {
+    pointer?: string;
+    parameter?: string;
+  };
+}
+
+// Response codes for machine-readable error handling
+export enum ApiErrorCode {
+  RESOURCE_NOT_FOUND = 'resource_not_found',
+  INVALID_REQUEST = 'invalid_request',
+  VALIDATION_ERROR = 'validation_error',
+  UNAUTHORIZED = 'unauthorized',
+  FORBIDDEN = 'forbidden',
+  INTERNAL_ERROR = 'internal_error',
+  SERVICE_UNAVAILABLE = 'service_unavailable',
+  RESOURCE_CONFLICT = 'resource_conflict',
+  RATE_LIMIT_EXCEEDED = 'rate_limit_exceeded',
+}

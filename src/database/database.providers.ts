@@ -11,6 +11,8 @@ import { AddNonePriorityEnum1710000000000 } from '../migrations/1710000000000-Ad
 import { CreateFocusSessionTables1740494148045 } from '../migrations/1740494148045-CreateFocusSessionTables';
 import { AddProjectIdToFocusSession1740589432291 } from '../migrations/1740589432291-AddProjectIdToFocusSession';
 import { AddRecurringTaskFields1740916550124 } from '../migrations/1740916550124-AddRecurringTaskFields';
+import { CreateSystemHealthTable1741800000000 } from '../migrations/1741800000000-CreateSystemHealthTable';
+import { CreateApiMetricsTable1741900000000 } from '../migrations/1741900000000-CreateApiMetricsTable';
 
 export const databaseProviders = [
   {
@@ -37,6 +39,8 @@ export const databaseProviders = [
           CreateFocusSessionTables1740494148045,
           AddProjectIdToFocusSession1740589432291,
           AddRecurringTaskFields1740916550124,
+          CreateSystemHealthTable1741800000000,
+          CreateApiMetricsTable1741900000000,
         ],
         migrationsRun: true,
         logging: true,

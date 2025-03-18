@@ -286,11 +286,103 @@ export class TasksRepository extends Repository<Task> {
   }
 
   async getTasksWithoutProject(): Promise<Task[]> {
-    return this.createQueryBuilder('task')
-      .leftJoinAndSelect('task.project', 'project')
-      .leftJoinAndSelect('task.tags', 'tags')
-      .leftJoinAndSelect('task.focusSessions', 'focusSessions')
-      .where('task.project IS NULL')
-      .getMany();
+    return this.find({
+      where: { project: null, isArchived: false },
+    });
+  }
+
+  /**
+   * Count tasks based on filter criteria
+   * @param filterDto Task filter criteria
+   * @returns Number of tasks matching the filters
+   */
+  async countTasks(filterDto: TaskFilterDto): Promise<number> {
+    const {
+      status,
+      search,
+      priority,
+      projectId,
+      tagIds,
+      dueDate,
+      recurring,
+      dueSoon,
+    } = filterDto;
+    const query = this.getTasksQueryBuilder();
+
+    if (!filterDto.includeArchived) {
+      query.andWhere('task.isArchived = :isArchived', { isArchived: false });
+    }
+
+    if (status) {
+      query.andWhere('task.status = :status', { status });
+    }
+
+    if (priority) {
+      query.andWhere('task.priority = :priority', { priority });
+    }
+
+    if (projectId) {
+      query.andWhere('project.id = :projectId', { projectId });
+    }
+
+    if (tagIds && tagIds.length > 0) {
+      query.andWhere('tags.id IN (:...tagIds)', { tagIds });
+    }
+
+    if (search) {
+      query.andWhere(
+        '(task.title LIKE :search OR task.description LIKE :search)',
+        { search: `%${search}%` },
+      );
+    }
+
+    if (dueDate) {
+      // Handle different due date formats and criteria
+      if (dueDate === 'today') {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        query.andWhere('task.dueDate >= :today AND task.dueDate < :tomorrow', {
+          today,
+          tomorrow,
+        });
+      } else if (dueDate === 'overdue') {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        query.andWhere('task.dueDate < :today AND task.status != :completed', {
+          today,
+          completed: TaskStatus.COMPLETED,
+        });
+      } else if (dueDate === 'upcoming') {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const nextWeek = new Date(today);
+        nextWeek.setDate(nextWeek.getDate() + 7);
+
+        query.andWhere('task.dueDate >= :today AND task.dueDate <= :nextWeek', {
+          today,
+          nextWeek,
+        });
+      } else {
+        // Treat as specific date
+        const specificDate = new Date(dueDate);
+        const nextDay = new Date(specificDate);
+        nextDay.setDate(nextDay.getDate() + 1);
+
+        query.andWhere(
+          'task.dueDate >= :specificDate AND task.dueDate < :nextDay',
+          { specificDate, nextDay },
+        );
+      }
+    }
+
+    if (recurring !== undefined) {
+      query.andWhere('task.isRecurring = :recurring', { recurring });
+    }
+
+    return query.getCount();
   }
 }

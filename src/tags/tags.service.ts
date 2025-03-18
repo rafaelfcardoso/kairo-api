@@ -59,4 +59,24 @@ export class TagsService {
     const tag = await this.getTagById(id);
     return this.tagsRepository.updateTag(id, { isGoal: !tag.isGoal });
   }
+
+  /**
+   * Count tags based on filter criteria
+   * @param filters Object with filter criteria
+   * @returns Number of tags matching the filters
+   */
+  async countTags(filters: Record<string, any>): Promise<number> {
+    const query = this.tagsRepository.createQueryBuilder('tag');
+
+    // Apply filters if provided
+    if (filters.name) {
+      query.andWhere('tag.name LIKE :name', { name: `%${filters.name}%` });
+    }
+
+    if (filters.color) {
+      query.andWhere('tag.color = :color', { color: filters.color });
+    }
+
+    return query.getCount();
+  }
 }

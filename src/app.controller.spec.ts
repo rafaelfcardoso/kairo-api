@@ -53,8 +53,12 @@ describe('AppController', () => {
       expect(healthCheck).toHaveProperty('environment', 'test');
       expect(healthCheck).toHaveProperty('version');
       expect(healthCheck).toHaveProperty('uptime');
-      expect(healthCheck).toHaveProperty('memoryUsage');
+      // This property is no longer included in the legacy health endpoint
+      // expect(healthCheck).toHaveProperty('memoryUsage');
       expect(healthCheck).toHaveProperty('database.status', 'connected');
+      // Check for enhancedEndpoints property which should include the detailed health endpoints
+      expect(healthCheck).toHaveProperty('enhancedEndpoints');
+      expect(healthCheck.enhancedEndpoints).toHaveProperty('memory');
     });
   });
 });

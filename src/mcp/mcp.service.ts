@@ -36,6 +36,18 @@ import {
   TaskAnalysisResponse,
 } from '../common/services/ai.service';
 
+// Interface for resource retrieval response including related resources
+interface ResourceRetrievalResult {
+  resource: ResourceInstance;
+  included?: ResourceInstance[];
+}
+
+// Interface for collection retrieval results
+interface ResourceCollectionResult {
+  resources: ResourceInstance[];
+  included?: ResourceInstance[];
+}
+
 @Injectable()
 export class McpService {
   constructor(
@@ -49,7 +61,7 @@ export class McpService {
   /**
    * Get resource schema for the specified resource type
    */
-  getResourceSchema(resourceType: string): Resource {
+  async getResourceSchema(resourceType: string): Promise<Resource> {
     switch (resourceType.toLowerCase()) {
       case 'task':
         return this.getTaskResourceSchema();
@@ -63,60 +75,126 @@ export class McpService {
   }
 
   /**
-   * Get resources of the specified type with filtering
+   * Get resources of the specified type with filtering, pagination, etc.
    */
   async getResources(
     resourceType: string,
     params: ResourceQueryParams,
-  ): Promise<ResourceInstance[]> {
+  ): Promise<ResourceCollectionResult> {
+    const resources = await this._getResourcesInternal(resourceType, params);
+    const included: ResourceInstance[] = [];
+
+    // Handle includes if requested
+    if (params.include && params.include.length > 0) {
+      for (const resource of resources) {
+        const relatedResources = await this._getRelatedResources(
+          resourceType,
+          resource,
+          params.include,
+        );
+        included.push(...relatedResources);
+      }
+    }
+
+    return { resources, included };
+  }
+
+  /**
+   * Count resources of a specific type with optional filters
+   */
+  async getResourceCount(
+    resourceType: string,
+    filters: Record<string, any>,
+  ): Promise<number> {
     switch (resourceType.toLowerCase()) {
       case 'task':
-        return this.getTaskResources(params);
+        return this.tasksService.countTasks(filters);
       case 'tag':
-        return this.getTagResources(params);
+        return this.tagsService.countTags(filters);
       case 'project':
-        return this.getProjectResources(params);
+        return this.projectsService.countProjects(filters);
       default:
-        throw new Error(`Unknown resource type: ${resourceType}`);
+        throw new BadRequestException(`Unknown resource type: ${resourceType}`);
     }
   }
 
   /**
-   * Get a specific resource by ID
+   * Get a single resource by type and ID with optional includes
    */
   async getResource(
     resourceType: string,
     id: string,
-  ): Promise<ResourceInstance> {
-    switch (resourceType.toLowerCase()) {
-      case 'task':
-        return this.getTaskResource(id);
-      case 'tag':
-        return this.getTagResource(id);
-      case 'project':
-        return this.getProjectResource(id);
-      default:
-        throw new Error(`Unknown resource type: ${resourceType}`);
+    include: string[] = [],
+  ): Promise<ResourceRetrievalResult> {
+    const resource = await this._getResourceById(resourceType, id);
+
+    // Handle includes if requested
+    let included: ResourceInstance[] = [];
+    if (include && include.length > 0) {
+      included = await this._getRelatedResources(
+        resourceType,
+        resource,
+        include,
+      );
     }
+
+    return { resource, included };
   }
 
   /**
-   * Create a new resource
+   * Create a new resource of the specified type
    */
   async createResource(
     resourceType: string,
     data: any,
-  ): Promise<ResourceInstance> {
-    switch (resourceType.toLowerCase()) {
-      case 'task':
-        return this.createTaskResource(data);
-      case 'tag':
-        return this.createTagResource(data);
-      case 'project':
-        return this.createProjectResource(data);
-      default:
-        throw new Error(`Unknown resource type: ${resourceType}`);
+  ): Promise<ResourceRetrievalResult> {
+    const resource = await this._createResourceInternal(resourceType, data);
+
+    // Get relationships that were created
+    const included: ResourceInstance[] = [];
+
+    // For tasks, include project and tags if present
+    if (resourceType.toLowerCase() === 'task') {
+      if (resource.relationships?.project?.data) {
+        const projectData = resource.relationships.project.data;
+        if (projectData && 'id' in projectData && projectData.id) {
+          try {
+            const project = await this._getResourceById(
+              'project',
+              projectData.id,
+            );
+            included.push(project);
+          } catch (error) {
+            // Ignore if not found
+          }
+        }
+      }
+
+      if (resource.relationships?.tags?.data) {
+        const tagsData = resource.relationships.tags.data;
+        if (Array.isArray(tagsData) && tagsData.length > 0) {
+          for (const tagRef of tagsData) {
+            if (tagRef && 'id' in tagRef) {
+              try {
+                const tag = await this._getResourceById('tag', tagRef.id);
+                included.push(tag);
+              } catch (error) {
+                // Ignore if not found
+              }
+            }
+          }
+        }
+      }
     }
+
+    return { resource, included };
+  }
+
+  /**
+   * Get available tools/actions for the MCP
+   */
+  async getAvailableTools(): Promise<Action[]> {
+    return this._getAvailableActions();
   }
 
   /**
@@ -931,5 +1009,111 @@ export class McpService {
         `Failed to create project: ${error.message}`,
       );
     }
+  }
+
+  // Implementation for getting related resources
+  private async _getRelatedResources(
+    resourceType: string,
+    resource: ResourceInstance,
+    relations: string[],
+  ): Promise<ResourceInstance[]> {
+    const included: ResourceInstance[] = [];
+
+    for (const relation of relations) {
+      // Skip if the resource doesn't have this relationship
+      if (!resource.relationships?.[relation]?.data) {
+        continue;
+      }
+
+      const relData = resource.relationships[relation].data;
+
+      // Handle to-one relationships
+      if (!Array.isArray(relData) && relData?.id && relData?.type) {
+        try {
+          const relatedResource = await this._getResourceById(
+            relData.type,
+            relData.id,
+          );
+          included.push(relatedResource);
+        } catch (error) {
+          // Ignore errors for related resources that can't be found
+        }
+      }
+
+      // Handle to-many relationships
+      else if (Array.isArray(relData)) {
+        for (const item of relData) {
+          if (item?.id && item?.type) {
+            try {
+              const relatedResource = await this._getResourceById(
+                item.type,
+                item.id,
+              );
+              included.push(relatedResource);
+            } catch (error) {
+              // Ignore errors for related resources that can't be found
+            }
+          }
+        }
+      }
+    }
+
+    return included;
+  }
+
+  // Helper to get a resource by ID
+  private async _getResourceById(
+    resourceType: string,
+    id: string,
+  ): Promise<ResourceInstance> {
+    switch (resourceType.toLowerCase()) {
+      case 'task':
+        return this.getTaskResource(id);
+      case 'tag':
+        return this.getTagResource(id);
+      case 'project':
+        return this.getProjectResource(id);
+      default:
+        throw new Error(`Unknown resource type: ${resourceType}`);
+    }
+  }
+
+  // Helper for getting resources with filters
+  private async _getResourcesInternal(
+    resourceType: string,
+    params: ResourceQueryParams,
+  ): Promise<ResourceInstance[]> {
+    switch (resourceType.toLowerCase()) {
+      case 'task':
+        return this.getTaskResources(params);
+      case 'tag':
+        return this.getTagResources(params);
+      case 'project':
+        return this.getProjectResources(params);
+      default:
+        throw new Error(`Unknown resource type: ${resourceType}`);
+    }
+  }
+
+  // Helper for creating resources
+  private async _createResourceInternal(
+    resourceType: string,
+    data: any,
+  ): Promise<ResourceInstance> {
+    switch (resourceType.toLowerCase()) {
+      case 'task':
+        return this.createTaskResource(data);
+      case 'tag':
+        return this.createTagResource(data);
+      case 'project':
+        return this.createProjectResource(data);
+      default:
+        throw new Error(`Unknown resource type: ${resourceType}`);
+    }
+  }
+
+  // Helper for getting available actions
+  private _getAvailableActions(): Action[] {
+    return [this.getCreateTaskFromNLPActionDefinition()];
   }
 }
