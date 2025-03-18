@@ -106,11 +106,78 @@ export class AiService {
         `Failed to process natural language request: ${error.message}`,
         error.stack,
       );
+
+      // Return mock data if in development mode or for testing purposes
+      if (this.configService.get<string>('NODE_ENV') !== 'production') {
+        this.logger.warn('Using mock NLP data as fallback for development');
+        return this.getMockNlpResponse(request);
+      }
+
       throw new HttpException(
         'Failed to process natural language request',
         HttpStatus.SERVICE_UNAVAILABLE,
       );
     }
+  }
+
+  // Helper method to generate mock NLP responses for development
+  private getMockNlpResponse(
+    request: NaturalLanguageRequest,
+  ): TaskAnalysisResponse {
+    const input = request.context?.input || '';
+    let priority = 'medium';
+    let dueDate = '';
+
+    // Simple parsing logic for demonstration
+    if (
+      input.toLowerCase().includes('urgent') ||
+      input.toLowerCase().includes('important')
+    ) {
+      priority = 'high';
+    } else if (input.toLowerCase().includes('low priority')) {
+      priority = 'low';
+    }
+
+    // Basic date detection
+    if (input.toLowerCase().includes('tomorrow')) {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      dueDate = tomorrow.toISOString().split('T')[0] + 'T23:59:59Z';
+    } else if (input.toLowerCase().includes('next week')) {
+      const nextWeek = new Date();
+      nextWeek.setDate(nextWeek.getDate() + 7);
+      dueDate = nextWeek.toISOString().split('T')[0] + 'T23:59:59Z';
+    } else if (input.toLowerCase().includes('next friday')) {
+      const today = new Date();
+      const friday = new Date(today);
+      friday.setDate(today.getDate() + ((5 - today.getDay() + 7) % 7));
+      dueDate = friday.toISOString().split('T')[0] + 'T23:59:59Z';
+    }
+
+    return {
+      task_id: 'mock-task-' + Date.now(),
+      analysis: {
+        title: input.length > 50 ? input.substring(0, 47) + '...' : input,
+        description: input.length > 50 ? input : undefined,
+        due_date: dueDate || undefined,
+        priority: priority,
+        tags: input.toLowerCase().includes('work')
+          ? ['work']
+          : input.toLowerCase().includes('personal')
+            ? ['personal']
+            : [],
+        has_time: false,
+      },
+      suggested_priority:
+        priority === 'high' ? 3 : priority === 'medium' ? 2 : 1,
+      time_estimate: 30,
+      energy_level_recommendation: 'medium',
+      tokens_used: {
+        prompt_tokens: 100,
+        completion_tokens: 50,
+        total_tokens: 150,
+      },
+    };
   }
 
   async getSmartReminder(

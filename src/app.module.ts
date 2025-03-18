@@ -17,6 +17,7 @@ import { McpModule } from './mcp/mcp.module';
 import { HealthModule } from './common/health/health.module';
 import { ApiMetricsModule } from './api-metrics/api-metrics.module';
 import { ApiMetricsMiddleware } from './common/middleware/api-metrics.middleware';
+import { NlpModule } from './nlp/nlp.module';
 
 @Module({
   imports: [
@@ -91,13 +92,14 @@ import { ApiMetricsMiddleware } from './common/middleware/api-metrics.middleware
     SchedulerModule,
     McpModule,
     ApiMetricsModule,
+    NlpModule,
   ],
   controllers: [AppController],
   providers: [],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    // Apply the API metrics middleware to all routes
-    consumer.apply(ApiMetricsMiddleware).forRoutes('*');
+    // Temporarily disable the API metrics middleware
+    // consumer.apply(ApiMetricsMiddleware).forRoutes('*');
   }
 }

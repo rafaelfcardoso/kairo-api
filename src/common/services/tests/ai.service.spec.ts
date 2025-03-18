@@ -113,6 +113,17 @@ describe('AiService', () => {
         command: 'Create a task to review project proposal by next Friday',
       };
 
+      // Mock the production environment to prevent fallback to mock data
+      jest.spyOn(configService, 'get').mockImplementation((key) => {
+        if (key === 'NODE_ENV') {
+          return 'production';
+        }
+        if (key === 'AI_SERVICE_URL') {
+          return 'https://test-ai-service.example.com';
+        }
+        return undefined;
+      });
+
       jest
         .spyOn(httpService, 'post')
         .mockReturnValue(throwError(() => new Error('Service unavailable')));
