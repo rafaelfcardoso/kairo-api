@@ -14,6 +14,7 @@ import {
   ValidationPipe,
   UseGuards,
   Req,
+  BadRequestException,
 } from '@nestjs/common';
 import { TaskService } from './tasks.service';
 import { CreateTaskDto, UpdateTaskDto, TaskFilterDto } from './tasks.dto';
@@ -39,6 +40,10 @@ import { IsNotEmpty, IsString, IsOptional } from 'class-validator';
 import { Logger } from '@nestjs/common';
 import { format, parseISO, isAfter } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
+import {
+  CompleteOverdueTasksDto,
+  CompleteOverdueTasksResponseDto,
+} from './dto/complete-overdue-tasks.dto';
 
 /**
  * DTO for natural language task creation
@@ -499,5 +504,30 @@ export class TaskController {
     const filterDto = new TaskFilterDto();
     filterDto.recurring = true;
     return this.taskService.getTasks(filterDto);
+  }
+
+  @Post('batch/complete-overdue')
+  @ApiOperation({
+    summary: 'Complete all overdue tasks with not_started status',
+    description:
+      'Batch operation to mark all overdue tasks with not_started status as completed',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Successfully completed overdue tasks',
+    type: CompleteOverdueTasksResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid input',
+  })
+  async completeOverdueTasks(
+    @Body(new ValidationPipe()) options: CompleteOverdueTasksDto,
+    @Req() req: any,
+  ): Promise<CompleteOverdueTasksResponseDto> {
+    // Extract user ID from the request
+    const userId = req.user?.id || 'development-user-id';
+
+    return this.taskService.completeOverdueTasks(userId, options);
   }
 }

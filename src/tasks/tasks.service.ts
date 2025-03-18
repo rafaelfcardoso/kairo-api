@@ -14,6 +14,11 @@ import { CreateTaskDto, UpdateTaskDto, TaskFilterDto } from './tasks.dto';
 import { SecurityLoggerService } from '../common/services/security-logger.service';
 import { RecurringTaskService } from './recurring-task.service';
 import { TaskDomainService } from './tasks.domain.service';
+import { LessThan, In } from 'typeorm';
+import {
+  CompleteOverdueTasksDto,
+  CompleteOverdueTasksResponseDto,
+} from './dto/complete-overdue-tasks.dto';
 
 @Injectable()
 export class TaskService {
@@ -489,5 +494,58 @@ export class TaskService {
     }
 
     return this.tasksRepository.countTasks(filterDto);
+  }
+
+  /**
+   * Complete all overdue tasks with 'not_started' status
+   */
+  async completeOverdueTasks(
+    userId: string,
+    options: CompleteOverdueTasksDto,
+  ): Promise<CompleteOverdueTasksResponseDto> {
+    // Set up where conditions to find overdue tasks
+    const whereConditions: any = {
+      status: TaskStatus.NOT_STARTED,
+      dueDate: LessThan(new Date()),
+      isArchived: false,
+      ...options.additionalFilters,
+    };
+
+    // If we shouldn't include blocked tasks, add that to the conditions
+    if (!options.includeBlockedTasks) {
+      whereConditions.status = TaskStatus.NOT_STARTED;
+    } else {
+      // If we should include blocked tasks, we need to use In operator
+      whereConditions.status = In([TaskStatus.NOT_STARTED, TaskStatus.BLOCKED]);
+    }
+
+    // Get all matching overdue tasks
+    const overdueTasks = await this.tasksRepository.find({
+      where: whereConditions,
+    });
+
+    if (overdueTasks.length === 0) {
+      return {
+        success: true,
+        tasksCompleted: 0,
+        message: 'No overdue tasks found to complete.',
+      };
+    }
+
+    // Update all tasks to completed status
+    const taskUpdates = overdueTasks.map((task) => ({
+      ...task,
+      status: TaskStatus.COMPLETED,
+      completedAt: new Date(),
+    }));
+
+    await this.tasksRepository.save(taskUpdates);
+
+    return {
+      success: true,
+      tasksCompleted: overdueTasks.length,
+      message: `Successfully completed ${overdueTasks.length} overdue tasks.`,
+      completedTaskIds: overdueTasks.map((task) => task.id),
+    };
   }
 }
