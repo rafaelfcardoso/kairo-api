@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DataSource, QueryRunner } from 'typeorm';
 import { HealthIndicatorResult } from '@nestjs/terminus';
@@ -8,7 +8,7 @@ import { lastValueFrom } from 'rxjs';
 import { SystemHealth } from '../../entities/system-health.entity';
 
 @Injectable()
-export class HealthService {
+export class HealthService implements OnModuleDestroy {
   private readonly logger = new Logger(HealthService.name);
   private readonly startTime = Date.now();
   private readonly processId = process.pid;
@@ -18,16 +18,52 @@ export class HealthService {
   private successfulRecoveries = 0;
   private lastRecoveryAttempt: Date | null = null;
 
+  // Store interval references for cleanup
+  private healthCheckInterval: NodeJS.Timeout;
+  private metricsLogInterval: NodeJS.Timeout;
+
   constructor(
     private configService: ConfigService,
     private dataSource: DataSource,
     private httpService: HttpService,
   ) {
     // Set up periodic health checks
-    setInterval(() => this.runPeriodicHealthCheck(), 60000); // Check every minute
+    this.healthCheckInterval = setInterval(
+      () => this.runPeriodicHealthCheck(),
+      60000,
+    ); // Check every minute
 
     // Set up periodic health metric logging (every 15 minutes)
-    setInterval(() => this.logHealthMetrics(), 15 * 60 * 1000);
+    this.metricsLogInterval = setInterval(
+      () => this.logHealthMetrics(),
+      15 * 60 * 1000,
+    );
+
+    // Make sure intervals don't prevent the Node process from exiting
+    this.healthCheckInterval.unref();
+    this.metricsLogInterval.unref();
+  }
+
+  /**
+   * Clean up resources when the module is destroyed
+   */
+  onModuleDestroy() {
+    this.shutdown();
+  }
+
+  /**
+   * Properly shut down the service by clearing all timers
+   */
+  shutdown() {
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+    }
+
+    if (this.metricsLogInterval) {
+      clearInterval(this.metricsLogInterval);
+    }
+
+    this.logger.log('Health service timers stopped');
   }
 
   /**

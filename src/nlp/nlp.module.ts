@@ -7,6 +7,9 @@ import { TasksModule } from '../tasks/tasks.module';
 import { ProjectsModule } from '../projects/projects.module';
 import { TagsModule } from '../tags/tags.module';
 import { NlpFeedback } from './entities/nlp-feedback.entity';
+import { NlpModelPerformance } from './entities/model-performance.entity';
+import { AbTestingService } from './services/ab-testing.service';
+import { AbTestingController } from './controllers/ab-testing.controller';
 
 /**
  * Module for natural language processing capabilities
@@ -14,14 +17,14 @@ import { NlpFeedback } from './entities/nlp-feedback.entity';
  */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([NlpFeedback]),
+    TypeOrmModule.forFeature([NlpFeedback, NlpModelPerformance]),
     AiModule,
     TasksModule,
     ProjectsModule,
     TagsModule,
   ],
-  controllers: [NlpController],
-  providers: [NlpService],
-  exports: [NlpService],
+  controllers: [NlpController, AbTestingController],
+  providers: [NlpService, AbTestingService],
+  exports: [NlpService, AbTestingService],
 })
 export class NlpModule {}

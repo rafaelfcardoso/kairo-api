@@ -7,12 +7,14 @@ import { AiService } from '../common/services/ai.service';
 import { TaskService } from '../tasks/tasks.service';
 import { ProjectsService } from '../projects/projects.service';
 import { TagsService } from '../tags/tags.service';
+import { AbTestingService } from './services/ab-testing.service';
 
 describe('NlpService', () => {
   let service: NlpService;
   let aiService: AiService;
   let taskService: TaskService;
   let feedbackRepository: Repository<NlpFeedback>;
+  let abTestingService: AbTestingService;
 
   const mockAiService = {
     processNaturalLanguage: jest.fn(),
@@ -37,6 +39,17 @@ describe('NlpService', () => {
     delete: jest.fn(),
   };
 
+  const mockAbTestingService = {
+    selectModel: jest.fn().mockReturnValue({
+      modelId: 'test-model',
+      modelVersion: '1.0.0',
+      description: 'Test Model',
+      trafficPercentage: 100,
+      isActive: true,
+    }),
+    recordModelPerformance: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -58,6 +71,10 @@ describe('NlpService', () => {
           useValue: mockTagsService,
         },
         {
+          provide: AbTestingService,
+          useValue: mockAbTestingService,
+        },
+        {
           provide: getRepositoryToken(NlpFeedback),
           useValue: mockFeedbackRepository,
         },
@@ -70,6 +87,7 @@ describe('NlpService', () => {
     feedbackRepository = module.get<Repository<NlpFeedback>>(
       getRepositoryToken(NlpFeedback),
     );
+    abTestingService = module.get<AbTestingService>(AbTestingService);
   });
 
   afterEach(() => {
@@ -133,7 +151,7 @@ describe('NlpService', () => {
           estimated_duration_minutes: 120,
         },
         meta: {
-          model_version: '1.0.0',
+          model_version: 'test-model-1.0.0',
           tokens_used: 60,
         },
       });
@@ -192,9 +210,12 @@ describe('NlpService', () => {
       expect(result).toHaveProperty('request_id');
       expect(result).toHaveProperty('entities');
       expect(result).toHaveProperty('meta');
-      expect(result.meta).toHaveProperty('model_version', '1.0.0');
+      expect(result.meta).toHaveProperty('model_version', 'test-model-1.0.0');
       expect(result.meta).toHaveProperty('tokens_used', 50);
-      expect(result.meta).toHaveProperty('processing_time_ms');
+      expect(result.meta).toHaveProperty(
+        'processing_time_ms',
+        expect.any(Number),
+      );
     });
   });
 
@@ -260,17 +281,20 @@ describe('NlpService', () => {
             expect.objectContaining({
               id: 'task-1',
               title: 'Complete API docs',
+              score: 1,
             }),
             expect.objectContaining({
               id: 'task-2',
               title: 'Review pull requests',
+              score: 0.9,
             }),
           ]),
           meta: {
-            processing_time_ms: expect.any(Number),
-            model_version: '1.0.0',
+            model_version: 'default-1.0.0',
             tokens_used: 40,
+            processing_time_ms: expect.any(Number),
           },
+          clarification_needed: false,
         }),
       );
     });

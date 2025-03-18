@@ -99,7 +99,7 @@ import { NlpModule } from './nlp/nlp.module';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    // Temporarily disable the API metrics middleware
-    // consumer.apply(ApiMetricsMiddleware).forRoutes('*');
+    // Enable the API metrics middleware to track request metrics
+    consumer.apply(ApiMetricsMiddleware).forRoutes('*');
   }
 }

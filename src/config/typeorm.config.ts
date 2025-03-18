@@ -9,6 +9,7 @@ import { BlockRule } from '../entities/block-rule.entity';
 import { SystemHealth } from '../entities/system-health.entity';
 import { ApiRequestLog, ApiMetrics } from '../entities/api-metrics.entity';
 import { NlpFeedback } from '../nlp/entities/nlp-feedback.entity';
+import { NlpModelPerformance } from '../nlp/entities/model-performance.entity';
 import { InitialSchema1705759726000 } from '../migrations/1705759726000-InitialSchema';
 import { FixProjectColors1738362321118 } from '../migrations/1738362321118-FixProjectColors';
 import { EnsureInboxProject1738362321119 } from '../migrations/1738362321119-EnsureInboxProject';
@@ -35,6 +36,7 @@ import { AddIsGoalToTagTable1741607800000 } from '../migrations/1741607800000-Ad
 import { CreateSystemHealthTable1741800000000 } from '../migrations/1741800000000-CreateSystemHealthTable';
 import { CreateApiMetricsTable1741900000000 } from '../migrations/1741900000000-CreateApiMetricsTable';
 import { CreateNlpFeedbackTable1741912345000 } from '../migrations/1741912345000-CreateNlpFeedbackTable';
+import { CreateNlpModelPerformanceTable1742000000000 } from '../migrations/1742000000000-CreateNlpModelPerformanceTable';
 import { DATABASE_CONFIG } from './constants';
 
 // Define interface for database configuration
@@ -78,6 +80,7 @@ const migrations = [
   CreateSystemHealthTable1741800000000,
   CreateApiMetricsTable1741900000000,
   CreateNlpFeedbackTable1741912345000,
+  CreateNlpModelPerformanceTable1742000000000,
 ];
 
 // Define all entities in one place for better maintenance
@@ -91,6 +94,7 @@ const entities = [
   ApiRequestLog,
   ApiMetrics,
   NlpFeedback,
+  NlpModelPerformance,
 ];
 
 interface DatabaseLogConfig {

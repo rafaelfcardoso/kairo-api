@@ -13,6 +13,8 @@ import { ProjectsService } from '../projects/projects.service';
 import { TagsService } from '../tags/tags.service';
 import { NlpFeedback, FeedbackType } from './entities/nlp-feedback.entity';
 import { TaskStatus } from '../tasks/tasks.entity';
+import { AbTestingService } from './services/ab-testing.service';
+import { NlpModelPerformance } from './entities/model-performance.entity';
 
 import {
   ParseTaskRequestDto,
@@ -35,6 +37,7 @@ export class NlpService {
     private readonly tasksService: TaskService,
     private readonly projectsService: ProjectsService,
     private readonly tagsService: TagsService,
+    private readonly abTestingService: AbTestingService,
     @InjectRepository(NlpFeedback)
     private readonly nlpFeedbackRepository: Repository<NlpFeedback>,
   ) {}
@@ -47,6 +50,17 @@ export class NlpService {
   ): Promise<TaskParsingResponseDto> {
     const startTime = Date.now();
 
+    // Select model for A/B testing
+    const selectedModel = this.abTestingService.selectModel(request.userId);
+    const modelId = selectedModel.modelId;
+    const modelVersion = selectedModel.modelVersion;
+
+    // Apply any model-specific parameters
+    const confidenceThreshold =
+      selectedModel.parameters?.confidenceThreshold ||
+      request.confidenceThreshold ||
+      0.6;
+
     try {
       // Process with AI service
       const nlRequest: NaturalLanguageRequest = {
@@ -56,11 +70,16 @@ export class NlpService {
           userId: request.userId,
           parseRecurrence: request.parseRecurrence,
           defaultProjectId: request.defaultProjectId,
+          confidenceThreshold,
+          modelId,
+          modelVersion,
           ...request.context,
         },
       };
 
-      this.logger.debug(`Processing NLP request for text: "${request.text}"`);
+      this.logger.debug(
+        `Processing NLP request for text: "${request.text}" with model ${modelId} v${modelVersion}`,
+      );
       const result = await this.aiService.processNaturalLanguage(nlRequest);
       this.logger.debug('NLP processing complete, result received');
 
@@ -74,6 +93,66 @@ export class NlpService {
       const processingTimeMs = Date.now() - startTime;
       const requestId = uuidv4();
 
+      // Calculate average confidence
+      let avgConfidence = 0.8; // Default fallback
+      let entityCount = 0;
+
+      // Calculate confidence from projects
+      if (extractedEntities.projects && extractedEntities.projects.length > 0) {
+        avgConfidence += extractedEntities.projects.reduce(
+          (sum, p) => sum + p.confidence,
+          0,
+        );
+        entityCount += extractedEntities.projects.length;
+      }
+
+      // Calculate confidence from tags
+      if (extractedEntities.tags && extractedEntities.tags.length > 0) {
+        avgConfidence += extractedEntities.tags.reduce(
+          (sum, t) => sum + t.confidence,
+          0,
+        );
+        entityCount += extractedEntities.tags.length;
+      }
+
+      // Calculate confidence from dates
+      if (extractedEntities.dates && extractedEntities.dates.length > 0) {
+        avgConfidence += extractedEntities.dates.reduce(
+          (sum, d) => sum + d.confidence,
+          0,
+        );
+        entityCount += extractedEntities.dates.length;
+      }
+
+      // Calculate average if we have entities
+      if (entityCount > 0) {
+        avgConfidence = avgConfidence / (entityCount + 1); // +1 for the initial 0.8 value
+      }
+
+      // Record model performance for analytics
+      await this.abTestingService.recordModelPerformance({
+        modelId,
+        modelVersion,
+        operationType: 'task_parsing',
+        requestId,
+        userId: request.userId,
+        confidenceScore: avgConfidence,
+        processingTimeMs,
+        tokenCount: result.tokens_used?.total_tokens || 0,
+        requiredClarification: avgConfidence < confidenceThreshold,
+      });
+
+      // Generate alternatives if confidence is low
+      const alternatives =
+        result.analysis.warning || avgConfidence < confidenceThreshold
+          ? [
+              {
+                title: result.analysis.title || request.text,
+                confidence: avgConfidence,
+              },
+            ]
+          : [];
+
       return {
         request_id: requestId,
         parsed_task: {
@@ -84,17 +163,12 @@ export class NlpService {
           estimated_duration_minutes: result.time_estimate || 30,
         },
         extracted_entities: extractedEntities,
-        alternatives: result.analysis.warning
-          ? [
-              {
-                title: result.analysis.title || request.text,
-                confidence: 0.7,
-              },
-            ]
-          : [],
+        alternatives,
         meta: this.createMetadata(
           processingTimeMs,
           result.tokens_used?.total_tokens || 0,
+          modelId,
+          modelVersion,
         ),
       };
     } catch (error) {
@@ -103,6 +177,20 @@ export class NlpService {
       // Create a fallback response with basic parsing
       const processingTimeMs = Date.now() - startTime;
       const requestId = uuidv4();
+
+      // Record error in performance metrics
+      await this.abTestingService.recordModelPerformance({
+        modelId,
+        modelVersion,
+        operationType: 'task_parsing',
+        requestId,
+        userId: request.userId,
+        confidenceScore: 0,
+        processingTimeMs,
+        tokenCount: 0,
+        requiredClarification: true,
+        performanceMetrics: { error: error.message },
+      });
 
       return {
         request_id: requestId,
@@ -118,7 +206,7 @@ export class NlpService {
           dates: [],
         },
         alternatives: [],
-        meta: this.createMetadata(processingTimeMs, 0),
+        meta: this.createMetadata(processingTimeMs, 0, modelId, modelVersion),
       };
     }
   }
@@ -131,6 +219,17 @@ export class NlpService {
   ): Promise<EntityExtractionResponseDto> {
     const startTime = Date.now();
 
+    // Select model for A/B testing
+    const selectedModel = this.abTestingService.selectModel(request.userId);
+    const modelId = selectedModel.modelId;
+    const modelVersion = selectedModel.modelVersion;
+
+    // Apply any model-specific parameters
+    const confidenceThreshold =
+      selectedModel.parameters?.confidenceThreshold ||
+      request.confidenceThreshold ||
+      0.6;
+
     try {
       // Process with AI service
       const nlRequest: NaturalLanguageRequest = {
@@ -139,6 +238,9 @@ export class NlpService {
           input: request.text,
           userId: request.userId,
           entityTypes: request.entityTypes,
+          confidenceThreshold,
+          modelId,
+          modelVersion,
           ...request.context,
         },
       };
@@ -155,12 +257,46 @@ export class NlpService {
       const processingTimeMs = Date.now() - startTime;
       const requestId = uuidv4();
 
+      // Calculate average confidence for metrics
+      let avgConfidence = 0;
+      let entityCount = 0;
+
+      // Calculate confidence from all entity types
+      Object.keys(extractedEntities).forEach((entityType) => {
+        const entities = extractedEntities[entityType];
+        if (Array.isArray(entities) && entities.length > 0) {
+          entities.forEach((entity) => {
+            if (typeof entity.confidence === 'number') {
+              avgConfidence += entity.confidence;
+              entityCount++;
+            }
+          });
+        }
+      });
+
+      // Calculate average if we have entities
+      avgConfidence = entityCount > 0 ? avgConfidence / entityCount : 0.7;
+
+      // Record model performance for analytics
+      await this.abTestingService.recordModelPerformance({
+        modelId,
+        modelVersion,
+        operationType: 'entity_extraction',
+        requestId,
+        userId: request.userId,
+        confidenceScore: avgConfidence,
+        processingTimeMs,
+        tokenCount: result.tokens_used?.total_tokens || 0,
+      });
+
       return {
         request_id: requestId,
         entities: extractedEntities,
         meta: this.createMetadata(
           processingTimeMs,
           result.tokens_used?.total_tokens || 0,
+          modelId,
+          modelVersion,
         ),
       };
     } catch (error) {
@@ -376,10 +512,12 @@ export class NlpService {
   private createMetadata(
     processingTimeMs: number,
     tokensUsed: number,
+    modelId = 'default',
+    modelVersion = '1.0.0',
   ): NlpMetaDto {
     return {
       processing_time_ms: processingTimeMs,
-      model_version: this.MODEL_VERSION,
+      model_version: `${modelId}-${modelVersion}`,
       tokens_used: tokensUsed,
     };
   }

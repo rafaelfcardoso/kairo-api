@@ -14,7 +14,7 @@ async function bootstrap() {
 
   // Set global prefix for API versioning
   app.setGlobalPrefix('api/v1', {
-    exclude: ['/health', '/api'], // Exclude health check and Swagger endpoints
+    exclude: ['/health', '/system-health', '/api'], // Exclude health check and Swagger endpoints
   });
 
   // Get ConfigService
@@ -171,16 +171,20 @@ async function bootstrap() {
       - Rate Limiting
       - Security Headers
       - Input Sanitization
+      - Health Monitoring
 
       ## Base URLs
       - Application Root: ${apiUrl}
       - API Base: ${apiUrl}/api/v1
       - API Documentation: ${apiUrl}/api
-      - Health Check: ${apiUrl}/health
+      - Health Checks: 
+        - ${apiUrl}/health (Basic health)
+        - ${apiUrl}/system-health (Detailed system health)
 
       ## API Versioning
       All API endpoints are prefixed with /api/v1 except:
-      - /health (Health check endpoint)
+      - /health (Basic health check endpoint)
+      - /system-health (Detailed system health endpoint)
       - /api (This documentation)
     `,
     )

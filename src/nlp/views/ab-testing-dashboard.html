@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NLP A/B Testing Dashboard</title>
+    <style>
+      body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0;
+        padding: 20px;
+        background-color: #f7f9fc;
+        color: #333;
+      }
+      h1,
+      h2 {
+        color: #2c3e50;
+      }
+      .dashboard {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        margin-top: 20px;
+      }
+      .card {
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        padding: 20px;
+        flex: 1 1 300px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+      }
+      th,
+      td {
+        padding: 12px 15px;
+        text-align: left;
+        border-bottom: 1px solid #e1e1e1;
+      }
+      th {
+        background-color: #f2f2f2;
+        font-weight: bold;
+      }
+      tr:hover {
+        background-color: #f5f5f5;
+      }
+      .chart-container {
+        height: 250px;
+        margin-top: 20px;
+      }
+      .filters {
+        display: flex;
+        gap: 15px;
+        margin: 20px 0;
+      }
+      select,
+      button {
+        padding: 8px 12px;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+      }
+      button {
+        background-color: #3498db;
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #2980b9;
+      }
+      .metrics {
+        display: flex;
+        gap: 15px;
+        margin-top: 15px;
+      }
+      .metric {
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        flex: 1;
+        text-align: center;
+      }
+      .metric h3 {
+        margin: 0;
+        font-size: 16px;
+        color: #7f8c8d;
+      }
+      .metric p {
+        margin: 10px 0 0;
+        font-size: 24px;
+        font-weight: bold;
+        color: #2c3e50;
+      }
+      .winner {
+        border-left: 4px solid #27ae60;
+      }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body>
+    <h1>NLP A/B Testing Dashboard</h1>
+
+    <div class="filters">
+      <select id="timeRange">
+        <option value="7">Last 7 days</option>
+        <option value="14">Last 14 days</option>
+        <option value="30">Last 30 days</option>
+      </select>
+
+      <select id="operationType">
+        <option value="">All operations</option>
+        <option value="task_parsing">Task parsing</option>
+        <option value="entity_extraction">Entity extraction</option>
+        <option value="query_understanding">Query understanding</option>
+      </select>
+
+      <button id="refreshData">Refresh Data</button>
+    </div>
+
+    <div class="metrics">
+      <div class="metric">
+        <h3>Total Requests</h3>
+        <p id="totalRequests">-</p>
+      </div>
+      <div class="metric">
+        <h3>Avg. Confidence</h3>
+        <p id="avgConfidence">-</p>
+      </div>
+      <div class="metric">
+        <h3>Avg. Processing Time</h3>
+        <p id="avgProcessingTime">-</p>
+      </div>
+      <div class="metric">
+        <h3>User Satisfaction</h3>
+        <p id="userSatisfaction">-</p>
+      </div>
+    </div>
+
+    <div class="dashboard">
+      <div class="card">
+        <h2>Model Performance Comparison</h2>
+        <div class="chart-container">
+          <canvas id="confidenceChart"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Processing Time</h2>
+        <div class="chart-container">
+          <canvas id="processingTimeChart"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>User Feedback</h2>
+        <div class="chart-container">
+          <canvas id="userFeedbackChart"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Model Performance Details</h2>
+        <table id="performanceTable">
+          <thead>
+            <tr>
+              <th>Model</th>
+              <th>Requests</th>
+              <th>Avg. Confidence</th>
+              <th>Avg. Processing Time</th>
+              <th>Helpful Rate</th>
+              <th>Clarification Rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Data will be populated by JavaScript -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <script>
+      // Function to fetch data from the API
+      async function fetchModelPerformance() {
+        const timeRange = document.getElementById('timeRange').value;
+        const operationType = document.getElementById('operationType').value;
+
+        try {
+          let url = `/api/v1/nlp/ab-testing/metrics?days=${timeRange}`;
+          if (operationType) {
+            url += `&operationType=${operationType}`;
+          }
+
+          const response = await fetch(url);
+          const data = await response.json();
+
+          updateDashboard(data);
+        } catch (error) {
+          console.error('Error fetching data:', error);
+        }
+      }
+
+      // Function to update the dashboard with the fetched data
+      function updateDashboard(data) {
+        // Update summary metrics
+        let totalRequests = 0;
+        let totalConfidence = 0;
+        let totalProcessingTime = 0;
+        let totalHelpfulCount = 0;
+        let totalUnhelpfulCount = 0;
+
+        data.forEach((model) => {
+          totalRequests += parseInt(model.requestCount);
+          totalConfidence +=
+            parseFloat(model.avgConfidence) * parseInt(model.requestCount);
+          totalProcessingTime +=
+            parseFloat(model.avgProcessingTime) * parseInt(model.requestCount);
+          totalHelpfulCount += parseInt(model.helpfulCount);
+          totalUnhelpfulCount += parseInt(model.unhelpfulCount);
+        });
+
+        const avgConfidence =
+          totalRequests > 0 ? totalConfidence / totalRequests : 0;
+        const avgProcessingTime =
+          totalRequests > 0 ? totalProcessingTime / totalRequests : 0;
+        const userSatisfactionRate =
+          totalHelpfulCount + totalUnhelpfulCount > 0
+            ? (totalHelpfulCount / (totalHelpfulCount + totalUnhelpfulCount)) *
+              100
+            : 0;
+
+        document.getElementById('totalRequests').textContent = totalRequests;
+        document.getElementById('avgConfidence').textContent =
+          avgConfidence.toFixed(2);
+        document.getElementById('avgProcessingTime').textContent =
+          `${avgProcessingTime.toFixed(0)}ms`;
+        document.getElementById('userSatisfaction').textContent =
+          `${userSatisfactionRate.toFixed(1)}%`;
+
+        // Update table
+        const tableBody = document
+          .getElementById('performanceTable')
+          .getElementsByTagName('tbody')[0];
+        tableBody.innerHTML = '';
+
+        data.forEach((model) => {
+          const helpfulRate =
+            parseInt(model.helpfulCount) + parseInt(model.unhelpfulCount) > 0
+              ? (parseInt(model.helpfulCount) /
+                  (parseInt(model.helpfulCount) +
+                    parseInt(model.unhelpfulCount))) *
+                100
+              : 0;
+
+          const clarificationRate =
+            parseInt(model.requestCount) > 0
+              ? (parseInt(model.clarificationCount) /
+                  parseInt(model.requestCount)) *
+                100
+              : 0;
+
+          const row = tableBody.insertRow();
+          row.innerHTML = `
+                    <td>${model.modelId} (${model.modelVersion})</td>
+                    <td>${model.requestCount}</td>
+                    <td>${parseFloat(model.avgConfidence).toFixed(2)}</td>
+                    <td>${parseFloat(model.avgProcessingTime).toFixed(0)}ms</td>
+                    <td>${helpfulRate.toFixed(1)}%</td>
+                    <td>${clarificationRate.toFixed(1)}%</td>
+                `;
+        });
+
+        // Update charts
+        updateCharts(data);
+      }
+
+      // Function to update the charts with the fetched data
+      function updateCharts(data) {
+        // Prepare chart data
+        const modelLabels = data.map(
+          (model) => `${model.modelId} (${model.modelVersion})`,
+        );
+        const confidenceData = data.map((model) =>
+          parseFloat(model.avgConfidence),
+        );
+        const processingTimeData = data.map((model) =>
+          parseFloat(model.avgProcessingTime),
+        );
+
+        const userFeedbackData = data.map((model) => {
+          const total =
+            parseInt(model.helpfulCount) + parseInt(model.unhelpfulCount);
+          return total > 0 ? (parseInt(model.helpfulCount) / total) * 100 : 0;
+        });
+
+        // Confidence chart
+        const confidenceCtx = document
+          .getElementById('confidenceChart')
+          .getContext('2d');
+        new Chart(confidenceCtx, {
+          type: 'bar',
+          data: {
+            labels: modelLabels,
+            datasets: [
+              {
+                label: 'Average Confidence Score',
+                data: confidenceData,
+                backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1,
+              },
+            ],
+          },
+          options: {
+            scales: {
+              y: {
+                beginAtZero: true,
+                max: 1,
+              },
+            },
+          },
+        });
+
+        // Processing time chart
+        const processingTimeCtx = document
+          .getElementById('processingTimeChart')
+          .getContext('2d');
+        new Chart(processingTimeCtx, {
+          type: 'bar',
+          data: {
+            labels: modelLabels,
+            datasets: [
+              {
+                label: 'Average Processing Time (ms)',
+                data: processingTimeData,
+                backgroundColor: 'rgba(255, 159, 64, 0.6)',
+                borderColor: 'rgba(255, 159, 64, 1)',
+                borderWidth: 1,
+              },
+            ],
+          },
+          options: {
+            scales: {
+              y: {
+                beginAtZero: true,
+              },
+            },
+          },
+        });
+
+        // User feedback chart
+        const userFeedbackCtx = document
+          .getElementById('userFeedbackChart')
+          .getContext('2d');
+        new Chart(userFeedbackCtx, {
+          type: 'bar',
+          data: {
+            labels: modelLabels,
+            datasets: [
+              {
+                label: 'Helpful Rate (%)',
+                data: userFeedbackData,
+                backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 1,
+              },
+            ],
+          },
+          options: {
+            scales: {
+              y: {
+                beginAtZero: true,
+                max: 100,
+              },
+            },
+          },
+        });
+      }
+
+      // Event listeners
+      document
+        .getElementById('refreshData')
+        .addEventListener('click', fetchModelPerformance);
+      document
+        .getElementById('timeRange')
+        .addEventListener('change', fetchModelPerformance);
+      document
+        .getElementById('operationType')
+        .addEventListener('change', fetchModelPerformance);
+
+      // Initial data load
+      fetchModelPerformance();
+    </script>
+  </body>
+</html>

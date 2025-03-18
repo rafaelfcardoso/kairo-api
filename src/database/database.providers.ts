@@ -29,6 +29,7 @@ import { AddIsGoalToTagTable1741607800000 } from '../migrations/1741607800000-Ad
 import { CreateSystemHealthTable1741800000000 } from '../migrations/1741800000000-CreateSystemHealthTable';
 import { CreateApiMetricsTable1741900000000 } from '../migrations/1741900000000-CreateApiMetricsTable';
 import { CreateNlpFeedbackTable1741912345000 } from '../migrations/1741912345000-CreateNlpFeedbackTable';
+import { CreateNlpModelPerformanceTable1742000000000 } from '../migrations/1742000000000-CreateNlpModelPerformanceTable';
 
 // Import the actual entities
 import { Task } from '../tasks/tasks.entity';
@@ -39,6 +40,7 @@ import { BlockRule } from '../entities/block-rule.entity';
 import { SystemHealth } from '../entities/system-health.entity';
 import { ApiRequestLog, ApiMetrics } from '../entities/api-metrics.entity';
 import { NlpFeedback } from '../nlp/entities/nlp-feedback.entity';
+import { NlpModelPerformance } from '../nlp/entities/model-performance.entity';
 
 config();
 
@@ -64,6 +66,7 @@ export const databaseProviders = [
           ApiRequestLog,
           ApiMetrics,
           NlpFeedback,
+          NlpModelPerformance,
         ],
         migrations: [
           InitialSchema1705759726000,
@@ -92,6 +95,7 @@ export const databaseProviders = [
           CreateSystemHealthTable1741800000000,
           CreateApiMetricsTable1741900000000,
           CreateNlpFeedbackTable1741912345000,
+          CreateNlpModelPerformanceTable1742000000000,
         ],
         synchronize: false,
         logging: configService.get<string>('NODE_ENV') !== 'production',

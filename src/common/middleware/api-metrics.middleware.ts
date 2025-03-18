@@ -12,61 +12,53 @@ export class ApiMetricsMiddleware implements NestMiddleware {
   constructor(private apiMetricsService: ApiMetricsService) {}
 
   use(req: Request, res: Response, next: NextFunction) {
-    // Record start time
-    const startTime = Date.now();
+    try {
+      // Record start time
+      const startTime = Date.now();
+      const responseSize = 0;
 
-    // Add response header with API version
-    res.setHeader('X-API-Version', '1.0');
+      // Add response header with API version
+      res.setHeader('X-API-Version', '1.0');
 
-    // Store original end function
-    const originalEnd = res.end;
-    const originalWrite = res.write;
-    let responseSize = 0;
+      // Listen for 'finish' event which fires when the response has been sent
+      res.on('finish', () => {
+        try {
+          // Calculate response time
+          const responseTime = Date.now() - startTime;
 
-    // Override write to track response size
-    res.write = function (chunk, ...args) {
-      if (chunk) {
-        responseSize += chunk.length;
-      }
-      return originalWrite.call(this, chunk, ...args);
-    };
-
-    // Override end function to log metrics
-    res.end = function (chunk, ...args) {
-      // Calculate response time
-      const responseTime = Date.now() - startTime;
-
-      // Restore original methods
-      res.write = originalWrite;
-      res.end = originalEnd;
-
-      // Update response size if chunk provided in end()
-      if (chunk) {
-        responseSize += Buffer.from(chunk).length;
-      }
-
-      // Log metrics asynchronously (don't wait for completion)
-      try {
-        this.apiMetricsService
-          .logApiRequest(req, res, responseTime, responseSize)
-          .catch((error) => {
-            this.logger.error(
-              `Error logging API metrics: ${error.message}`,
-              error.stack,
-            );
+          // Log metrics asynchronously
+          setImmediate(() => {
+            try {
+              this.apiMetricsService
+                .logApiRequest(req, res, responseTime, responseSize)
+                .catch((error) => {
+                  this.logger.error(
+                    `Error logging API metrics: ${error.message}`,
+                    error.stack,
+                  );
+                });
+            } catch (error) {
+              this.logger.error(
+                `Error logging API metrics: ${error.message}`,
+                error.stack,
+              );
+            }
           });
-      } catch (error) {
-        // Don't fail the request if metrics logging fails
-        this.logger.error(
-          `Error logging API metrics: ${error.message}`,
-          error.stack,
-        );
-      }
+        } catch (error) {
+          this.logger.error(
+            `Error in API metrics finish handler: ${error.message}`,
+          );
+        }
+      });
 
-      // Call original end function
-      return originalEnd.call(this, chunk, ...args);
-    }.bind(this);
-
-    next();
+      // Continue to the next middleware
+      next();
+    } catch (error) {
+      this.logger.error(
+        `Error in API metrics middleware setup: ${error.message}`,
+      );
+      // Don't block the request if our middleware fails
+      next();
+    }
   }
 }

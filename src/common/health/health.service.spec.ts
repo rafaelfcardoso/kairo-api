@@ -95,12 +95,22 @@ describe('HealthService', () => {
 
     // Mock intervals to avoid running periodic checks during tests
     jest.spyOn(global, 'setInterval').mockImplementation((fn, ms) => {
-      return {} as any;
+      // Return object with unref method to avoid errors
+      return {
+        unref: jest.fn().mockReturnThis(),
+      } as unknown as NodeJS.Timeout;
     });
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
+  });
+
+  // Clean up any running timers after all tests
+  afterAll(() => {
+    if (service) {
+      service.shutdown();
+    }
   });
 
   it('should be defined', () => {
