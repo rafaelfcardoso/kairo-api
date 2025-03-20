@@ -43,6 +43,8 @@ import { toZonedTime } from 'date-fns-tz';
 import {
   CompleteOverdueTasksDto,
   CompleteOverdueTasksResponseDto,
+  BatchCompleteTasksDto,
+  BatchCompleteTasksResponseDto,
 } from './dto/complete-overdue-tasks.dto';
 
 /**
@@ -529,5 +531,31 @@ export class TaskController {
     const userId = req.user?.id || 'development-user-id';
 
     return this.taskService.completeOverdueTasks(userId, options);
+  }
+
+  @Post('batch/complete')
+  @ApiOperation({
+    summary: 'Complete all tasks with specified status (default: not_started)',
+    description:
+      'Batch operation to mark tasks with specified status as completed. ' +
+      'Primarily for development/testing purposes.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Successfully completed tasks',
+    type: CompleteOverdueTasksResponseDto, // Reusing the same response type
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid input',
+  })
+  async batchCompleteTasks(
+    @Body(new ValidationPipe()) options: BatchCompleteTasksDto,
+    @Req() req: any,
+  ): Promise<BatchCompleteTasksResponseDto> {
+    // Extract user ID from the request
+    const userId = req.user?.id || 'development-user-id';
+
+    return this.taskService.batchCompleteTasks(userId, options);
   }
 }

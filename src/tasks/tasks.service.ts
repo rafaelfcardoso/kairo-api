@@ -18,6 +18,8 @@ import { LessThan, In } from 'typeorm';
 import {
   CompleteOverdueTasksDto,
   CompleteOverdueTasksResponseDto,
+  BatchCompleteTasksDto,
+  BatchCompleteTasksResponseDto,
 } from './dto/complete-overdue-tasks.dto';
 
 @Injectable()
@@ -546,6 +548,50 @@ export class TaskService {
       tasksCompleted: overdueTasks.length,
       message: `Successfully completed ${overdueTasks.length} overdue tasks.`,
       completedTaskIds: overdueTasks.map((task) => task.id),
+    };
+  }
+
+  /**
+   * Complete all tasks with specified statuses
+   */
+  async batchCompleteTasks(
+    userId: string,
+    options: BatchCompleteTasksDto,
+  ): Promise<BatchCompleteTasksResponseDto> {
+    // Set up where conditions to find tasks with specified statuses
+    const whereConditions: any = {
+      status: In(options.statuses),
+      isArchived: false,
+      ...options.additionalFilters,
+    };
+
+    // Get all matching tasks
+    const tasksToComplete = await this.tasksRepository.find({
+      where: whereConditions,
+    });
+
+    if (tasksToComplete.length === 0) {
+      return {
+        success: true,
+        tasksCompleted: 0,
+        message: `No tasks with status ${options.statuses.join(', ')} found to complete.`,
+      };
+    }
+
+    // Update all tasks to completed status
+    const taskUpdates = tasksToComplete.map((task) => ({
+      ...task,
+      status: TaskStatus.COMPLETED,
+      completedAt: new Date(),
+    }));
+
+    await this.tasksRepository.save(taskUpdates);
+
+    return {
+      success: true,
+      tasksCompleted: tasksToComplete.length,
+      message: `Successfully completed ${tasksToComplete.length} tasks.`,
+      completedTaskIds: tasksToComplete.map((task) => task.id),
     };
   }
 }
