@@ -215,6 +215,12 @@ export class McpService {
     switch (request.name) {
       case 'createTaskFromNLP':
         return this.executeCreateTaskFromNLP(request);
+      case 'parseTask':
+        return this.executeParseTask(request);
+      case 'extractEntities':
+        return this.executeExtractEntities(request);
+      case 'understandQuery':
+        return this.executeUnderstandQuery(request);
       default:
         throw new BadRequestException(`Unknown action: ${request.name}`);
     }
@@ -1114,6 +1120,361 @@ export class McpService {
 
   // Helper for getting available actions
   private _getAvailableActions(): Action[] {
-    return [this.getCreateTaskFromNLPActionDefinition()];
+    return [
+      this.getCreateTaskFromNLPActionDefinition(),
+      this.getParseTaskActionDefinition(),
+      this.getExtractEntitiesActionDefinition(),
+      this.getUnderstandQueryActionDefinition(),
+    ];
+  }
+
+  /**
+   * Get the definition for the parseTask action
+   */
+  private getParseTaskActionDefinition(): Action {
+    return {
+      name: 'parseTask',
+      description: 'Parses natural language text into task data',
+      parameters: {
+        text: {
+          type: 'string',
+          description: 'Natural language text to parse',
+          required: true,
+        },
+        confidenceThreshold: {
+          type: 'number',
+          description:
+            'Minimum confidence threshold for returned results (0-1)',
+          required: false,
+        },
+        context: {
+          type: 'object',
+          description: 'Additional context to improve NLP processing',
+          required: false,
+        },
+        parseRecurrence: {
+          type: 'boolean',
+          description: 'Whether to process recurrence information',
+          required: false,
+        },
+        defaultProjectId: {
+          type: 'string',
+          description: 'Project ID to associate with the task by default',
+          required: false,
+        },
+      },
+      returns: {
+        type: 'object',
+        description: 'Parsed task details, extracted entities, and metadata',
+      },
+    };
+  }
+
+  /**
+   * Execute the parseTask action
+   */
+  private async executeParseTask(
+    request: ActionExecutionRequest,
+  ): Promise<ActionExecutionResponse> {
+    // Validate parameters
+    if (
+      !request.parameters.text ||
+      typeof request.parameters.text !== 'string'
+    ) {
+      throw new BadRequestException(
+        'Text parameter must be a non-empty string',
+      );
+    }
+
+    // Transform MCP request to NLP service request
+    const nlpRequest: NaturalLanguageRequest = {
+      command: request.parameters.text,
+      context: {
+        confidenceThreshold: request.parameters.confidenceThreshold,
+        parseRecurrence: request.parameters.parseRecurrence,
+        defaultProjectId: request.parameters.defaultProjectId,
+        ...request.parameters.context,
+      },
+    };
+
+    try {
+      // Call the existing AI service
+      const result = await this.aiService.processNaturalLanguage(nlpRequest);
+
+      // Transform the result to match the expected MCP action response format
+      return {
+        data: {
+          success: true,
+          result: {
+            request_id: result.task_id,
+            parsed_task: {
+              title: result.analysis.title,
+              description: result.analysis.description || '',
+              due_date: result.analysis.due_date,
+              priority: result.analysis.priority || 'medium',
+              estimated_duration_minutes: result.time_estimate || 30,
+            },
+            extracted_entities: {
+              projects: result.analysis.project_id
+                ? [
+                    {
+                      name: result.analysis.project_id,
+                      confidence: 0.9,
+                    },
+                  ]
+                : [],
+              tags: (result.analysis.tags || []).map((tag) => ({
+                name: tag,
+                confidence: 0.9,
+              })),
+              dates: result.analysis.due_date
+                ? [
+                    {
+                      value: result.analysis.due_date,
+                      type: 'due_date',
+                      confidence: 0.9,
+                    },
+                  ]
+                : [],
+            },
+            alternatives: [],
+            meta: {
+              processing_time_ms: 0, // Not available from the AI service
+              model_version: '1.0.0',
+              tokens_used: result.tokens_used.total_tokens,
+            },
+          },
+          meta: {
+            processing_time_ms: 0,
+            model_version: '1.0.0',
+            tokens_used: result.tokens_used.total_tokens,
+          },
+        },
+      };
+    } catch (error) {
+      throw new BadRequestException(`Failed to parse task: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get the definition for the extractEntities action
+   */
+  private getExtractEntitiesActionDefinition(): Action {
+    return {
+      name: 'extractEntities',
+      description: 'Extracts entities from natural language text',
+      parameters: {
+        text: {
+          type: 'string',
+          description: 'Natural language text to analyze',
+          required: true,
+        },
+        entityTypes: {
+          type: 'array',
+          description:
+            'Types of entities to extract (e.g., date, project, tag, priority)',
+          required: false,
+        },
+        confidenceThreshold: {
+          type: 'number',
+          description:
+            'Minimum confidence threshold for returned results (0-1)',
+          required: false,
+        },
+        context: {
+          type: 'object',
+          description: 'Additional context to improve NLP processing',
+          required: false,
+        },
+      },
+      returns: {
+        type: 'object',
+        description: 'Extracted entities and metadata',
+      },
+    };
+  }
+
+  /**
+   * Execute the extractEntities action
+   */
+  private async executeExtractEntities(
+    request: ActionExecutionRequest,
+  ): Promise<ActionExecutionResponse> {
+    // Validate parameters
+    if (
+      !request.parameters.text ||
+      typeof request.parameters.text !== 'string'
+    ) {
+      throw new BadRequestException(
+        'Text parameter must be a non-empty string',
+      );
+    }
+
+    // Transform MCP request to NLP service request
+    const nlpRequest: NaturalLanguageRequest = {
+      command: request.parameters.text,
+      context: {
+        confidenceThreshold: request.parameters.confidenceThreshold,
+        entityTypes: request.parameters.entityTypes,
+        ...request.parameters.context,
+      },
+    };
+
+    try {
+      // Call the existing AI service
+      const result = await this.aiService.processNaturalLanguage(nlpRequest);
+
+      // Transform the result to match the expected MCP action response format for entity extraction
+      return {
+        data: {
+          success: true,
+          result: {
+            request_id: result.task_id,
+            entities: {
+              projects: result.analysis.project_id
+                ? [
+                    {
+                      name: result.analysis.project_id,
+                      confidence: 0.9,
+                    },
+                  ]
+                : [],
+              tags: (result.analysis.tags || []).map((tag) => ({
+                name: tag,
+                confidence: 0.9,
+              })),
+              dates: result.analysis.due_date
+                ? [
+                    {
+                      value: result.analysis.due_date,
+                      type: 'due_date',
+                      confidence: 0.9,
+                    },
+                  ]
+                : [],
+            },
+            meta: {
+              processing_time_ms: 0, // Not available from the AI service
+              model_version: '1.0.0',
+              tokens_used: result.tokens_used.total_tokens,
+            },
+          },
+          meta: {
+            processing_time_ms: 0,
+            model_version: '1.0.0',
+            tokens_used: result.tokens_used.total_tokens,
+          },
+        },
+      };
+    } catch (error) {
+      throw new BadRequestException(
+        `Failed to extract entities: ${error.message}`,
+      );
+    }
+  }
+
+  /**
+   * Get the definition for the understandQuery action
+   */
+  private getUnderstandQueryActionDefinition(): Action {
+    return {
+      name: 'understandQuery',
+      description: 'Analyzes and understands a natural language query',
+      parameters: {
+        text: {
+          type: 'string',
+          description: 'Natural language query to understand',
+          required: true,
+        },
+        maxSuggestions: {
+          type: 'number',
+          description: 'Maximum number of suggestions to return',
+          required: false,
+        },
+        confidenceThreshold: {
+          type: 'number',
+          description:
+            'Minimum confidence threshold for returned results (0-1)',
+          required: false,
+        },
+        context: {
+          type: 'object',
+          description: 'Additional context to improve NLP processing',
+          required: false,
+        },
+      },
+      returns: {
+        type: 'object',
+        description: 'Query understanding details, suggestions, and metadata',
+      },
+    };
+  }
+
+  /**
+   * Execute the understandQuery action
+   */
+  private async executeUnderstandQuery(
+    request: ActionExecutionRequest,
+  ): Promise<ActionExecutionResponse> {
+    // Validate parameters
+    if (
+      !request.parameters.text ||
+      typeof request.parameters.text !== 'string'
+    ) {
+      throw new BadRequestException(
+        'Text parameter must be a non-empty string',
+      );
+    }
+
+    // Transform MCP request to NLP service request
+    const nlpRequest: NaturalLanguageRequest = {
+      command: request.parameters.text,
+      context: {
+        confidenceThreshold: request.parameters.confidenceThreshold,
+        maxSuggestions: request.parameters.maxSuggestions,
+        ...request.parameters.context,
+      },
+    };
+
+    try {
+      // Call the existing AI service
+      const result = await this.aiService.processNaturalLanguage(nlpRequest);
+
+      // Transform the result to match the expected MCP action response format for query understanding
+      return {
+        data: {
+          success: true,
+          result: {
+            request_id: result.task_id,
+            understood_query: {
+              intent: 'find_tasks', // Default intent since AI service doesn't provide this
+              confidence: 0.8,
+              parameters: {
+                project: result.analysis.project_id,
+                priority: result.analysis.priority,
+                due_date: result.analysis.due_date,
+                tags: result.analysis.tags,
+              },
+            },
+            clarification_needed: false,
+            suggested_tasks: [], // Would need task service to provide actual suggestions
+            meta: {
+              processing_time_ms: 0, // Not available from the AI service
+              model_version: '1.0.0',
+              tokens_used: result.tokens_used.total_tokens,
+            },
+          },
+          meta: {
+            processing_time_ms: 0,
+            model_version: '1.0.0',
+            tokens_used: result.tokens_used.total_tokens,
+          },
+        },
+      };
+    } catch (error) {
+      throw new BadRequestException(
+        `Failed to understand query: ${error.message}`,
+      );
+    }
   }
 }
