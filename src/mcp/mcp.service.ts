@@ -4,6 +4,7 @@ import {
   NotFoundException,
   Inject,
   forwardRef,
+  HttpStatus,
 } from '@nestjs/common';
 import { TaskService } from '../tasks/tasks.service';
 import { TagsService } from '../tags/tags.service';
@@ -294,6 +295,14 @@ export class McpService {
         data: taskResource,
       };
     } catch (error) {
+      if (
+        error.message?.includes('Failed to process natural language request') ||
+        error.status === HttpStatus.SERVICE_UNAVAILABLE
+      ) {
+        throw new BadRequestException(
+          'AI service is currently unavailable. Please try again later.',
+        );
+      }
       throw new BadRequestException(
         `Failed to create task from NLP: ${error.message}`,
       );
@@ -951,9 +960,16 @@ export class McpService {
     const filterDto = {
       search: params.filter?.search,
       includeArchived: params.filter?.includeArchived === 'true',
-      includeSystem: params.filter?.includeSystem === 'true',
+      // Set includeSystem to true explicitly if not specified
+      includeSystem:
+        params.filter?.includeSystem === 'true' ||
+        params.filter?.includeSystem === undefined
+          ? true
+          : false,
       parentId: params.filter?.parentId,
     };
+
+    console.log('MCP getProjectResources filter:', filterDto);
 
     const projects = await this.projectsService.getProjects(filterDto);
 
@@ -1252,7 +1268,128 @@ export class McpService {
         },
       };
     } catch (error) {
+      if (
+        error.message?.includes('Failed to process natural language request') ||
+        error.status === HttpStatus.SERVICE_UNAVAILABLE
+      ) {
+        throw new BadRequestException(
+          'AI service is currently unavailable. Please try again later.',
+        );
+      }
       throw new BadRequestException(`Failed to parse task: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get the definition for the understandQuery action
+   */
+  private getUnderstandQueryActionDefinition(): Action {
+    return {
+      name: 'understandQuery',
+      description: 'Analyzes and understands a natural language query',
+      parameters: {
+        text: {
+          type: 'string',
+          description: 'Natural language query to understand',
+          required: true,
+        },
+        maxSuggestions: {
+          type: 'number',
+          description: 'Maximum number of suggestions to return',
+          required: false,
+        },
+        confidenceThreshold: {
+          type: 'number',
+          description:
+            'Minimum confidence threshold for returned results (0-1)',
+          required: false,
+        },
+        context: {
+          type: 'object',
+          description: 'Additional context to improve NLP processing',
+          required: false,
+        },
+      },
+      returns: {
+        type: 'object',
+        description: 'Query understanding details, suggestions, and metadata',
+      },
+    };
+  }
+
+  /**
+   * Execute the understandQuery action
+   */
+  private async executeUnderstandQuery(
+    request: ActionExecutionRequest,
+  ): Promise<ActionExecutionResponse> {
+    // Validate parameters
+    if (
+      !request.parameters.text ||
+      typeof request.parameters.text !== 'string'
+    ) {
+      throw new BadRequestException(
+        'Text parameter must be a non-empty string',
+      );
+    }
+
+    // Transform MCP request to NLP service request
+    const nlpRequest: NaturalLanguageRequest = {
+      command: request.parameters.text,
+      context: {
+        confidenceThreshold: request.parameters.confidenceThreshold,
+        maxSuggestions: request.parameters.maxSuggestions,
+        ...request.parameters.context,
+      },
+    };
+
+    try {
+      // Call the existing AI service
+      const result = await this.aiService.processNaturalLanguage(nlpRequest);
+
+      // Transform the result to match the expected MCP action response format for query understanding
+      return {
+        data: {
+          success: true,
+          result: {
+            request_id: result.task_id,
+            understood_query: {
+              intent: 'find_tasks', // Default intent since AI service doesn't provide this
+              confidence: 0.8,
+              parameters: {
+                project: result.analysis.project_id,
+                priority: result.analysis.priority,
+                due_date: result.analysis.due_date,
+                tags: result.analysis.tags,
+              },
+            },
+            clarification_needed: false,
+            suggested_tasks: [], // Would need task service to provide actual suggestions
+            meta: {
+              processing_time_ms: 0, // Not available from the AI service
+              model_version: '1.0.0',
+              tokens_used: result.tokens_used.total_tokens,
+            },
+          },
+          meta: {
+            processing_time_ms: 0,
+            model_version: '1.0.0',
+            tokens_used: result.tokens_used.total_tokens,
+          },
+        },
+      };
+    } catch (error) {
+      if (
+        error.message?.includes('Failed to process natural language request') ||
+        error.status === HttpStatus.SERVICE_UNAVAILABLE
+      ) {
+        throw new BadRequestException(
+          'AI service is currently unavailable. Please try again later.',
+        );
+      }
+      throw new BadRequestException(
+        `Failed to understand query: ${error.message}`,
+      );
     }
   }
 
@@ -1367,113 +1504,16 @@ export class McpService {
         },
       };
     } catch (error) {
+      if (
+        error.message?.includes('Failed to process natural language request') ||
+        error.status === HttpStatus.SERVICE_UNAVAILABLE
+      ) {
+        throw new BadRequestException(
+          'AI service is currently unavailable. Please try again later.',
+        );
+      }
       throw new BadRequestException(
         `Failed to extract entities: ${error.message}`,
-      );
-    }
-  }
-
-  /**
-   * Get the definition for the understandQuery action
-   */
-  private getUnderstandQueryActionDefinition(): Action {
-    return {
-      name: 'understandQuery',
-      description: 'Analyzes and understands a natural language query',
-      parameters: {
-        text: {
-          type: 'string',
-          description: 'Natural language query to understand',
-          required: true,
-        },
-        maxSuggestions: {
-          type: 'number',
-          description: 'Maximum number of suggestions to return',
-          required: false,
-        },
-        confidenceThreshold: {
-          type: 'number',
-          description:
-            'Minimum confidence threshold for returned results (0-1)',
-          required: false,
-        },
-        context: {
-          type: 'object',
-          description: 'Additional context to improve NLP processing',
-          required: false,
-        },
-      },
-      returns: {
-        type: 'object',
-        description: 'Query understanding details, suggestions, and metadata',
-      },
-    };
-  }
-
-  /**
-   * Execute the understandQuery action
-   */
-  private async executeUnderstandQuery(
-    request: ActionExecutionRequest,
-  ): Promise<ActionExecutionResponse> {
-    // Validate parameters
-    if (
-      !request.parameters.text ||
-      typeof request.parameters.text !== 'string'
-    ) {
-      throw new BadRequestException(
-        'Text parameter must be a non-empty string',
-      );
-    }
-
-    // Transform MCP request to NLP service request
-    const nlpRequest: NaturalLanguageRequest = {
-      command: request.parameters.text,
-      context: {
-        confidenceThreshold: request.parameters.confidenceThreshold,
-        maxSuggestions: request.parameters.maxSuggestions,
-        ...request.parameters.context,
-      },
-    };
-
-    try {
-      // Call the existing AI service
-      const result = await this.aiService.processNaturalLanguage(nlpRequest);
-
-      // Transform the result to match the expected MCP action response format for query understanding
-      return {
-        data: {
-          success: true,
-          result: {
-            request_id: result.task_id,
-            understood_query: {
-              intent: 'find_tasks', // Default intent since AI service doesn't provide this
-              confidence: 0.8,
-              parameters: {
-                project: result.analysis.project_id,
-                priority: result.analysis.priority,
-                due_date: result.analysis.due_date,
-                tags: result.analysis.tags,
-              },
-            },
-            clarification_needed: false,
-            suggested_tasks: [], // Would need task service to provide actual suggestions
-            meta: {
-              processing_time_ms: 0, // Not available from the AI service
-              model_version: '1.0.0',
-              tokens_used: result.tokens_used.total_tokens,
-            },
-          },
-          meta: {
-            processing_time_ms: 0,
-            model_version: '1.0.0',
-            tokens_used: result.tokens_used.total_tokens,
-          },
-        },
-      };
-    } catch (error) {
-      throw new BadRequestException(
-        `Failed to understand query: ${error.message}`,
       );
     }
   }

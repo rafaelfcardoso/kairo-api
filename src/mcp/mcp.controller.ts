@@ -13,6 +13,7 @@ import {
   Req,
   UseInterceptors,
   UseFilters,
+  HttpStatus,
 } from '@nestjs/common';
 import { McpService } from './mcp.service';
 import { AuthGuard } from '@nestjs/passport';
@@ -280,7 +281,12 @@ export class McpController {
       if (error.message.includes('Unknown resource type')) {
         throw new NotFoundException(`Resource type ${resourceType} not found`);
       }
-      if (error.message.includes('Invalid data')) {
+      if (
+        error instanceof BadRequestException ||
+        error.message.includes('Invalid data') ||
+        error.message.includes('Due date cannot be in the past') ||
+        error.message.includes('Invalid date format')
+      ) {
         throw new BadRequestException(error.message);
       }
       throw new InternalServerErrorException('Failed to create resource');
@@ -330,9 +336,21 @@ export class McpController {
       const result = await this.mcpService.executeAction(request);
       return ResponseUtil.createResourceResponse(result, req);
     } catch (error) {
-      this.logger.error(`Error executing action: ${error.message}`);
+      this.logger.error(
+        `Error executing action: ${error.message}`,
+        error.stack,
+      );
       if (error.message.includes('Invalid parameters')) {
         throw new BadRequestException(error.message);
+      }
+      if (
+        error.message.includes('Failed to process natural language') ||
+        error.message.includes('Service unavailable') ||
+        error.status === HttpStatus.SERVICE_UNAVAILABLE
+      ) {
+        throw new BadRequestException(
+          `AI service is currently unavailable. Please try again later.`,
+        );
       }
       throw new InternalServerErrorException('Failed to execute action');
     }

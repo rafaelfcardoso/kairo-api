@@ -34,7 +34,7 @@ The MCP server has been significantly enhanced with the following improvements:
 
 ## Using the NLP API
 
-### NLP Endpoints
+### NLP Endpoints (deprecated - look for MCP actions endpoint)
 
 | Endpoint                       | Method | Description                                           |
 | ------------------------------ | ------ | ----------------------------------------------------- |

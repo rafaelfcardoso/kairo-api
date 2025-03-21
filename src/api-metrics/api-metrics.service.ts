@@ -84,67 +84,73 @@ export class ApiMetricsService {
       const date = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const hour = now.getHours();
 
-      // Find or create metrics record
-      let metrics = await this.apiMetricsRepository.findOne({
-        where: {
-          endpoint,
-          method,
-          version,
-          date,
-          hour,
+      // Use a transaction with serializable isolation to prevent race conditions
+      await this.apiMetricsRepository.manager.transaction(
+        async (transactionalEntityManager) => {
+          // Find or create metrics record with a SELECT FOR UPDATE lock
+          let metrics = await transactionalEntityManager
+            .createQueryBuilder(ApiMetrics, 'metrics')
+            .setLock('pessimistic_write')
+            .where('metrics.endpoint = :endpoint', { endpoint })
+            .andWhere('metrics.method = :method', { method })
+            .andWhere('metrics.version = :version', { version })
+            .andWhere('metrics.date = :date', { date })
+            .andWhere('metrics.hour = :hour', { hour })
+            .getOne();
+
+          if (!metrics) {
+            metrics = this.apiMetricsRepository.create({
+              endpoint,
+              method,
+              version,
+              date,
+              hour,
+              requestCount: 0,
+              successCount: 0,
+              errorCount: 0,
+              avgResponseTime: 0,
+              minResponseTime: responseTime,
+              maxResponseTime: responseTime,
+            });
+          }
+
+          // Update metrics
+          metrics.requestCount += 1;
+          if (statusCode >= 200 && statusCode < 400) {
+            metrics.successCount += 1;
+          } else {
+            metrics.errorCount += 1;
+          }
+
+          // Update response time statistics
+          const oldTotal = metrics.avgResponseTime * (metrics.requestCount - 1);
+          metrics.avgResponseTime =
+            (oldTotal + responseTime) / metrics.requestCount;
+
+          if (
+            metrics.minResponseTime === null ||
+            responseTime < metrics.minResponseTime
+          ) {
+            metrics.minResponseTime = responseTime;
+          }
+
+          if (
+            metrics.maxResponseTime === null ||
+            responseTime > metrics.maxResponseTime
+          ) {
+            metrics.maxResponseTime = responseTime;
+          }
+
+          // Save updated metrics within the transaction
+          await transactionalEntityManager.save(metrics);
         },
-      });
-
-      if (!metrics) {
-        metrics = this.apiMetricsRepository.create({
-          endpoint,
-          method,
-          version,
-          date,
-          hour,
-          requestCount: 0,
-          successCount: 0,
-          errorCount: 0,
-          avgResponseTime: 0,
-          minResponseTime: responseTime,
-          maxResponseTime: responseTime,
-        });
-      }
-
-      // Update metrics
-      metrics.requestCount += 1;
-      if (statusCode >= 200 && statusCode < 400) {
-        metrics.successCount += 1;
-      } else {
-        metrics.errorCount += 1;
-      }
-
-      // Update response time statistics
-      const oldTotal = metrics.avgResponseTime * (metrics.requestCount - 1);
-      metrics.avgResponseTime =
-        (oldTotal + responseTime) / metrics.requestCount;
-
-      if (
-        metrics.minResponseTime === null ||
-        responseTime < metrics.minResponseTime
-      ) {
-        metrics.minResponseTime = responseTime;
-      }
-
-      if (
-        metrics.maxResponseTime === null ||
-        responseTime > metrics.maxResponseTime
-      ) {
-        metrics.maxResponseTime = responseTime;
-      }
-
-      // Save updated metrics
-      await this.apiMetricsRepository.save(metrics);
+      );
     } catch (error) {
       this.logger.error(
         `Failed to update API metrics: ${error.message}`,
         error.stack,
       );
+      // Continue execution - metrics error shouldn't affect main functionality
     }
   }
 

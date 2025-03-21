@@ -14,6 +14,9 @@ The MCP module provides:
 
 ## Endpoints
 
+Base URL: `https://zenith-api-development.up.railway.app`
+API versioning prefix: `/api/v1`
+
 | Method | Endpoint                      | Description                           |
 | ------ | ----------------------------- | ------------------------------------- |
 | GET    | `/mcp/resources/:type/schema` | Get the schema for a resource type    |
