@@ -58,6 +58,37 @@ $ npm run test:e2e
 $ npm run test:cov
 ```
 
+## Testing
+
+The Zenith API includes unit tests, integration tests, and end-to-end tests.
+
+### Running Tests
+
+```bash
+# Unit tests
+npm run test
+
+# End-to-end tests
+npm run test:e2e
+
+# Functional tests
+npm run test:functional
+
+# Test coverage
+npm run test:cov
+```
+
+### AI Service Mocking
+
+For testing, we've implemented a mock version of the AI service to provide deterministic responses without making actual HTTP calls to the external AI service.
+
+To use the mocked AI service in tests:
+
+1. Initialize the test application with `getTestApp(true)`
+2. The mock service will provide predictable responses based on input patterns
+
+See [AI Service Mocking Documentation](docs/ai-service-mocking.md) for details on the implementation and usage.
+
 ## Deployment
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.

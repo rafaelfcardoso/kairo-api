@@ -29,6 +29,7 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:e2e:env": "cross-env NODE_ENV=test jest --config ./test/jest-e2e.json --detectOpenHandles",
+    "test:functional": "cross-env NODE_ENV=test jest --config ./test/jest-functional.json",
     "test:reminder": "ts-node -r tsconfig-paths/register src/test-reminder.ts",
     "validate:reminder": "ts-node -r tsconfig-paths/register src/reminder-validation.ts",
     "typeorm": "typeorm-ts-node-commonjs",

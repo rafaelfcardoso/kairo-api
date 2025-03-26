@@ -245,6 +245,11 @@ export class McpService {
           description: 'Optional project ID to assign the task to',
           required: false,
         },
+        tagIds: {
+          type: 'array',
+          description: 'Optional array of tag IDs to assign to the task',
+          required: false,
+        },
       },
       returns: {
         type: 'task',
@@ -282,6 +287,17 @@ export class McpService {
         nlpRequest.context = {
           ...nlpRequest.context,
           projectId: request.parameters.projectId,
+        };
+      }
+
+      // Add optional tag IDs if provided
+      if (
+        request.parameters.tagIds &&
+        Array.isArray(request.parameters.tagIds)
+      ) {
+        nlpRequest.context = {
+          ...nlpRequest.context,
+          tagIds: request.parameters.tagIds,
         };
       }
 
@@ -332,6 +348,38 @@ export class McpService {
         nlpRequest.context?.projectId ||
         (await this.tasksService.getInboxProject()).id;
 
+      // Handle tag IDs
+      let tagIds: string[] = [];
+
+      // Add explicitly provided tag IDs if any
+      if (
+        nlpRequest.context?.tagIds &&
+        Array.isArray(nlpRequest.context.tagIds)
+      ) {
+        tagIds = [...nlpRequest.context.tagIds];
+      }
+
+      // Add tags detected by AI service if any
+      if (aiResponse.analysis.tags && Array.isArray(aiResponse.analysis.tags)) {
+        // Try to find existing tags by name
+        for (const tagName of aiResponse.analysis.tags) {
+          try {
+            const similarTags = await this.tagsService.findSimilarTags(tagName);
+            if (similarTags.length > 0) {
+              // Add the most relevant tag ID if not already included
+              if (!tagIds.includes(similarTags[0].id)) {
+                tagIds.push(similarTags[0].id);
+              }
+            }
+          } catch (error) {
+            // Log but continue if tag lookup fails
+            console.log(
+              `Failed to find tag for "${tagName}": ${error.message}`,
+            );
+          }
+        }
+      }
+
       // Create the task DTO from the analysis
       const taskDto: CreateTaskDto = {
         title: aiResponse.analysis.title,
@@ -342,6 +390,8 @@ export class McpService {
           ? aiResponse.analysis.due_date
           : undefined,
         projectId: projectId,
+        // Add tag IDs if any were found
+        tagIds: tagIds.length > 0 ? tagIds : undefined,
         // Additional relevant fields from the analysis
         recurrenceRule: aiResponse.analysis.recurrence_rule,
         needsReminder: aiResponse.analysis.title

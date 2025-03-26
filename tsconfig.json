@@ -18,6 +18,6 @@
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false
   },
-  "include": ["src/**/*", "src/migrations/*.ts", "test/**/*"],
+  "include": ["src/**/*", "src/migrations/*.ts", "test/**/*", "jest-*.ts"],
   "exclude": ["node_modules", "dist"]
 }
