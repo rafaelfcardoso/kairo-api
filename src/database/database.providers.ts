@@ -39,8 +39,6 @@ import { FocusSession } from '../focus-sessions/focus-sessions.entity';
 import { BlockRule } from '../entities/block-rule.entity';
 import { SystemHealth } from '../entities/system-health.entity';
 import { ApiRequestLog, ApiMetrics } from '../entities/api-metrics.entity';
-import { NlpFeedback } from '../nlp/entities/nlp-feedback.entity';
-import { NlpModelPerformance } from '../nlp/entities/model-performance.entity';
 
 config();
 
@@ -65,8 +63,6 @@ export const databaseProviders = [
           SystemHealth,
           ApiRequestLog,
           ApiMetrics,
-          NlpFeedback,
-          NlpModelPerformance,
         ],
         migrations: [
           InitialSchema1705759726000,

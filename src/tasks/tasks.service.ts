@@ -465,12 +465,12 @@ export class TaskService {
   }
 
   /**
-   * Count tasks based on filter criteria
-   * @param filters Object with filter criteria
+   * Count tasks based on filters
+   * @param filters Object containing filters
    * @returns Number of tasks matching the filters
    */
   async countTasks(filters: Record<string, any>): Promise<number> {
-    // Convert the MCP filter format to our internal TaskFilterDto format
+    // Convert the filter format to our internal TaskFilterDto format
     const filterDto = new TaskFilterDto();
 
     // Map common filter keys

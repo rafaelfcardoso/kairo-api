@@ -2,8 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AppModule } from '../src/app.module';
 import { INestApplication } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { AiService } from '../src/common/services/ai.service';
-import { MockAiService } from './mocks/mock-ai.service';
 
 let app: INestApplication;
 let testingModule: TestingModule;
@@ -12,20 +10,13 @@ let isInitialized = false;
 /**
  * Creates or returns an existing test application instance
  * This ensures we only have one database connection across all tests
- * @param useMocks When true, includes mock providers for services like AiService
  */
-export async function getTestApp(useMocks = false): Promise<INestApplication> {
+export async function getTestApp(): Promise<INestApplication> {
   if (!isInitialized) {
     console.log('Initializing shared test app and database connection...');
     const moduleBuilder = Test.createTestingModule({
       imports: [AppModule],
     });
-
-    // Add mock providers if requested
-    if (useMocks) {
-      // Override AiService with MockAiService
-      moduleBuilder.overrideProvider(AiService).useClass(MockAiService);
-    }
 
     testingModule = await moduleBuilder.compile();
 

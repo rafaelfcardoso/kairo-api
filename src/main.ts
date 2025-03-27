@@ -195,7 +195,6 @@ async function bootstrap() {
     .addTag('Auth', 'Authentication endpoints')
     .addTag('Focus Sessions', 'Focus session management endpoints')
     .addTag('Statistics', 'Statistics endpoints')
-    .addTag('MCP', 'Model Context Protocol endpoints')
     .addBearerAuth(
       {
         type: 'http',
@@ -212,16 +211,7 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, config);
 
-  // Import MCP Swagger configuration and create separate document
-  const { createMcpSwaggerConfig } = await import('./mcp/docs/swagger.config');
-  const mcpConfig = createMcpSwaggerConfig();
-  const mcpDocument = SwaggerModule.createDocument(app, mcpConfig, {
-    include: [AppModule],
-    extraModels: [],
-    ignoreGlobalPrefix: false,
-  });
-
-  // Set up Swagger UI for both docs
+  // Set up Swagger UI
   SwaggerModule.setup('api', app, document, {
     swaggerOptions: {
       persistAuthorization: true,
@@ -232,19 +222,6 @@ async function bootstrap() {
       showRequestDuration: true,
     },
     customSiteTitle: 'Zenith API Documentation',
-  });
-
-  // Set up separate Swagger UI for MCP
-  SwaggerModule.setup('api/mcp', app, mcpDocument, {
-    swaggerOptions: {
-      persistAuthorization: true,
-      tagsSorter: 'alpha',
-      operationsSorter: 'alpha',
-      docExpansion: 'none',
-      filter: true,
-      showRequestDuration: true,
-    },
-    customSiteTitle: 'MCP API Documentation',
   });
 
   // Listen on all interfaces (important for Docker)

@@ -4,7 +4,7 @@ This document outlines how the Zenith API implements Domain-Driven Design (DDD) 
 
 ## Domain Model Overview
 
-The core domain of Zenith API is task management, with supporting subdomains for scheduling, notifications, and AI assistance.
+The core domain of Zenith API is task management, with supporting subdomains for scheduling and notifications.
 
 ### Bounded Contexts
 
@@ -23,15 +23,9 @@ The application is organized into the following bounded contexts:
    - Monitors tasks for upcoming deadlines
 
 3. **Notification Context**
-
    - Handles creation and delivery of notifications
    - Supports different notification types based on task types
    - Manages email templates and formatting
-
-4. **AI Integration Context**
-   - Processes natural language commands
-   - Provides smart reminders and content enhancement
-   - Interacts with external AI services
 
 ## Key DDD Elements
 
@@ -97,11 +91,6 @@ The application is organized into the following bounded contexts:
   - Handles email sending details
   - Delegates content generation to NotificationDomainService
   - Collects context data for notifications
-
-- **AiService**: Infrastructure service for AI integration
-  - Communicates with external AI services
-  - Processes natural language commands
-  - Provides smart reminder functionality
 
 ## Application Services
 

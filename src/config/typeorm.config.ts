@@ -8,8 +8,6 @@ import { FocusSession } from '../focus-sessions/focus-sessions.entity';
 import { BlockRule } from '../entities/block-rule.entity';
 import { SystemHealth } from '../entities/system-health.entity';
 import { ApiRequestLog, ApiMetrics } from '../entities/api-metrics.entity';
-import { NlpFeedback } from '../nlp/entities/nlp-feedback.entity';
-import { NlpModelPerformance } from '../nlp/entities/model-performance.entity';
 import { InitialSchema1705759726000 } from '../migrations/1705759726000-InitialSchema';
 import { FixProjectColors1738362321118 } from '../migrations/1738362321118-FixProjectColors';
 import { EnsureInboxProject1738362321119 } from '../migrations/1738362321119-EnsureInboxProject';
@@ -93,8 +91,6 @@ const entities = [
   SystemHealth,
   ApiRequestLog,
   ApiMetrics,
-  NlpFeedback,
-  NlpModelPerformance,
 ];
 
 interface DatabaseLogConfig {

@@ -13,11 +13,9 @@ import { FocusSessionsModule } from './focus-sessions/focus-sessions.module';
 import { StatsModule } from './stats/stats.module';
 import { DATABASE_CONFIG } from './config/constants';
 import { SchedulerModule } from './common/services/scheduler.module';
-import { McpModule } from './mcp/mcp.module';
 import { HealthModule } from './common/health/health.module';
 import { ApiMetricsModule } from './api-metrics/api-metrics.module';
 import { ApiMetricsMiddleware } from './common/middleware/api-metrics.middleware';
-import { NlpModule } from './nlp/nlp.module';
 
 @Module({
   imports: [
@@ -90,9 +88,7 @@ import { NlpModule } from './nlp/nlp.module';
     FocusSessionsModule,
     StatsModule,
     SchedulerModule,
-    McpModule,
     ApiMetricsModule,
-    NlpModule,
   ],
   controllers: [AppController],
   providers: [],

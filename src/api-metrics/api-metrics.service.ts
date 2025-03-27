@@ -3,7 +3,28 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ApiRequestLog, ApiMetrics } from '../entities/api-metrics.entity';
 import { Request, Response } from 'express';
-import { ApiErrorCode } from '../mcp/mcp.types';
+
+// Define ApiErrorCode enum locally
+export enum ApiErrorCode {
+  // Generic errors
+  UNKNOWN_ERROR = 'UNKNOWN_ERROR',
+  VALIDATION_ERROR = 'VALIDATION_ERROR',
+  NOT_FOUND = 'NOT_FOUND',
+  UNAUTHORIZED = 'UNAUTHORIZED',
+  FORBIDDEN = 'FORBIDDEN',
+
+  // Resource errors
+  RESOURCE_NOT_FOUND = 'RESOURCE_NOT_FOUND',
+  RESOURCE_ALREADY_EXISTS = 'RESOURCE_ALREADY_EXISTS',
+
+  // Action errors
+  ACTION_NOT_FOUND = 'ACTION_NOT_FOUND',
+  ACTION_FAILED = 'ACTION_FAILED',
+
+  // Service errors
+  SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE',
+  AI_SERVICE_ERROR = 'AI_SERVICE_ERROR',
+}
 
 @Injectable()
 export class ApiMetricsService {

@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { ConfigModule } from '@nestjs/config';
-import { AiService } from './ai.service';
 import { NotificationService } from './notification.service';
 import { NotificationDomainService } from '../../tasks/notification.domain.service';
 
@@ -13,7 +12,7 @@ import { NotificationDomainService } from '../../tasks/notification.domain.servi
     }),
     ConfigModule,
   ],
-  providers: [AiService, NotificationService, NotificationDomainService],
-  exports: [AiService, NotificationService, NotificationDomainService],
+  providers: [NotificationService, NotificationDomainService],
+  exports: [NotificationService, NotificationDomainService],
 })
-export class AiModule {}
+export class NotificationModule {}

@@ -3,8 +3,8 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Task } from '../../tasks/tasks.entity';
 import { SchedulerService } from './scheduler.service';
-import { AiModule } from './ai.module';
 import { TasksModule } from '../../tasks/tasks.module';
+import { NotificationModule } from './notification.module';
 
 /**
  * SchedulerModule handles the scheduling and execution of tasks.
@@ -14,8 +14,8 @@ import { TasksModule } from '../../tasks/tasks.module';
   imports: [
     ScheduleModule.forRoot(),
     TypeOrmModule.forFeature([Task]),
-    AiModule,
     TasksModule,
+    NotificationModule,
   ],
   providers: [SchedulerService],
   exports: [SchedulerService],

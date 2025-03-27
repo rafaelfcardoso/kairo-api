@@ -1,1 +1,0 @@
-../src/mcp/tests/mcp-nlp.e2e-spec.ts
