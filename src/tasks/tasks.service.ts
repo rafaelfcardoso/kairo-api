@@ -14,6 +14,7 @@ import { CreateTaskDto, UpdateTaskDto, TaskFilterDto } from './tasks.dto';
 import { SecurityLoggerService } from '../common/services/security-logger.service';
 import { RecurringTaskService } from './recurring-task.service';
 import { TaskDomainService } from './tasks.domain.service';
+import { NotificationDomainService } from './notification.domain.service';
 import { LessThan, In } from 'typeorm';
 import {
   CompleteOverdueTasksDto,
@@ -65,6 +66,7 @@ export class TaskService {
     private securityLogger: SecurityLoggerService,
     private recurringTaskService: RecurringTaskService,
     private taskDomainService: TaskDomainService,
+    private notificationDomainService: NotificationDomainService,
   ) {}
 
   private validateInput(input: string, context: string): void {
@@ -178,7 +180,8 @@ export class TaskService {
   }
 
   async createTask(createTaskDto: CreateTaskDto, _ip?: string): Promise<Task> {
-    const { title, description, dueDate, recurrenceRule } = createTaskDto;
+    const { title, description, dueDate, recurrenceRule, needsReminder } =
+      createTaskDto;
 
     // Validate inputs
     this.validateInput(title, 'title');
@@ -199,6 +202,11 @@ export class TaskService {
 
     try {
       const savedTask = await this.tasksRepository.createTask(createTaskDto);
+
+      // Schedule reminder if needed
+      if (needsReminder && savedTask.dueDate) {
+        this.scheduleTaskReminder(savedTask);
+      }
 
       this.securityLogger.logSecurityEvent('Task created successfully', {
         taskId: savedTask.id,
@@ -593,5 +601,27 @@ export class TaskService {
       message: `Successfully completed ${tasksToComplete.length} tasks.`,
       completedTaskIds: tasksToComplete.map((task) => task.id),
     };
+  }
+
+  // Schedule a reminder for a task
+  private scheduleTaskReminder(task: Task): void {
+    if (task.needsReminder && task.dueDate) {
+      try {
+        // Generate notification content
+        const notificationContent =
+          this.notificationDomainService.generateNotificationContent(task);
+        // Call the notification service method
+        this.notificationDomainService.scheduleTaskReminder(
+          task,
+          notificationContent,
+        );
+      } catch (error) {
+        this.securityLogger.logSuspiciousActivity(
+          'Failed to schedule task reminder',
+          'LOW',
+          { taskId: task.id, error: (error as Error).message },
+        );
+      }
+    }
   }
 }

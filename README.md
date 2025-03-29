@@ -54,29 +54,84 @@ $ npm run test
 # e2e tests
 $ npm run test:e2e
 
+# domain layer tests (DDD-focused)
+$ npm run test:domain
+
+# domain layer test coverage
+$ npm run test:domain:cov
+
 # test coverage
 $ npm run test:cov
 ```
 
 ## Testing
 
-The Zenith API includes unit tests, integration tests, and end-to-end tests.
+The Zenith API follows a Domain-Driven Design (DDD) approach with comprehensive test coverage across all layers.
+
+### Test Structure
+
+Our tests are organized by architectural layers to ensure proper isolation and focus:
+
+- **Domain Layer Tests**: Core business rules and domain logic
+- **Application Layer Tests**: Use cases and application services
+- **Infrastructure Layer Tests**: Repositories and external services
+- **Interface Layer Tests**: Controllers and API endpoints
+- **Integration Tests**: Cross-layer interactions
+- **E2E Tests**: Full API workflows
+
+The test directory structure follows this organization:
+
+```
+test/
+├── unit/
+│   ├── domain/            # Domain layer tests
+│   │   └── task-management/
+│   ├── application/       # Application layer tests
+│   │   └── task-management/
+│   ├── infrastructure/    # Infrastructure layer tests
+│   │   └── task-management/
+│   └── interface/         # Interface layer tests
+│       └── task-management/
+├── integration/           # Integration tests
+│   └── task-management/
+└── e2e/                   # End-to-end tests
+```
 
 ### Running Tests
 
 ```bash
-# Unit tests
+# All unit tests
 npm run test
+
+# Domain layer tests
+npm run test:domain
+
+# Application layer tests
+npm run test:application
+
+# Integration tests
+npm run test:integration
 
 # End-to-end tests
 npm run test:e2e
 
-# Functional tests
-npm run test:functional
+# Test coverage for domain layer
+npm run test:domain:cov
 
-# Test coverage
+# Test coverage for application layer
+npm run test:application:cov
+
+# Overall test coverage
 npm run test:cov
 ```
+
+### Test Coverage Documentation
+
+We maintain detailed documentation of our testing strategy and progress:
+
+- [Test Coverage Plan](docs/active/test-coverage-plan.md): Our overall plan for test coverage across all layers
+- [Application Layer Test Plan](docs/active/application-layer-test-plan.md): Detailed plan for application layer tests
+- [Domain Layer Test Plan](docs/active/domain-layer-test-plan.md): Detailed plan for domain layer tests
 
 ### AI Service Mocking
 

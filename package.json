@@ -30,6 +30,17 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:e2e:env": "cross-env NODE_ENV=test jest --config ./test/jest-e2e.json --detectOpenHandles",
     "test:functional": "cross-env NODE_ENV=test jest --config ./test/jest-functional.json",
+    "test:domain": "jest --config ./test/jest-domain.json",
+    "test:domain:cov": "jest --config ./test/jest-domain.json --coverage",
+    "test:application": "jest --config ./test/jest-application.json",
+    "test:application:cov": "jest --config ./test/jest-application.json --coverage",
+    "test:infrastructure": "jest --config ./test/jest-infrastructure.json",
+    "test:infrastructure:skip-typecheck": "TS_NODE_TRANSPILE_ONLY=1 jest --config ./test/jest-infrastructure.json",
+    "test:infrastructure:cov": "jest --config ./test/jest-infrastructure.json --coverage",
+    "test:interface": "jest --config ./test/jest-interface.json",
+    "test:interface:skip-typecheck": "TS_NODE_TRANSPILE_ONLY=1 jest --config ./test/jest-interface.json",
+    "test:interface:cov": "jest --config ./test/jest-interface.json --coverage",
+    "test:layers:cov": "jest --config ./test/jest-domain.json --coverage && jest --config ./test/jest-application.json --coverage && jest --config ./test/jest-infrastructure.json --coverage",
     "test:reminder": "ts-node -r tsconfig-paths/register src/test-reminder.ts",
     "validate:reminder": "ts-node -r tsconfig-paths/register src/reminder-validation.ts",
     "typeorm": "typeorm-ts-node-commonjs",
@@ -40,7 +51,8 @@
     "predeploy": "npm run migration:verify",
     "deploy": "railway up",
     "verify:migrations": "ts-node scripts/verify-migrations.ts",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "test:integration": "jest --config ./test/jest-integration.json"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.0",

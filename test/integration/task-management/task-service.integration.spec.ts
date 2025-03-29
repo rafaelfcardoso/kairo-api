@@ -1,16 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { TaskService } from '../../tasks.service';
+import { TaskService } from '../../../src/tasks/tasks.service';
 import { Repository } from 'typeorm';
-import { Task } from '../../tasks.entity';
-import { Project } from '../../../projects/projects.entity';
-import { SecurityLoggerService } from '../../../common/services/security-logger.service';
+import { Task } from '../../../src/tasks/tasks.entity';
+import { Project } from '../../../src/projects/projects.entity';
+import { SecurityLoggerService } from '../../../src/common/services/security-logger.service';
 import { NotFoundException } from '@nestjs/common';
-import { TasksRepository } from '../../tasks.repository';
-import { ProjectsRepository } from '../../../projects/projects.repository';
-import { TagsRepository } from '../../../tags/tags.repository';
+import { TasksRepository } from '../../../src/tasks/tasks.repository';
+import { ProjectsRepository } from '../../../src/projects/projects.repository';
+import { TagsRepository } from '../../../src/tags/tags.repository';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { RecurringTaskService } from '../../recurring-task.service';
-import { TaskDomainService } from '../../tasks.domain.service';
+import { RecurringTaskService } from '../../../src/tasks/recurring-task.service';
+import { TaskDomainService } from '../../../src/tasks/tasks.domain.service';
 
 describe('TaskService', () => {
   let service: TaskService;

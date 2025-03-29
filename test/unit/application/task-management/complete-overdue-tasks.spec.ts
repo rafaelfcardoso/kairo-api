@@ -1,15 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { TaskService } from '../../tasks.service';
-import { TasksRepository } from '../../tasks.repository';
-import { ProjectsRepository } from '../../../projects/projects.repository';
-import { TagsRepository } from '../../../tags/tags.repository';
-import { SecurityLoggerService } from '../../../common/services/security-logger.service';
-import { RecurringTaskService } from '../../recurring-task.service';
-import { TaskDomainService } from '../../tasks.domain.service';
-import { TaskStatus } from '../../tasks.entity';
-import { CompleteOverdueTasksDto } from '../../dto/complete-overdue-tasks.dto';
-import { LessThan, In } from 'typeorm';
+import { TaskService } from '../../../../src/tasks/tasks.service';
+import { TasksRepository } from '../../../../src/tasks/tasks.repository';
+import { ProjectsRepository } from '../../../../src/projects/projects.repository';
+import { TagsRepository } from '../../../../src/tags/tags.repository';
+import { SecurityLoggerService } from '../../../../src/common/services/security-logger.service';
+import { RecurringTaskService } from '../../../../src/tasks/recurring-task.service';
+import { TaskDomainService } from '../../../../src/tasks/tasks.domain.service';
+import { TaskStatus } from '../../../../src/tasks/tasks.entity';
+import { CompleteOverdueTasksDto } from '../../../../src/tasks/dto/complete-overdue-tasks.dto';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { NotificationDomainService } from '../../../../src/tasks/notification.domain.service';
 
 // Create mock versions of the repositories and services
 const mockTasksRepository = () => ({
@@ -22,6 +22,10 @@ const mockTagsRepository = () => ({});
 const mockSecurityLoggerService = () => ({});
 const mockRecurringTaskService = () => ({});
 const mockTaskDomainService = () => ({});
+const mockNotificationDomainService = () => ({
+  generateNotificationContent: jest.fn(),
+  scheduleTaskReminder: jest.fn(),
+});
 
 describe('TaskService - completeOverdueTasks', () => {
   let taskService: TaskService;
@@ -54,6 +58,10 @@ describe('TaskService - completeOverdueTasks', () => {
         {
           provide: TaskDomainService,
           useFactory: mockTaskDomainService,
+        },
+        {
+          provide: NotificationDomainService,
+          useFactory: mockNotificationDomainService,
         },
       ],
     }).compile();

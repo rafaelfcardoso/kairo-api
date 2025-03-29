@@ -1,6 +1,6 @@
 import { validateSync } from 'class-validator';
-import { CreateTaskDto, UpdateTaskDto } from '../../tasks.dto';
-import { TaskStatus, TaskPriority } from '../../tasks.entity';
+import { CreateTaskDto, UpdateTaskDto } from '../../../../src/tasks/tasks.dto';
+import { TaskStatus, TaskPriority } from '../../../../src/tasks/tasks.entity';
 
 const validationOptions = {
   whitelist: true,
