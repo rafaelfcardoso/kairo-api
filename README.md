@@ -132,6 +132,8 @@ We maintain detailed documentation of our testing strategy and progress:
 - [Test Coverage Plan](docs/active/test-coverage-plan.md): Our overall plan for test coverage across all layers
 - [Application Layer Test Plan](docs/active/application-layer-test-plan.md): Detailed plan for application layer tests
 - [Domain Layer Test Plan](docs/active/domain-layer-test-plan.md): Detailed plan for domain layer tests
+- [Project Management Tests Summary](docs/active/project-management-tests-summary.md): Summary of Project domain tests across all layers
+- [Task Management Tests Summary](docs/active/task-management-tests-summary.md): Summary of Task domain tests across all layers
 
 ### AI Service Mocking
 

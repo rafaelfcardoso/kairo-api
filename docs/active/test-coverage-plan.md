@@ -59,7 +59,10 @@ This document outlines our plan for improving test coverage across the Zenith AP
 - ✅ Tests for recurring task workflow
 - ✅ Tests for task security
 - ✅ Tests for task service integrations
-- ⬜ End-to-end workflow tests
+- ✅ End-to-end workflow tests for task creation
+- ✅ End-to-end workflow tests for task completion
+- ✅ End-to-end workflow tests for recurring task scheduling
+- ✅ End-to-end workflow tests for notification generation
 
 ### Test Reorganization Progress
 
@@ -132,6 +135,13 @@ Our tests are organized according to the Domain-Driven Design (DDD) architecture
 | Notification Domain Service | `src/tasks/notification.domain.service.ts`                | `test/unit/domain/task-management/notification-domain.service.spec.ts`  | 100%     | ✅     |
 | RecurrenceRule Value Object | `src/tasks/value-objects/recurrence-rule.value-object.ts` | `test/unit/domain/task-management/recurrence-rule.value-object.spec.ts` | 100%     | ✅     |
 
+### Project Management Domain
+
+| Component      | Files                             | Tests                                                        | Coverage | Status |
+| -------------- | --------------------------------- | ------------------------------------------------------------ | -------- | ------ |
+| Project Entity | `src/projects/projects.entity.ts` | `test/unit/domain/project-management/project.entity.spec.ts` | 91.66%   | ✅     |
+| Project DTOs   | `src/projects/projects.dto.ts`    | `test/unit/domain/project-management/project.dto.spec.ts`    | 100%     | ✅     |
+
 ## Application Layer Test Coverage
 
 ### Task Management Application
@@ -141,13 +151,36 @@ Our tests are organized according to the Domain-Driven Design (DDD) architecture
 | Task Service           | `src/tasks/tasks.service.ts`          | `test/unit/application/task-management/task.service.spec.ts`           | 41.8% (statements)  | 🟢 In progress |
 | Recurring Task Service | `src/tasks/recurring-task.service.ts` | `test/unit/application/task-management/recurring-task.service.spec.ts` | 53.74% (statements) | 🟢 In progress |
 
+### Project Management Application
+
+| Component        | Files                              | Tests                                                               | Coverage                                                                 | Status         |
+| ---------------- | ---------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------ | -------------- |
+| Projects Service | `src/projects/projects.service.ts` | `test/unit/application/project-management/projects.service.spec.ts` | 95.45% (statements), 82.35% (branches), 100% (functions), 95.79% (lines) | 🟢 In progress |
+
+#### Projects Service
+
+- [x] Project CRUD operations
+- [x] Project tree operations
+- [x] Project analytics (getProjectStats, getProjectTimeline)
+- [x] Project health calculation
+- [x] Project search and navigation (searchProjects, getProjectBreadcrumb)
+- [x] Task-Project interaction methods (duplicateTaskToProject, createTaskWithProject)
+- [ ] Remaining methods that require additional coverage
+
 ## Test Progress Tracking
 
-| Date       | Layer       | Component            | Progress                                                                                                               |
-| ---------- | ----------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| 2025-03-29 | Domain      | Initial setup        | Task Entity (100%), Task Domain Service (100%), Notification Domain Service (100%), RecurrenceRule Value Object (100%) |
-| 2025-04-02 | Application | Application Services | TaskService (32.76%), RecurringTaskService (53.74%) - Initial tests for constructor, validation, and core methods      |
-| 2025-04-03 | Application | TaskService          | Added tests for createTask method, improving coverage to 41.8%                                                         |
+| Date       | Layer       | Component            | Progress                                                                                                                                                                                                        |
+| ---------- | ----------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2025-03-29 | Domain      | Initial setup        | Task Entity (100%), Task Domain Service (100%), Notification Domain Service (100%), RecurrenceRule Value Object (100%)                                                                                          |
+| 2025-04-02 | Application | Application Services | TaskService (32.76%), RecurringTaskService (53.74%) - Initial tests for constructor, validation, and core methods                                                                                               |
+| 2025-04-03 | Application | TaskService          | Added tests for createTask method, improving coverage to 41.8%                                                                                                                                                  |
+| 2025-04-30 | Domain      | Project Entity       | Added comprehensive tests for Project Entity (91.66%) and DTOs (100%)                                                                                                                                           |
+| 2025-05-01 | Application | ProjectsService      | Implemented tests for 20 methods, including CRUD operations, tree navigation, and project duplication. Statement coverage: 47.27%                                                                               |
+| 2025-05-02 | Application | ProjectsService      | Added tests for the mergeProjects method, improving statement coverage to 53.63%, branch coverage to 29.41%, and function coverage to 67.74%                                                                    |
+| 2025-05-03 | Application | ProjectsService      | Added tests for Timeline and Analytics features (getProjectTimeline and calculateProjectHealth), improving statement coverage to 77.27%, branch coverage to 58.82%, and function coverage to 83.87%             |
+| 2025-05-04 | Application | ProjectsService      | Added tests for Search and Navigation features (searchProjects and getProjectBreadcrumb), improving statement coverage to 80.90%, branch coverage remained at 58.82%, and function coverage increased to 90.32% |
+| 2025-05-05 | Application | ProjectsService      | Added tests for Task-Project interaction methods (duplicateTaskToProject and createTaskWithProject), improving statement coverage to 92.72%, branch coverage to 76.47%, and function coverage to 96.77%         |
+| 2025-05-06 | Application | ProjectsService      | Added edge case tests for Project Hierarchy (circular references, deep nesting, system projects), improving statement coverage to 95.45%, branch coverage to 82.35%, and function coverage to 100%              |
 
 ## Next Steps
 
@@ -155,6 +188,9 @@ Our tests are organized according to the Domain-Driven Design (DDD) architecture
 
    - ✅ Complete Task Entity coverage (now 100%)
    - ✅ Complete TaskDomainService coverage (now 100%)
+   - ✅ Complete Project Entity coverage (now 91.66%)
+   - ✅ Complete Project DTOs coverage (now 100%)
+   - 🟡 Next: Implement tests for Tag Entity
 
 2. Continue Application Layer test coverage:
 
@@ -201,10 +237,4 @@ To run Application Layer tests:
 
 ```
 npm run test:application
-```
-
-To check Application Layer test coverage:
-
-```
-npm run test:application:cov
 ```

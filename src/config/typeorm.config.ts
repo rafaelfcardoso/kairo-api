@@ -142,7 +142,10 @@ export const typeOrmConfig: DatabaseConfig = process.env.DATABASE_URL
       port: parseInt(process.env.PGPORT || process.env.DB_PORT) || 5432,
       username: process.env.PGUSER || process.env.DB_USER || 'postgres',
       password: process.env.PGPASSWORD || process.env.DB_PASS || 'postgres',
-      database: process.env.PGDATABASE || process.env.DB_NAME || 'zenith_db',
+      database:
+        process.env.NODE_ENV === 'test'
+          ? process.env.PGDATABASE || process.env.DB_NAME || 'zenith_test'
+          : process.env.PGDATABASE || process.env.DB_NAME || 'zenith_db',
     };
 
 // Log the configuration (safely)

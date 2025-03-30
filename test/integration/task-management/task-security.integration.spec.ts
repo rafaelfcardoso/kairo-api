@@ -11,6 +11,7 @@ import { SecurityLoggerService } from '../../../src/common/services/security-log
 import { Repository } from 'typeorm';
 import { RecurringTaskService } from '../../../src/tasks/recurring-task.service';
 import { TaskDomainService } from '../../../src/tasks/tasks.domain.service';
+import { NotificationDomainService } from '../../../src/tasks/notification.domain.service';
 
 describe('TaskService - Security Tests', () => {
   let service: TaskService;
@@ -63,6 +64,12 @@ describe('TaskService - Security Tests', () => {
       canCompleteTask: jest.fn(),
     };
 
+    // Mock for NotificationDomainService
+    const mockNotificationDomainService = {
+      generateNotificationContent: jest.fn(),
+      scheduleTaskReminder: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TaskService,
@@ -93,6 +100,10 @@ describe('TaskService - Security Tests', () => {
         {
           provide: TaskDomainService,
           useValue: mockTaskDomainService,
+        },
+        {
+          provide: NotificationDomainService,
+          useValue: mockNotificationDomainService,
         },
       ],
     }).compile();

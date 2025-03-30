@@ -17,6 +17,7 @@ import {
 import { Repository } from 'typeorm';
 import { TaskFactory } from '../../../src/tasks/factories/task.factory';
 import { CreateTaskDto } from '../../../src/tasks/tasks.dto';
+import { NotificationDomainService } from '../../../src/tasks/notification.domain.service';
 
 describe('Recurring Task Workflow Integration', () => {
   let taskService: TaskService;
@@ -95,6 +96,12 @@ describe('Recurring Task Workflow Integration', () => {
       sendTaskNotification: jest.fn(),
     };
 
+    // Mock for NotificationDomainService
+    const mockNotificationDomainService = {
+      generateNotificationContent: jest.fn(),
+      scheduleTaskReminder: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TaskService,
@@ -125,6 +132,10 @@ describe('Recurring Task Workflow Integration', () => {
         {
           provide: NotificationService,
           useValue: mockNotificationService,
+        },
+        {
+          provide: NotificationDomainService,
+          useValue: mockNotificationDomainService,
         },
       ],
     }).compile();

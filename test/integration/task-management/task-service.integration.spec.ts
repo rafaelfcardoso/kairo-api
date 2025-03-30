@@ -11,6 +11,7 @@ import { TagsRepository } from '../../../src/tags/tags.repository';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { RecurringTaskService } from '../../../src/tasks/recurring-task.service';
 import { TaskDomainService } from '../../../src/tasks/tasks.domain.service';
+import { NotificationDomainService } from '../../../src/tasks/notification.domain.service';
 
 describe('TaskService', () => {
   let service: TaskService;
@@ -66,6 +67,12 @@ describe('TaskService', () => {
       canCompleteTask: jest.fn().mockReturnValue(true),
     };
 
+    // Mock for NotificationDomainService
+    const mockNotificationDomainService = {
+      generateNotificationContent: jest.fn(),
+      scheduleTaskReminder: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TaskService,
@@ -96,6 +103,10 @@ describe('TaskService', () => {
         {
           provide: TaskDomainService,
           useValue: mockTaskDomainService,
+        },
+        {
+          provide: NotificationDomainService,
+          useValue: mockNotificationDomainService,
         },
       ],
     }).compile();
