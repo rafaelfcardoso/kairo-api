@@ -118,12 +118,10 @@ describe('TaskController', () => {
         .fn()
         .mockImplementation(() => Promise.resolve([])),
       assignToProject: jest.fn(),
-      addTags: jest
-        .fn()
-        .mockResolvedValue({
-          ...mockTask,
-          tags: [{ id: 'tag-1', name: 'Tag 1' }],
-        }),
+      addTags: jest.fn().mockResolvedValue({
+        ...mockTask,
+        tags: [{ id: 'tag-1', name: 'Tag 1' }],
+      }),
       removeTags: jest.fn().mockResolvedValue({ ...mockTask, tags: [] }),
       archiveTask: jest
         .fn()
