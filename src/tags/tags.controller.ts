@@ -10,7 +10,6 @@ import {
   ParseUUIDPipe,
   ParseIntPipe,
   HttpStatus,
-  Patch,
 } from '@nestjs/common';
 import { TagsService } from './tags.service';
 import { CreateTagDto, UpdateTagDto } from './tags.dto';
@@ -136,28 +135,5 @@ export class TagsController {
   })
   async deleteTag(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.tagsService.deleteTag(id);
-  }
-
-  @Get('goals')
-  @ApiOperation({ summary: 'Get all goal tags' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Retrieved goal tags successfully',
-    type: [Tag],
-  })
-  async getGoalTags(): Promise<Tag[]> {
-    return this.tagsService.getGoalTags();
-  }
-
-  @Patch(':id/toggle-goal')
-  @ApiOperation({ summary: 'Toggle goal status of a tag' })
-  @ApiParam({ name: 'id', type: 'string' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Tag goal status toggled successfully',
-    type: Tag,
-  })
-  async toggleGoalStatus(@Param('id', ParseUUIDPipe) id: string): Promise<Tag> {
-    return this.tagsService.toggleGoalStatus(id);
   }
 }

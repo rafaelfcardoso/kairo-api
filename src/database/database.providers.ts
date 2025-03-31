@@ -30,6 +30,7 @@ import { CreateSystemHealthTable1741800000000 } from '../migrations/174180000000
 import { CreateApiMetricsTable1741900000000 } from '../migrations/1741900000000-CreateApiMetricsTable';
 import { CreateNlpFeedbackTable1741912345000 } from '../migrations/1741912345000-CreateNlpFeedbackTable';
 import { CreateNlpModelPerformanceTable1742000000000 } from '../migrations/1742000000000-CreateNlpModelPerformanceTable';
+import { RemoveIsGoalFromTagTable1743380485000 } from '../migrations/1743380485000-RemoveIsGoalFromTagTable';
 
 // Import the actual entities
 import { Task } from '../tasks/tasks.entity';
@@ -88,6 +89,7 @@ export const databaseProviders = [
           AddRecurrenceRuleColumn1741013788916,
           AddNextDueDateColumn1741014300000,
           AddIsGoalToTagTable1741607800000,
+          RemoveIsGoalFromTagTable1743380485000,
           CreateSystemHealthTable1741800000000,
           CreateApiMetricsTable1741900000000,
           CreateNlpFeedbackTable1741912345000,

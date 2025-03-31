@@ -91,95 +91,77 @@ describe('TaskController Integration Test', () => {
     // Create test data
     createTestData();
 
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [TaskController],
-      providers: [
-        TaskService,
-        RecurringTaskService,
-        TaskDomainService,
-        TasksRepository,
-        ProjectsRepository,
-        TagsRepository,
-        TaskFactory,
-        {
-          provide: SecurityLoggerService,
-          useValue: mockSecurityLogger,
-        },
-        {
-          provide: SchedulerService,
-          useValue: { processTask: jest.fn() },
-        },
-        {
-          provide: NotificationService,
-          useValue: { sendTaskNotification: jest.fn() },
-        },
-        {
-          provide: NotificationDomainService,
-          useValue: {
-            generateNotificationContent: jest.fn(),
-            scheduleTaskReminder: jest.fn(),
-          },
-        },
-        {
-          provide: DataSource,
-          useValue: {
-            createEntityManager: jest.fn().mockReturnValue({}),
-            getRepository: jest.fn(),
-          },
-        },
-        {
-          provide: getRepositoryToken(Task),
-          useValue: mockTaskRepository,
-        },
-        {
-          provide: getRepositoryToken(Project),
-          useValue: {
-            findOne: jest.fn(),
-            find: jest.fn(),
-          },
-        },
-        {
-          provide: getRepositoryToken(Tag),
-          useValue: {
-            findOne: jest.fn(),
-            find: jest.fn(),
-            findByIds: jest.fn(),
-          },
-        },
-        {
-          provide: HttpService,
-          useValue: {},
-        },
-        {
-          provide: Logger,
-          useValue: {
-            log: jest.fn(),
-            error: jest.fn(),
-            warn: jest.fn(),
-            debug: jest.fn(),
-            verbose: jest.fn(),
-          },
-        },
-        Reflector,
-      ],
-    }).compile();
+    // Setup mock repositories with minimal mocks
+    taskRepository = mockTaskRepository as unknown as Repository<Task>;
 
-    controller = module.get<TaskController>(TaskController);
-    taskService = module.get<TaskService>(TaskService);
-    recurringTaskService =
-      module.get<RecurringTaskService>(RecurringTaskService);
-    taskDomainService = module.get<TaskDomainService>(TaskDomainService);
-    tasksRepository = module.get<TasksRepository>(TasksRepository);
-    projectsRepository = module.get<ProjectsRepository>(ProjectsRepository);
-    tagsRepository = module.get<TagsRepository>(TagsRepository);
-    securityLoggerService = module.get<SecurityLoggerService>(
-      SecurityLoggerService,
+    projectRepository = {
+      findOne: jest.fn(),
+      find: jest.fn(),
+    } as unknown as Repository<Project>;
+
+    tagRepository = {
+      findOne: jest.fn(),
+      find: jest.fn(),
+      findByIds: jest.fn(),
+    } as unknown as Repository<Tag>;
+
+    // Create mock custom repositories
+    tasksRepository = {
+      getTasks: jest.fn().mockResolvedValue([testTask]),
+      getTaskById: jest.fn().mockResolvedValue(testTask),
+      createTask: jest.fn().mockResolvedValue(testTask),
+      updateTask: jest.fn().mockResolvedValue(testTask),
+      deleteTask: jest.fn().mockResolvedValue(undefined),
+      archiveTask: jest
+        .fn()
+        .mockResolvedValue({ ...testTask, isArchived: true }),
+      addTags: jest.fn().mockResolvedValue({ ...testTask, tags: [testTag] }),
+      removeTags: jest.fn().mockResolvedValue({ ...testTask, tags: [] }),
+    } as unknown as TasksRepository;
+
+    projectsRepository = {
+      findOne: jest.fn(),
+    } as unknown as ProjectsRepository;
+
+    tagsRepository = {
+      findByIds: jest.fn().mockResolvedValue([testTag]),
+    } as unknown as TagsRepository;
+
+    // Create mock domain services
+    taskDomainService = {
+      calculateNextOccurrence: jest.fn(),
+      isTaskDue: jest.fn(),
+      getTasksNeedingReminders: jest.fn(),
+      completeTask: jest.fn(),
+      determineNotificationType: jest.fn(),
+      canCompleteTask: jest.fn(),
+    } as unknown as TaskDomainService;
+
+    // Create recurring task service
+    recurringTaskService = {
+      processCompletedTask: jest.fn(),
+      scheduleNextRecurrence: jest.fn(),
+      calculateNextOccurrence: jest.fn(),
+    } as unknown as RecurringTaskService;
+
+    const notificationDomainService = {
+      generateNotificationContent: jest.fn(),
+      scheduleTaskReminder: jest.fn(),
+    } as unknown as NotificationDomainService;
+
+    // Create the TaskService directly
+    taskService = new TaskService(
+      tasksRepository,
+      projectsRepository,
+      tagsRepository,
+      mockSecurityLogger as unknown as SecurityLoggerService,
+      recurringTaskService,
+      taskDomainService,
+      notificationDomainService,
     );
-    taskRepository = module.get<Repository<Task>>(getRepositoryToken(Task));
-    projectRepository = module.get<Repository<Project>>(
-      getRepositoryToken(Project),
-    );
-    tagRepository = module.get<Repository<Tag>>(getRepositoryToken(Tag));
+
+    // Create the TaskController directly
+    controller = new TaskController(taskService);
 
     // Setup mock implementations
     setupMockImplementations();
@@ -238,7 +220,6 @@ describe('TaskController Integration Test', () => {
       name: 'Important',
       color: '#FF0000',
       description: 'Important tasks',
-      isGoal: false,
       createdAt: new Date(),
       updatedAt: new Date(),
       tasks: [],

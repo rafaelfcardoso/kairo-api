@@ -33,7 +33,7 @@ describe('TaskService - Security Tests', () => {
     };
 
     mockTagsRepository = {
-      findByIds: jest.fn(),
+      getTagsByIds: jest.fn(),
     };
 
     mockTaskRepository = {
@@ -70,45 +70,16 @@ describe('TaskService - Security Tests', () => {
       scheduleTaskReminder: jest.fn(),
     };
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        TaskService,
-        {
-          provide: TasksRepository,
-          useValue: mockTasksRepository,
-        },
-        {
-          provide: ProjectsRepository,
-          useValue: mockProjectsRepository,
-        },
-        {
-          provide: TagsRepository,
-          useValue: mockTagsRepository,
-        },
-        {
-          provide: getRepositoryToken(Task),
-          useValue: mockTaskRepository,
-        },
-        {
-          provide: SecurityLoggerService,
-          useValue: mockSecurityLogger,
-        },
-        {
-          provide: RecurringTaskService,
-          useValue: mockRecurringTaskService,
-        },
-        {
-          provide: TaskDomainService,
-          useValue: mockTaskDomainService,
-        },
-        {
-          provide: NotificationDomainService,
-          useValue: mockNotificationDomainService,
-        },
-      ],
-    }).compile();
-
-    service = module.get<TaskService>(TaskService);
+    // Instead of using the module system, directly instantiate the service
+    service = new TaskService(
+      mockTasksRepository as any,
+      mockProjectsRepository as any,
+      mockTagsRepository as any,
+      mockSecurityLogger as any,
+      mockRecurringTaskService as any,
+      mockTaskDomainService as any,
+      mockNotificationDomainService as any,
+    );
   });
 
   describe('Command Injection Prevention', () => {

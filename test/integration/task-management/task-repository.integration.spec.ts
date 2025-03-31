@@ -262,7 +262,6 @@ describe('TasksRepository Integration', () => {
       name: 'Important',
       color: '#FF0000',
       description: 'Important tasks',
-      isGoal: false,
       createdAt: new Date(),
       updatedAt: new Date(),
       tasks: [],

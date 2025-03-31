@@ -80,9 +80,9 @@ describe('TaskService', () => {
     });
 
     const mockTagsRepository = () => ({
-      findOne: jest.fn(),
-      find: jest.fn(),
-      findByIds: jest.fn(),
+      getTagById: jest.fn(),
+      getTagsByIds: jest.fn(),
+      findSimilarTags: jest.fn(),
     });
 
     const mockSecurityLogger = {
@@ -232,7 +232,6 @@ describe('TaskService', () => {
     tag.name = name;
     tag.color = '#000000';
     tag.description = 'Test tag';
-    tag.isGoal = false;
     tag.createdAt = new Date();
     tag.updatedAt = new Date();
     tag.tasks = [];
@@ -834,7 +833,7 @@ describe('TaskService', () => {
         jest.clearAllMocks();
 
         // Setup default behavior for common mock calls
-        tagsRepository.findByIds.mockResolvedValue(foundTags);
+        tagsRepository.getTagsByIds.mockResolvedValue(foundTags);
         tasksRepository.getTaskById.mockResolvedValue(mockTask);
         tasksRepository.addTags.mockResolvedValue(mockTask);
       });
@@ -844,7 +843,7 @@ describe('TaskService', () => {
         const result = await service.addTags(taskId, tagIds);
 
         // Assert
-        expect(tagsRepository.findByIds).toHaveBeenCalledWith(tagIds);
+        expect(tagsRepository.getTagsByIds).toHaveBeenCalledWith(tagIds);
         expect(tasksRepository.addTags).toHaveBeenCalledWith(taskId, tagIds);
         expect(result).toEqual(mockTask);
       });
@@ -875,8 +874,10 @@ describe('TaskService', () => {
       });
 
       it('should throw NotFoundException if tags are not found', async () => {
-        // Arrange - Only one tag is found
-        tagsRepository.findByIds.mockResolvedValue([foundTags[0]]);
+        // Arrange - Mocking getTagsByIds to throw exception
+        tagsRepository.getTagsByIds.mockRejectedValue(
+          new NotFoundException('One or more tags not found'),
+        );
 
         // Act & Assert
         await expect(service.addTags(taskId, tagIds)).rejects.toThrow(

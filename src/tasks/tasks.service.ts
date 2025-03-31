@@ -353,11 +353,7 @@ export class TaskService {
   }
 
   async addTags(taskId: string, tagIds: string[]): Promise<Task> {
-    const foundTags = await this.tagsRepository.findByIds(tagIds);
-    if (foundTags.length !== tagIds.length) {
-      throw new NotFoundException('One or more tags not found');
-    }
-
+    const foundTags = await this.tagsRepository.getTagsByIds(tagIds);
     return this.tasksRepository.addTags(taskId, tagIds);
   }
 

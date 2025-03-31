@@ -1,24 +1,25 @@
-import { Injectable } from '@nestjs/common';
-import { DataSource, Repository } from 'typeorm';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { DataSource, Repository, ILike, In, FindOptionsWhere } from 'typeorm';
 import { Tag } from './tags.entity';
 import { CreateTagDto, UpdateTagDto } from './tags.dto';
-import { NotFoundException } from '@nestjs/common';
 
 @Injectable()
-export class TagsRepository extends Repository<Tag> {
+export class TagsRepository {
+  protected repository: Repository<Tag>;
+
   constructor(private dataSource: DataSource) {
-    super(Tag, dataSource.createEntityManager());
+    this.repository = this.dataSource.getRepository(Tag);
   }
 
   async getTags(): Promise<Tag[]> {
-    return this.createQueryBuilder('tag')
-      .leftJoinAndSelect('tag.tasks', 'tasks')
-      .orderBy('tag.name', 'ASC')
-      .getMany();
+    return this.repository.find({
+      relations: ['tasks'],
+      order: { name: 'ASC' },
+    });
   }
 
   async getTagById(id: string): Promise<Tag> {
-    const tag = await this.findOne({
+    const tag = await this.repository.findOne({
       where: { id },
       relations: ['tasks'],
     });
@@ -31,55 +32,55 @@ export class TagsRepository extends Repository<Tag> {
   }
 
   async createTag(createTagDto: CreateTagDto): Promise<Tag> {
-    const tag = this.create(createTagDto);
-    await this.save(tag);
+    const tag = this.repository.create(createTagDto);
+    await this.repository.save(tag);
     return this.getTagById(tag.id);
   }
 
   async updateTag(id: string, updateTagDto: UpdateTagDto): Promise<Tag> {
     const tag = await this.getTagById(id);
     Object.assign(tag, updateTagDto);
-    await this.save(tag);
+    await this.repository.save(tag);
     return this.getTagById(id);
   }
 
   async deleteTag(id: string): Promise<void> {
-    const result = await this.delete(id);
-    if (result.affected === 0) {
-      throw new NotFoundException(`Tag with ID "${id}" not found`);
-    }
+    const tag = await this.getTagById(id);
+    await this.repository.delete(id);
   }
 
   async getTagsByIds(ids: string[]): Promise<Tag[]> {
-    const tags = await this.findBy({ id: { $in: ids } as any });
+    const tags = await this.repository.find({
+      where: { id: In(ids) },
+      relations: ['tasks'],
+    });
+
     if (tags.length !== ids.length) {
       throw new NotFoundException('One or more tags not found');
     }
+
     return tags;
   }
 
   async getTagStats(): Promise<Array<{ tag: Tag; taskCount: number }>> {
-    const tags = await this.createQueryBuilder('tag')
-      .loadRelationCountAndMap('tag.taskCount', 'tag.tasks')
-      .getMany();
+    const tags = await this.repository.find({
+      relations: ['tasks'],
+    });
 
     return tags.map((tag) => ({
       tag,
-      taskCount: (tag as any).taskCount || 0,
+      taskCount: tag.tasks.length,
     }));
   }
 
   async findSimilarTags(name: string): Promise<Tag[]> {
-    return this.createQueryBuilder('tag')
-      .where('LOWER(tag.name) LIKE LOWER(:name)', { name: `%${name}%` })
-      .getMany();
+    return this.repository.find({
+      where: { name: ILike(`%${name}%`) },
+      relations: ['tasks'],
+    });
   }
 
-  async getGoalTags(): Promise<Tag[]> {
-    return this.createQueryBuilder('tag')
-      .where('tag.isGoal = :isGoal', { isGoal: true })
-      .leftJoinAndSelect('tag.tasks', 'tasks')
-      .orderBy('tag.name', 'ASC')
-      .getMany();
+  async countTags(where: FindOptionsWhere<Tag>): Promise<number> {
+    return this.repository.count({ where });
   }
 }

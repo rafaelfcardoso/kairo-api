@@ -73,45 +73,16 @@ describe('TaskService', () => {
       scheduleTaskReminder: jest.fn(),
     };
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        TaskService,
-        {
-          provide: TasksRepository,
-          useValue: mockTasksRepository,
-        },
-        {
-          provide: ProjectsRepository,
-          useValue: mockProjectsRepository,
-        },
-        {
-          provide: TagsRepository,
-          useValue: {},
-        },
-        {
-          provide: getRepositoryToken(Task),
-          useValue: mockTaskRepository,
-        },
-        {
-          provide: SecurityLoggerService,
-          useValue: mockSecurityLogger,
-        },
-        {
-          provide: RecurringTaskService,
-          useValue: mockRecurringTaskService,
-        },
-        {
-          provide: TaskDomainService,
-          useValue: mockTaskDomainService,
-        },
-        {
-          provide: NotificationDomainService,
-          useValue: mockNotificationDomainService,
-        },
-      ],
-    }).compile();
-
-    service = module.get<TaskService>(TaskService);
+    // Create the service directly instead of using the module system
+    service = new TaskService(
+      mockTasksRepository as unknown as TasksRepository,
+      mockProjectsRepository as unknown as ProjectsRepository,
+      {} as unknown as TagsRepository,
+      mockSecurityLogger as unknown as SecurityLoggerService,
+      mockRecurringTaskService as unknown as RecurringTaskService,
+      mockTaskDomainService as unknown as TaskDomainService,
+      mockNotificationDomainService as unknown as NotificationDomainService,
+    );
   });
 
   describe('Project Assignment', () => {

@@ -49,6 +49,7 @@ The documentation is organized into the following directories:
 
 - [Search and Navigation Implementation](active/search-navigation-implementation.md): Details on project search and navigation features implementation
 - [Task-Project Interaction Implementation Summary](active/implementation-summary.md): Summary of task-project interaction test implementation
+- [Project Repository Implementation](active/project-repository-implementation.md): Details on testing the projects repository infrastructure
 
 ## Keeping Documentation Updated
 

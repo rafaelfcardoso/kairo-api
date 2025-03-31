@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { TagsRepository } from './tags.repository';
 import { CreateTagDto, UpdateTagDto } from './tags.dto';
 import { Tag } from './tags.entity';
+import { ILike } from 'typeorm';
 
 @Injectable()
 export class TagsService {
@@ -51,32 +52,22 @@ export class TagsService {
     return stats.filter((stat) => stat.taskCount === 0).map((stat) => stat.tag);
   }
 
-  async getGoalTags(): Promise<Tag[]> {
-    return this.tagsRepository.getGoalTags();
-  }
-
-  async toggleGoalStatus(id: string): Promise<Tag> {
-    const tag = await this.getTagById(id);
-    return this.tagsRepository.updateTag(id, { isGoal: !tag.isGoal });
-  }
-
   /**
    * Count tags based on filter criteria
    * @param filters Object with filter criteria
    * @returns Number of tags matching the filters
    */
   async countTags(filters: Record<string, any>): Promise<number> {
-    const query = this.tagsRepository.createQueryBuilder('tag');
+    const where: any = {};
 
-    // Apply filters if provided
     if (filters.name) {
-      query.andWhere('tag.name LIKE :name', { name: `%${filters.name}%` });
+      where.name = ILike(`%${filters.name}%`);
     }
 
     if (filters.color) {
-      query.andWhere('tag.color = :color', { color: filters.color });
+      where.color = filters.color;
     }
 
-    return query.getCount();
+    return this.tagsRepository.countTags(where);
   }
 }

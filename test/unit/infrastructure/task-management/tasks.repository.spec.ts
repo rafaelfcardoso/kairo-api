@@ -253,11 +253,11 @@ describe('TasksRepository', () => {
     const tag = new Tag();
     tag.id = id;
     tag.name = name;
-    tag.color = '#000000';
+    tag.color = '#FF0000';
     tag.description = 'Test tag';
-    tag.isGoal = false;
     tag.createdAt = new Date();
     tag.updatedAt = new Date();
+    tag.tasks = [];
     return tag;
   };
 

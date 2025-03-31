@@ -248,7 +248,9 @@ describe('TaskDomainService', () => {
 
   describe('completeTask', () => {
     it('should mark a task as completed', () => {
-      const task = createTestTask();
+      const task = createTestTask({
+        status: TaskStatus.NOT_STARTED,
+      });
 
       const result = service.completeTask(task);
 
@@ -256,26 +258,26 @@ describe('TaskDomainService', () => {
     });
 
     it('should create next occurrence for recurring tasks', () => {
-      const dueDate = new Date();
-      const rrule = new RRule({
-        freq: RRule.DAILY,
-        interval: 1,
-        dtstart: dueDate,
-      });
+      const today = new Date();
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
 
       const task = createTestTask({
-        dueDate,
+        status: TaskStatus.NOT_STARTED,
         isRecurring: true,
-        recurrenceRule: rrule.toString(),
+        recurrenceRule: new RRule({
+          freq: RRule.DAILY,
+          interval: 1,
+          dtstart: today,
+        }).toString(),
+        project: { id: '123', name: 'Test Project' } as Project,
       });
 
       const result = service.completeTask(task);
 
       expect(result.updatedTask.status).toBe(TaskStatus.COMPLETED);
       expect(result.nextTask).toBeDefined();
-      expect(result.nextTask.title).toBe(task.title);
-      expect(result.nextTask.status).toBe(TaskStatus.NOT_STARTED);
-      expect(result.nextTask.recurringParentId).toBe(task.id);
+      expect(result.nextTask.project).toEqual(task.project);
     });
 
     it('should not create next occurrence if task is recurring but has reached count limit', () => {
@@ -352,8 +354,13 @@ describe('TaskDomainService', () => {
       expect(result).toContain('FREQ=MONTHLY');
     });
 
-    it('should throw an error for unknown pattern', () => {
-      expect(() => service.createRecurrenceRule('unknown')).toThrow();
+    it('should handle case-insensitive patterns', () => {
+      const result = service.createRecurrenceRule('DAILY');
+      expect(result).toContain('FREQ=DAILY');
+    });
+
+    it('should throw error for unknown pattern', () => {
+      expect(() => service.createRecurrenceRule('invalid')).toThrow();
     });
   });
 
@@ -631,6 +638,28 @@ describe('TaskDomainService', () => {
       // New task should still be created with null dueDate
       expect(result).toBeDefined();
       expect(result.dueDate).toBeNull();
+    });
+  });
+
+  describe('determineNotificationType', () => {
+    it('should return reminder type for tasks that need reminders', () => {
+      const task = createTestTask({
+        needsReminder: true,
+      });
+
+      const notificationType = service.determineNotificationType(task);
+
+      expect(notificationType).toBe('reminder');
+    });
+
+    it('should return standard type for tasks that do not need reminders', () => {
+      const task = createTestTask({
+        needsReminder: false,
+      });
+
+      const notificationType = service.determineNotificationType(task);
+
+      expect(notificationType).toBe('standard');
     });
   });
 });

@@ -20,8 +20,6 @@ describe('TagsController', () => {
     createTag: jest.fn(),
     updateTag: jest.fn(),
     deleteTag: jest.fn(),
-    getGoalTags: jest.fn(),
-    toggleGoalStatus: jest.fn(),
   };
 
   const mockTag: Tag = {
@@ -29,7 +27,6 @@ describe('TagsController', () => {
     name: 'Important',
     color: '#FF0000',
     description: 'For high-priority items',
-    isGoal: false,
     createdAt: new Date(),
     updatedAt: new Date(),
     tasks: [],
@@ -224,42 +221,6 @@ describe('TagsController', () => {
 
       await expect(controller.deleteTag(id)).rejects.toThrow(NotFoundException);
       expect(tagsService.deleteTag).toHaveBeenCalledWith(id);
-    });
-  });
-
-  describe('getGoalTags', () => {
-    it('should return all goal tags', async () => {
-      const goalTag = { ...mockTag, isGoal: true };
-      mockTagsService.getGoalTags.mockResolvedValue([goalTag]);
-
-      const result = await controller.getGoalTags();
-
-      expect(result).toEqual([goalTag]);
-      expect(tagsService.getGoalTags).toHaveBeenCalled();
-    });
-  });
-
-  describe('toggleGoalStatus', () => {
-    it('should toggle goal status of a tag', async () => {
-      const toggled = { ...mockTag, isGoal: true };
-      mockTagsService.toggleGoalStatus.mockResolvedValue(toggled);
-
-      const result = await controller.toggleGoalStatus(mockTag.id);
-
-      expect(result).toEqual(toggled);
-      expect(tagsService.toggleGoalStatus).toHaveBeenCalledWith(mockTag.id);
-    });
-
-    it('should throw NotFoundException when tag does not exist', async () => {
-      const id = 'non-existent-id';
-      mockTagsService.toggleGoalStatus.mockRejectedValue(
-        new NotFoundException(),
-      );
-
-      await expect(controller.toggleGoalStatus(id)).rejects.toThrow(
-        NotFoundException,
-      );
-      expect(tagsService.toggleGoalStatus).toHaveBeenCalledWith(id);
     });
   });
 });

@@ -35,6 +35,7 @@ import { CreateSystemHealthTable1741800000000 } from '../migrations/174180000000
 import { CreateApiMetricsTable1741900000000 } from '../migrations/1741900000000-CreateApiMetricsTable';
 import { CreateNlpFeedbackTable1741912345000 } from '../migrations/1741912345000-CreateNlpFeedbackTable';
 import { CreateNlpModelPerformanceTable1742000000000 } from '../migrations/1742000000000-CreateNlpModelPerformanceTable';
+import { RemoveIsGoalFromTagTable1743380485000 } from '../migrations/1743380485000-RemoveIsGoalFromTagTable';
 import { DATABASE_CONFIG } from './constants';
 
 // Define interface for database configuration
@@ -79,6 +80,7 @@ const migrations = [
   CreateApiMetricsTable1741900000000,
   CreateNlpFeedbackTable1741912345000,
   CreateNlpModelPerformanceTable1742000000000,
+  RemoveIsGoalFromTagTable1743380485000,
 ];
 
 // Define all entities in one place for better maintenance

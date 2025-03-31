@@ -24,16 +24,6 @@ export class CreateTagDto {
   @IsString()
   @IsOptional()
   description?: string;
-
-  @ApiProperty({
-    example: false,
-    description: 'Whether this tag represents a user goal',
-    required: false,
-    default: false,
-  })
-  @IsBoolean()
-  @IsOptional()
-  isGoal?: boolean;
 }
 
 export class UpdateTagDto {
@@ -51,13 +41,4 @@ export class UpdateTagDto {
   @IsString()
   @IsOptional()
   description?: string;
-
-  @ApiProperty({
-    example: false,
-    description: 'Whether this tag represents a user goal',
-    required: false,
-  })
-  @IsBoolean()
-  @IsOptional()
-  isGoal?: boolean;
 }
