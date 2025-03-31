@@ -1,7 +1,7 @@
-import { closeTestApp } from './test/test-utils';
+import { closeTestApp } from '../test-utils';
 
 module.exports = async () => {
-  console.log('Global teardown: closing test database connections');
+  console.log('Global teardown: closing test database connection');
   await closeTestApp();
 
   // Allow more time for connections to fully close

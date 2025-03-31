@@ -1,4 +1,4 @@
-import { getTestApp } from './test/test-utils';
+import { getTestApp } from '../test-utils';
 
 module.exports = async () => {
   console.log('Global setup: initializing test database connection');
