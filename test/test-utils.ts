@@ -132,7 +132,9 @@ export async function closeTestApp(): Promise<void> {
     await app.close();
 
     // Give some time for all connections to be closed
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => {
+      setTimeout(resolve, 500).unref();
+    });
 
     app = undefined;
     testingModule = undefined;
