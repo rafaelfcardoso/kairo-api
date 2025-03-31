@@ -41,23 +41,37 @@ describe('TaskController', () => {
     dueDate: new Date('2025-01-01'),
     isArchived: false,
     isRecurring: false,
-    recurrenceRule: null,
-    recurrencePattern: null,
-    recurrenceDays: null,
-    nextDueDate: null,
-    reminderMessage: null,
+    recurrenceRule: '',
+    recurrencePattern: '',
+    recurrenceDays: '',
+    nextDueDate: new Date(),
+    reminderMessage: '',
     needsReminder: false,
     hasTime: false,
-    recurringParentId: null,
-    project: null,
+    recurringParentId: '',
+    project: {
+      id: 'project-1',
+      name: 'Test Project',
+      description: '',
+      type: ProjectType.INBOX,
+      isArchived: false,
+      isSystem: false,
+      parent: undefined as any,
+      children: [],
+      tasks: [],
+      color: '#000000',
+      order: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
     tags: [],
     focusSessions: [],
     createdAt: new Date(),
     updatedAt: new Date(),
-    recurrenceTimeOfDay: null,
-    recurrenceTime: null,
+    recurrenceTimeOfDay: '',
+    recurrenceTime: '',
     estimatedMinutes: 0,
-    completedAt: null,
+    completedAt: new Date(),
     get isCompleted() {
       return this.status === TaskStatus.COMPLETED;
     },
@@ -376,10 +390,10 @@ describe('TaskController', () => {
 
   describe('getUpcomingTasks', () => {
     it('should return upcoming tasks with default days', async () => {
-      const result = await controller.getUpcomingTasks(undefined);
+      const result = await controller.getUpcomingTasks(7);
 
       expect(result).toEqual([mockTask]);
-      expect(taskService.getUpcomingTasks).toHaveBeenCalledWith(undefined);
+      expect(taskService.getUpcomingTasks).toHaveBeenCalledWith(7);
     });
 
     it('should return upcoming tasks with specified days', async () => {

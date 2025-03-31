@@ -61,7 +61,6 @@ export class TaskService {
     private tasksRepository: TasksRepository,
     @InjectRepository(ProjectsRepository)
     private projectsRepository: ProjectsRepository,
-    @InjectRepository(TagsRepository)
     private tagsRepository: TagsRepository,
     private securityLogger: SecurityLoggerService,
     private recurringTaskService: RecurringTaskService,

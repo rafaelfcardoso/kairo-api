@@ -55,8 +55,4 @@ export class Tag {
   })
   @ManyToMany(() => Task, (task) => task.tags)
   tasks: Task[];
-
-  constructor() {
-    this.tasks = [];
-  }
 }

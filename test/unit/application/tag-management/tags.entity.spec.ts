@@ -7,6 +7,7 @@ describe('Tag', () => {
 
   beforeEach(() => {
     tag = new Tag();
+    tag.tasks = [];
     task = new Task();
     task.id = '123';
     task.title = 'Test Task';

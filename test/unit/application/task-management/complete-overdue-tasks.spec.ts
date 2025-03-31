@@ -44,7 +44,7 @@ describe('TaskService - completeOverdueTasks', () => {
           useFactory: mockProjectsRepository,
         },
         {
-          provide: getRepositoryToken(TagsRepository),
+          provide: TagsRepository,
           useFactory: mockTagsRepository,
         },
         {

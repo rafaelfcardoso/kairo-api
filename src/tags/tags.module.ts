@@ -9,6 +9,6 @@ import { TagsRepository } from './tags.repository';
   imports: [TypeOrmModule.forFeature([Tag])],
   controllers: [TagsController],
   providers: [TagsService, TagsRepository],
-  exports: [TagsService],
+  exports: [TagsService, TagsRepository],
 })
 export class TagsModule {}

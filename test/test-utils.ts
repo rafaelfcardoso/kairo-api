@@ -1,10 +1,21 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppModule } from '../src/app.module';
 import { INestApplication } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Task } from '../src/tasks/tasks.entity';
+import { Project } from '../src/projects/projects.entity';
+import { Tag } from '../src/tags/tags.entity';
+import { TasksRepository } from '../src/tasks/tasks.repository';
+import { ProjectsRepository } from '../src/projects/projects.repository';
+import { TagsRepository } from '../src/tags/tags.repository';
+import { SecurityLoggerService } from '../src/common/services/security-logger.service';
+import { TaskDomainService } from '../src/tasks/tasks.domain.service';
+import { NotificationDomainService } from '../src/tasks/notification.domain.service';
+import { RecurringTaskService } from '../src/tasks/recurring-task.service';
 
-let app: INestApplication;
-let testingModule: TestingModule;
+let app: INestApplication | undefined;
+let testingModule: TestingModule | undefined;
 let isInitialized = false;
 
 /**
@@ -15,7 +26,58 @@ export async function getTestApp(): Promise<INestApplication> {
   if (!isInitialized) {
     console.log('Initializing shared test app and database connection...');
     const moduleBuilder = Test.createTestingModule({
-      imports: [AppModule],
+      imports: [AppModule, TypeOrmModule.forFeature([Task, Project, Tag])],
+      providers: [
+        {
+          provide: TasksRepository,
+          useFactory: (dataSource: DataSource) => {
+            return new TasksRepository(dataSource);
+          },
+          inject: [DataSource],
+        },
+        {
+          provide: ProjectsRepository,
+          useFactory: (dataSource: DataSource) => {
+            return new ProjectsRepository(dataSource);
+          },
+          inject: [DataSource],
+        },
+        {
+          provide: TagsRepository,
+          useClass: TagsRepository,
+        },
+        {
+          provide: SecurityLoggerService,
+          useValue: {
+            logSecurityEvent: async () => {},
+            logValidationFailure: async () => {},
+            logSuspiciousActivity: async () => {},
+          },
+        },
+        {
+          provide: TaskDomainService,
+          useValue: {
+            calculateNextOccurrence: async () => null,
+            isTaskDue: () => false,
+            getTasksNeedingReminders: async () => [],
+          },
+        },
+        {
+          provide: NotificationDomainService,
+          useValue: {
+            generateNotificationContent: async () => ({}),
+            scheduleTaskReminder: async () => {},
+          },
+        },
+        {
+          provide: RecurringTaskService,
+          useValue: {
+            processCompletedTask: async () => {},
+            scheduleNextRecurrence: async () => {},
+            calculateNextOccurrence: async () => null,
+          },
+        },
+      ],
     });
 
     testingModule = await moduleBuilder.compile();
@@ -24,6 +86,10 @@ export async function getTestApp(): Promise<INestApplication> {
     app.setGlobalPrefix('api/v1');
     await app.init();
     isInitialized = true;
+  }
+
+  if (!app) {
+    throw new Error('App failed to initialize');
   }
 
   return app;
@@ -68,8 +134,8 @@ export async function closeTestApp(): Promise<void> {
     // Give some time for all connections to be closed
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    app = null;
-    testingModule = null;
+    app = undefined;
+    testingModule = undefined;
     isInitialized = false;
   }
 }

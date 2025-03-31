@@ -171,7 +171,7 @@ describe('TaskService', () => {
           useValue: mockProjectsRepository,
         },
         {
-          provide: getRepositoryToken(TagsRepository),
+          provide: TagsRepository,
           useValue: mockTagsRepository,
         },
         {
@@ -215,7 +215,7 @@ describe('TaskService', () => {
     service = module.get<TaskService>(TaskService);
     tasksRepository = module.get<jest.Mocked<TasksRepository>>(TasksRepository);
     projectsRepository = module.get(getRepositoryToken(ProjectsRepository));
-    tagsRepository = module.get(getRepositoryToken(TagsRepository));
+    tagsRepository = module.get(TagsRepository);
     securityLogger = module.get(SecurityLoggerService);
     recurringTaskService =
       module.get<jest.Mocked<RecurringTaskService>>(RecurringTaskService);

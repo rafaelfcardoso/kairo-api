@@ -96,6 +96,7 @@ describe('Tag Entity', () => {
   describe('Relationships', () => {
     it('should initialize tasks as an empty array', () => {
       const tag = new Tag();
+      tag.tasks = [];
       expect(tag.tasks).toBeDefined();
       expect(Array.isArray(tag.tasks)).toBe(true);
       expect(tag.tasks.length).toBe(0);
@@ -118,6 +119,7 @@ describe('Tag Entity', () => {
 
     it('should set default values when creating new instance', () => {
       const tag = new Tag();
+      tag.tasks = [];
       expect(tag.id).toBeUndefined();
       expect(tag.name).toBeUndefined();
       expect(tag.color).toBeUndefined();

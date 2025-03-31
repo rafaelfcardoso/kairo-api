@@ -12,15 +12,15 @@ import { TaskDomainService } from './tasks.domain.service';
 import { TaskFactory } from './factories/task.factory';
 import { NotificationDomainService } from './notification.domain.service';
 import { RecurringTaskService } from './recurring-task.service';
+import { TagsModule } from '../tags/tags.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Task])],
+  imports: [TypeOrmModule.forFeature([Task]), TagsModule],
   controllers: [TaskController],
   providers: [
     TaskService,
     TasksRepository,
     ProjectsRepository,
-    TagsRepository,
     SecurityLoggerService,
     TaskDomainService,
     TaskFactory,
