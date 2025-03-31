@@ -235,7 +235,7 @@ describe('TaskService', () => {
           title: 'Test Task',
           description: 'Test Description',
           priority: TaskPriority.MEDIUM,
-          dueDate: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
+          dueDate: '2023-12-31T00:00:00.000Z',
           needsReminder: false,
           reminderMessage: null,
           isRecurring: false,
@@ -270,7 +270,7 @@ describe('TaskService', () => {
           title: 'Recurring Task',
           description: 'Recurring Description',
           priority: TaskPriority.MEDIUM,
-          dueDate: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
+          dueDate: '2023-12-31T00:00:00.000Z',
           needsReminder: true,
           reminderMessage: 'Time to work on this!',
           isRecurring: true,
@@ -326,26 +326,44 @@ describe('TaskService', () => {
 
     describe('updateTask', () => {
       it('should update a task successfully', async () => {
-        // Just verify the function doesn't throw and repository methods are called correctly
         const taskId = 'task-id';
         const updateTaskDto: UpdateTaskDto = {
           title: 'Updated Task',
           description: 'Updated Description',
           priority: TaskPriority.HIGH,
-          dueDate: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
+          dueDate: '2023-12-31T00:00:00.000Z',
+          needsReminder: true,
+          reminderMessage: 'Reminder message',
+          isRecurring: false,
+          recurrenceRule: null,
+          nextDueDate: null,
+          hasTime: false,
+          recurrencePattern: null,
+          recurrenceDays: null,
+          recurrenceTimeOfDay: null,
+          recurrenceTime: null,
+          recurringParentId: null,
         };
 
-        const mockTask = createMockTask();
+        const existingTask = createMockTask();
+        const updatedTask = createMockTask({
+          ...convertDtoToTask(updateTaskDto),
+          id: existingTask.id,
+        });
 
         // Clear previous mock implementations
         jest.clearAllMocks();
 
-        tasksRepository.getTaskById.mockResolvedValue(mockTask);
-        tasksRepository.updateTask.mockResolvedValue(mockTask);
+        // Mock the specific calls for this test
+        tasksRepository.getTaskById.mockResolvedValue(existingTask);
+        tasksRepository.updateTask.mockResolvedValue(updatedTask);
 
-        await service.updateTask(taskId, updateTaskDto, '127.0.0.1');
-
-        expect(tasksRepository.getTaskById).toHaveBeenCalledWith(taskId);
+        const result = await service.updateTask(
+          taskId,
+          updateTaskDto,
+          '127.0.0.1',
+        );
+        expect(result).toEqual(updatedTask);
         expect(tasksRepository.updateTask).toHaveBeenCalledWith(
           taskId,
           updateTaskDto,
@@ -450,19 +468,22 @@ describe('TaskService', () => {
       const taskId = 'test-task-id';
 
       it('should duplicate a task successfully', async () => {
-        // Just verify the function doesn't throw and repository methods are called correctly
-        const mockTask = createMockTask();
+        const originalTask = createMockTask();
+        const duplicatedTask = createMockTask({
+          id: 'duplicated-task-id',
+          title: `${originalTask.title} (Copy)`,
+          status: TaskStatus.NOT_STARTED,
+        });
 
         // Clear previous mock implementations
         jest.clearAllMocks();
 
-        tasksRepository.getTaskById.mockResolvedValue(mockTask);
-        tasksRepository.createTask.mockResolvedValue(mockTask);
+        tasksRepository.getTaskById.mockResolvedValue(originalTask);
+        tasksRepository.createTask.mockResolvedValue(duplicatedTask);
 
-        await service.duplicateTask(taskId);
+        const result = await service.duplicateTask(taskId);
 
-        expect(tasksRepository.getTaskById).toHaveBeenCalledWith(taskId);
-        expect(tasksRepository.createTask).toHaveBeenCalled();
+        expect(result).toEqual(duplicatedTask);
       });
 
       it('should throw NotFoundException when task does not exist', async () => {
@@ -502,24 +523,7 @@ describe('TaskService', () => {
 
         projectsRepository.findOne.mockResolvedValue(mockInboxProject);
         tasksRepository.getTasksWithoutProject.mockResolvedValue(orphanedTasks);
-
-        // Use any type to bypass TypeScript checks
-        jest
-          .spyOn(tasksRepository, 'save')
-          .mockImplementation((entity: any) => {
-            if (Array.isArray(entity)) {
-              return Promise.resolve(
-                entity.map((task) => ({
-                  ...task,
-                  project: mockInboxProject,
-                })),
-              );
-            }
-            return Promise.resolve({
-              ...entity,
-              project: mockInboxProject,
-            });
-          });
+        tasksRepository.save.mockResolvedValue(updatedTask);
 
         const result = await service.assignOrphanedTasksToInbox();
 
@@ -553,9 +557,6 @@ describe('TaskService', () => {
         tasksRepository.getTaskById.mockResolvedValue(mockTask);
         projectsRepository.findOne.mockResolvedValue(mockProject);
         tasksRepository.save.mockResolvedValue(updatedTask);
-
-        // Mock the method directly on the service
-        jest.spyOn(service, 'assignToProject').mockResolvedValue(updatedTask);
 
         const result = await service.assignToProject(taskId, projectId);
 
@@ -714,8 +715,14 @@ describe('TaskService', () => {
         // Clear previous mock implementations
         jest.clearAllMocks();
 
-        // Mock the method directly on the service
-        jest.spyOn(service, 'getTaskStats').mockResolvedValue(mockStats);
+        tasksRepository.countTasks.mockResolvedValue(mockStats.total);
+        tasksRepository.count.mockImplementation((options: any) => {
+          if (options.where && options.where['status'] === TaskStatus.COMPLETED)
+            return Promise.resolve(mockStats.completed);
+          if (options.where && options.where['dueDate'])
+            return Promise.resolve(mockStats.overdue);
+          return Promise.resolve(mockStats.upcoming);
+        });
 
         const result = await service.getTaskStats();
 
@@ -732,65 +739,70 @@ describe('TaskService', () => {
         const mockLowTask = createMockTask({ priority: TaskPriority.LOW });
         const mockNoneTask = createMockTask({ priority: TaskPriority.NONE });
 
-        const expectedResult = {
+        // Clear previous mock implementations
+        jest.clearAllMocks();
+
+        tasksRepository.find.mockImplementation((options: any) => {
+          const priority = options.where?.priority;
+          switch (priority) {
+            case TaskPriority.HIGH:
+              return Promise.resolve([mockHighTask]);
+            case TaskPriority.MEDIUM:
+              return Promise.resolve([mockMediumTask]);
+            case TaskPriority.LOW:
+              return Promise.resolve([mockLowTask]);
+            case TaskPriority.NONE:
+              return Promise.resolve([mockNoneTask]);
+            default:
+              return Promise.resolve([]);
+          }
+        });
+
+        const result = await service.getTasksByPriority();
+
+        expect(result).toEqual({
           [TaskPriority.HIGH]: [mockHighTask],
           [TaskPriority.MEDIUM]: [mockMediumTask],
           [TaskPriority.LOW]: [mockLowTask],
           [TaskPriority.NONE]: [mockNoneTask],
-        };
-
-        // Clear previous mock implementations
-        jest.clearAllMocks();
-
-        // Mock the method directly on the service
-        jest
-          .spyOn(service, 'getTasksByPriority')
-          .mockResolvedValue(expectedResult);
-
-        const result = await service.getTasksByPriority();
-
-        expect(result).toEqual(expectedResult);
+        });
       });
     });
 
     describe('completeOverdueTasks', () => {
       // Skipped: This functionality is not planned for production systems
-      /* 
       it.skip('should complete overdue tasks', async () => {
         // This test is skipped and implementation details are simplified
         const mockTasks = [createMockTask(), createMockTask()];
         tasksRepository.find.mockResolvedValue(mockTasks);
         tasksRepository.save.mockResolvedValue(mockTasks);
-        
+
         await service.completeOverdueTasks('user-id', {
           additionalFilters: { cutoffDate: new Date() },
           includeBlockedTasks: false,
         });
-        
+
         // Just verify the function doesn't throw
         expect(true).toBe(true);
       });
-      */
     });
 
     describe('batchCompleteTasks', () => {
       // Skipped: This functionality is not planned for production systems
-      /*
       it.skip('should batch complete tasks', async () => {
         // This test is skipped and implementation details are simplified
         const mockTasks = [createMockTask(), createMockTask()];
         tasksRepository.find.mockResolvedValue(mockTasks);
         tasksRepository.save.mockResolvedValue(mockTasks);
-        
+
         await service.batchCompleteTasks('user-id', {
           additionalFilters: { taskIds: ['task-1', 'task-2'] },
           statuses: [TaskStatus.NOT_STARTED],
         });
-        
+
         // Just verify the function doesn't throw
         expect(true).toBe(true);
       });
-      */
     });
   });
 });

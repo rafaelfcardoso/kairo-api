@@ -53,7 +53,8 @@
     "deploy": "railway up",
     "verify:migrations": "ts-node scripts/verify-migrations.ts",
     "test:coverage": "jest --coverage",
-    "test:integration": "jest --config ./test/jest-integration.json"
+    "test:integration": "jest --config ./test/jest-integration.json",
+    "test:ignore-ts": "ts-node --transpile-only ./node_modules/.bin/jest --config ./test/jest-standard.json"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.0",

@@ -229,12 +229,12 @@ describe('TasksRepository Integration', () => {
 
     // Create a test task
     testTask = {
-      id: 'task-1',
+      id: 'test-task-id',
       title: 'Test Task',
-      description: 'A test task',
+      description: 'Test Description',
       status: TaskStatus.NOT_STARTED,
       priority: TaskPriority.MEDIUM,
-      dueDate: new Date('2025-05-01'),
+      dueDate: new Date(),
       isArchived: false,
       isRecurring: false,
       recurrenceRule: null,
@@ -245,7 +245,7 @@ describe('TasksRepository Integration', () => {
       needsReminder: false,
       hasTime: false,
       recurringParentId: null,
-      project: testProject,
+      project: null,
       tags: [],
       focusSessions: [],
       createdAt: new Date(),
@@ -253,6 +253,7 @@ describe('TasksRepository Integration', () => {
       recurrenceTimeOfDay: null,
       recurrenceTime: null,
       estimatedMinutes: 0,
+      completedAt: null,
       isCompleted: false,
     };
 

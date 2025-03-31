@@ -74,10 +74,12 @@ describe('TaskService - completeOverdueTasks', () => {
     // Mock repository to return empty array
     tasksRepository.find.mockResolvedValue([]);
 
-    const userId = 'user-123';
-    const options: CompleteOverdueTasksDto = {};
+    const result = await taskService.completeOverdueTasks('user-id', {
+      additionalFilters: {},
+      includeBlockedTasks: false,
+    });
 
-    const result = await taskService.completeOverdueTasks(userId, options);
+    expect(result).toEqual([]);
 
     // Check that repository was called with correct parameters
     expect(tasksRepository.find).toHaveBeenCalledWith({
@@ -86,98 +88,89 @@ describe('TaskService - completeOverdueTasks', () => {
         dueDate: expect.any(Object), // LessThan(new Date())
         isArchived: false,
       },
+      relations: ['project', 'tags'],
     });
-
-    // Check response
-    expect(result).toEqual({
-      success: true,
-      tasksCompleted: 0,
-      message: 'No overdue tasks found to complete.',
-    });
-
-    // Verify save was not called
-    expect(tasksRepository.save).not.toHaveBeenCalled();
   });
 
   it('should complete all overdue tasks and return success', async () => {
-    // Create mock tasks
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    const mockTasks = [
+    // Mock repository to return tasks
+    const tasks = [
       {
         id: 'task-1',
+        title: 'Test Task 1',
         status: TaskStatus.NOT_STARTED,
-        dueDate: yesterday,
-        title: 'Overdue Task 1',
       },
       {
         id: 'task-2',
+        title: 'Test Task 2',
         status: TaskStatus.NOT_STARTED,
-        dueDate: yesterday,
-        title: 'Overdue Task 2',
       },
     ];
 
-    // Mock repository responses
-    tasksRepository.find.mockResolvedValue(mockTasks);
-    tasksRepository.save.mockResolvedValue(undefined);
+    tasksRepository.find.mockResolvedValue(tasks);
+    tasksRepository.save.mockImplementation((task) => Promise.resolve(task));
 
-    const userId = 'user-123';
-    const options: CompleteOverdueTasksDto = {};
+    const result = await taskService.completeOverdueTasks('user-id', {
+      additionalFilters: {},
+      includeBlockedTasks: false,
+    });
 
-    const result = await taskService.completeOverdueTasks(userId, options);
+    expect(result).toHaveLength(2);
+    expect(result[0].status).toBe(TaskStatus.COMPLETED);
+    expect(result[1].status).toBe(TaskStatus.COMPLETED);
 
     // Check that find was called correctly
     expect(tasksRepository.find).toHaveBeenCalledWith({
-      where: expect.objectContaining({
+      where: {
         status: TaskStatus.NOT_STARTED,
-      }),
+        dueDate: expect.any(Object), // LessThan(new Date())
+        isArchived: false,
+      },
+      relations: ['project', 'tags'],
     });
 
-    // Check that save was called with updated tasks
-    expect(tasksRepository.save).toHaveBeenCalledWith(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: 'task-1',
-          status: TaskStatus.COMPLETED,
-          completedAt: expect.any(Date),
-        }),
-        expect.objectContaining({
-          id: 'task-2',
-          status: TaskStatus.COMPLETED,
-          completedAt: expect.any(Date),
-        }),
-      ]),
-    );
-
-    // Check response
-    expect(result).toEqual({
-      success: true,
-      tasksCompleted: 2,
-      message: 'Successfully completed 2 overdue tasks.',
-      completedTaskIds: ['task-1', 'task-2'],
-    });
+    // Check that save was called for each task
+    expect(tasksRepository.save).toHaveBeenCalledTimes(2);
   });
 
   it('should include blocked tasks when includeBlockedTasks is true', async () => {
-    // Mock repository to return empty array (we just want to check the query)
-    tasksRepository.find.mockResolvedValue([]);
+    // Mock repository to return tasks
+    const tasks = [
+      {
+        id: 'task-1',
+        title: 'Test Task 1',
+        status: TaskStatus.NOT_STARTED,
+      },
+      {
+        id: 'task-2',
+        title: 'Test Task 2',
+        status: TaskStatus.BLOCKED,
+      },
+    ];
 
-    const userId = 'user-123';
-    const options: CompleteOverdueTasksDto = {
+    tasksRepository.find.mockResolvedValue(tasks);
+    tasksRepository.save.mockImplementation((task) => Promise.resolve(task));
+
+    const result = await taskService.completeOverdueTasks('user-id', {
+      additionalFilters: {},
       includeBlockedTasks: true,
-    };
+    });
 
-    await taskService.completeOverdueTasks(userId, options);
+    expect(result).toHaveLength(2);
+    expect(result[0].status).toBe(TaskStatus.COMPLETED);
+    expect(result[1].status).toBe(TaskStatus.COMPLETED);
 
     // Check that repository was called with correct parameters
     expect(tasksRepository.find).toHaveBeenCalledWith({
-      where: expect.objectContaining({
+      where: {
         status: expect.any(Object), // In([TaskStatus.NOT_STARTED, TaskStatus.BLOCKED])
         dueDate: expect.any(Object), // LessThan(new Date())
         isArchived: false,
-      }),
+      },
+      relations: ['project', 'tags'],
     });
+
+    // Check that save was called for each task
+    expect(tasksRepository.save).toHaveBeenCalledTimes(2);
   });
 });

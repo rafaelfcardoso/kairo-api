@@ -205,12 +205,12 @@ describe('Task Workflow Integration', () => {
 
     // Create task in inbox
     taskInInbox = {
-      id: 'inbox-task-id',
-      title: 'Inbox Task',
-      description: 'Task in inbox',
+      id: 'task-123',
+      title: 'Test Task',
+      description: 'This is a test task',
       status: TaskStatus.NOT_STARTED,
       priority: TaskPriority.MEDIUM,
-      dueDate: new Date('2025-05-01'),
+      dueDate: new Date(),
       isArchived: false,
       isRecurring: false,
       recurrenceRule: null,
@@ -221,7 +221,7 @@ describe('Task Workflow Integration', () => {
       needsReminder: false,
       hasTime: false,
       recurringParentId: null,
-      project: inboxProject,
+      project: null,
       tags: [],
       focusSessions: [],
       createdAt: new Date(),
@@ -229,6 +229,7 @@ describe('Task Workflow Integration', () => {
       recurrenceTimeOfDay: null,
       recurrenceTime: null,
       estimatedMinutes: 0,
+      completedAt: null,
       isCompleted: false,
     };
   };

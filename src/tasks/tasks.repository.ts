@@ -28,19 +28,16 @@ export class TasksRepository extends Repository<Task> {
   async getTasks(filterDto: TaskFilterDto): Promise<Task[]> {
     const {
       status,
-      search,
       priority,
       projectId,
       tagIds,
+      search,
       dueDate,
-      recurring,
-      dueSoon,
+      includeArchived,
+      isRecurring,
     } = filterDto;
-    const query = this.getTasksQueryBuilder();
 
-    if (!filterDto.includeArchived) {
-      query.andWhere('task.isArchived = :isArchived', { isArchived: false });
-    }
+    const query = this.getTasksQueryBuilder();
 
     if (status) {
       query.andWhere('task.status = :status', { status });
@@ -51,7 +48,7 @@ export class TasksRepository extends Repository<Task> {
     }
 
     if (projectId) {
-      query.andWhere('project.id = :projectId', { projectId });
+      query.andWhere('task.projectId = :projectId', { projectId });
     }
 
     if (tagIds && tagIds.length > 0) {
@@ -66,25 +63,26 @@ export class TasksRepository extends Repository<Task> {
     }
 
     if (dueDate) {
-      query.andWhere('task.dueDate >= :startDate AND task.dueDate < :endDate', {
-        startDate: `${dueDate}T00:00:00.000Z`,
-        endDate: `${dueDate}T23:59:59.999Z`,
+      const startOfDay = new Date(dueDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(dueDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      query.andWhere('task.dueDate BETWEEN :start AND :end', {
+        start: startOfDay,
+        end: endOfDay,
       });
     }
 
-    // Filter for tasks due today or in the past
-    if (dueSoon) {
-      const now = new Date();
-      now.setHours(23, 59, 59, 999); // End of today
-      query.andWhere('task.dueDate <= :now', { now });
+    if (!includeArchived) {
+      query.andWhere('task.isArchived = :isArchived', { isArchived: false });
     }
 
-    // Filter for recurring tasks
-    if (recurring) {
-      query.andWhere('task.recurrenceRule IS NOT NULL');
+    if (isRecurring !== undefined) {
+      query.andWhere('task.isRecurring = :isRecurring', { isRecurring });
     }
 
-    return await query.getMany();
+    return query.getMany();
   }
 
   async getTaskById(id: string): Promise<Task> {
@@ -299,19 +297,16 @@ export class TasksRepository extends Repository<Task> {
   async countTasks(filterDto: TaskFilterDto): Promise<number> {
     const {
       status,
-      search,
       priority,
       projectId,
       tagIds,
+      search,
       dueDate,
-      recurring,
-      dueSoon,
+      includeArchived,
+      isRecurring,
     } = filterDto;
-    const query = this.getTasksQueryBuilder();
 
-    if (!filterDto.includeArchived) {
-      query.andWhere('task.isArchived = :isArchived', { isArchived: false });
-    }
+    const query = this.getTasksQueryBuilder();
 
     if (status) {
       query.andWhere('task.status = :status', { status });
@@ -322,7 +317,7 @@ export class TasksRepository extends Repository<Task> {
     }
 
     if (projectId) {
-      query.andWhere('project.id = :projectId', { projectId });
+      query.andWhere('task.projectId = :projectId', { projectId });
     }
 
     if (tagIds && tagIds.length > 0) {
@@ -331,56 +326,29 @@ export class TasksRepository extends Repository<Task> {
 
     if (search) {
       query.andWhere(
-        '(task.title LIKE :search OR task.description LIKE :search)',
+        '(LOWER(task.title) LIKE LOWER(:search) OR LOWER(task.description) LIKE LOWER(:search))',
         { search: `%${search}%` },
       );
     }
 
     if (dueDate) {
-      // Handle different due date formats and criteria
-      if (dueDate === 'today') {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
+      const startOfDay = new Date(dueDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(dueDate);
+      endOfDay.setHours(23, 59, 59, 999);
 
-        query.andWhere('task.dueDate >= :today AND task.dueDate < :tomorrow', {
-          today,
-          tomorrow,
-        });
-      } else if (dueDate === 'overdue') {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        query.andWhere('task.dueDate < :today AND task.status != :completed', {
-          today,
-          completed: TaskStatus.COMPLETED,
-        });
-      } else if (dueDate === 'upcoming') {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const nextWeek = new Date(today);
-        nextWeek.setDate(nextWeek.getDate() + 7);
-
-        query.andWhere('task.dueDate >= :today AND task.dueDate <= :nextWeek', {
-          today,
-          nextWeek,
-        });
-      } else {
-        // Treat as specific date
-        const specificDate = new Date(dueDate);
-        const nextDay = new Date(specificDate);
-        nextDay.setDate(nextDay.getDate() + 1);
-
-        query.andWhere(
-          'task.dueDate >= :specificDate AND task.dueDate < :nextDay',
-          { specificDate, nextDay },
-        );
-      }
+      query.andWhere('task.dueDate BETWEEN :start AND :end', {
+        start: startOfDay,
+        end: endOfDay,
+      });
     }
 
-    if (recurring !== undefined) {
-      query.andWhere('task.isRecurring = :recurring', { recurring });
+    if (!includeArchived) {
+      query.andWhere('task.isArchived = :isArchived', { isArchived: false });
+    }
+
+    if (isRecurring !== undefined) {
+      query.andWhere('task.isRecurring = :isRecurring', { isRecurring });
     }
 
     return query.getCount();

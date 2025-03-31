@@ -12,6 +12,7 @@ import {
   IsISO8601,
   MaxLength,
   ValidateIf,
+  IsDateString,
 } from 'class-validator';
 import {
   TaskStatus,
@@ -190,86 +191,44 @@ export class UpdateTaskDto extends PartialType(CreateTaskDto) {
 }
 
 export class TaskFilterDto {
-  @ApiPropertyOptional({
-    example: '',
-    description: 'Search term to filter tasks by title or description',
-  })
-  @IsString()
+  @ApiProperty({ required: false, enum: TaskStatus })
   @IsOptional()
-  search?: string;
-
-  @ApiPropertyOptional({
-    enum: TaskStatus,
-    example: TaskStatus.NOT_STARTED,
-    description: 'Filter tasks by status',
-    enumName: 'TaskStatus',
-  })
   @IsEnum(TaskStatus)
-  @IsOptional()
   status?: TaskStatus;
 
-  @ApiPropertyOptional({
-    enum: TaskPriority,
-    example: TaskPriority.NONE,
-    description: 'Filter tasks by priority',
-    enumName: 'TaskPriority',
-  })
-  @IsEnum(TaskPriority)
+  @ApiProperty({ required: false })
   @IsOptional()
-  priority?: TaskPriority;
-
-  @ApiPropertyOptional({
-    example: false,
-    description: 'Include archived tasks in the results',
-  })
   @IsBoolean()
-  @IsOptional()
   includeArchived?: boolean;
 
-  @ApiPropertyOptional({
-    example: '',
-    description: 'Filter tasks by project ID',
-  })
-  @IsUUID('4')
+  @ApiProperty({ required: false, enum: TaskPriority })
   @IsOptional()
+  @IsEnum(TaskPriority)
+  priority?: TaskPriority;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsUUID()
   projectId?: string;
 
-  @ApiPropertyOptional({
-    example: [],
-    description: 'Filter tasks by tag IDs',
-  })
-  @IsArray()
-  @IsUUID('4', { each: true })
+  @ApiProperty({ required: false, type: [String] })
   @IsOptional()
+  @IsArray()
+  @IsUUID(undefined, { each: true })
   tagIds?: string[];
 
-  @ApiPropertyOptional({
-    example: '',
-    description: 'Filter tasks by due date (YYYY-MM-DD format)',
-    type: String,
-  })
-  @IsString()
-  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
-    message: 'dueDate must be in YYYY-MM-DD format',
-  })
+  @ApiProperty({ required: false })
   @IsOptional()
+  @IsString()
+  search?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsDateString()
   dueDate?: string;
 
-  @ApiPropertyOptional({
-    example: true,
-    description: 'Filter for tasks due today or in the past',
-    type: Boolean,
-  })
-  @IsBoolean()
+  @ApiProperty({ required: false })
   @IsOptional()
-  dueSoon?: boolean;
-
-  @ApiPropertyOptional({
-    example: true,
-    description: 'Filter for recurring tasks only',
-    type: Boolean,
-  })
   @IsBoolean()
-  @IsOptional()
-  recurring?: boolean;
+  isRecurring?: boolean;
 }

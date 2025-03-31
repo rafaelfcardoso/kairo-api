@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { Task } from '../tasks/tasks.entity';
+import { IsHexColor } from 'class-validator';
 
 @Entity()
 export class Tag {
@@ -29,7 +30,8 @@ export class Tag {
     example: '#FF0000',
     description: 'The color of the tag in hex format',
   })
-  @Column({ type: 'char', length: 7 })
+  @Column({ nullable: true })
+  @IsHexColor()
   color: string;
 
   @ApiProperty({
@@ -53,4 +55,8 @@ export class Tag {
   })
   @ManyToMany(() => Task, (task) => task.tags)
   tasks: Task[];
+
+  constructor() {
+    this.tasks = [];
+  }
 }

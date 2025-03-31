@@ -44,6 +44,13 @@ import {
 import { IsNotEmpty, IsString, IsOptional } from 'class-validator';
 import { format, parseISO, isAfter } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
+import { UserId } from '../common/decorators/user-id.decorator';
+
+class BatchCompleteTasksResponse {
+  success: boolean;
+  tasksCompleted: number;
+  message: string;
+}
 
 @ApiTags('Tasks')
 @Controller('tasks')
@@ -282,19 +289,85 @@ export class TaskController {
     return this.taskService.getTaskStats();
   }
 
-  @Get('stats/by-priority')
+  @Get('by-priority')
   @ApiOperation({ summary: 'Get tasks grouped by priority' })
   @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Retrieved priority statistics successfully',
+    status: 200,
+    description: 'Tasks grouped by priority',
+    type: Object,
   })
-  async getTasksByPriority(): Promise<Record<TaskPriority, number>> {
-    return this.taskService.getTasksByPriority();
+  async getTasksByPriority() {
+    const tasksByPriority = await this.taskService.getTasksByPriority();
+    const taskCountByPriority: Record<TaskPriority, number> = {
+      [TaskPriority.NONE]: tasksByPriority[TaskPriority.NONE]?.length || 0,
+      [TaskPriority.LOW]: tasksByPriority[TaskPriority.LOW]?.length || 0,
+      [TaskPriority.MEDIUM]: tasksByPriority[TaskPriority.MEDIUM]?.length || 0,
+      [TaskPriority.HIGH]: tasksByPriority[TaskPriority.HIGH]?.length || 0,
+    };
+    return taskCountByPriority;
+  }
+
+  @Post('complete-overdue')
+  @ApiOperation({ summary: 'Complete all overdue tasks' })
+  @ApiResponse({
+    status: 200,
+    description: 'Tasks completed successfully',
+    type: CompleteOverdueTasksResponseDto,
+  })
+  async completeOverdueTasks(
+    @UserId() userId: string,
+    @Body() options: CompleteOverdueTasksDto,
+  ): Promise<CompleteOverdueTasksResponseDto> {
+    const completedTasks = await this.taskService.completeOverdueTasks(
+      userId,
+      options,
+    );
+    return {
+      success: true,
+      tasksCompleted: completedTasks.length,
+      message: `Completed ${completedTasks.length} overdue tasks`,
+      completedTaskIds: completedTasks.map((task) => task.id),
+    };
+  }
+
+  @Post('batch-complete')
+  @ApiOperation({ summary: 'Complete multiple tasks at once' })
+  @ApiResponse({
+    status: 200,
+    description: 'Tasks completed successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        tasksCompleted: { type: 'number', example: 5 },
+        message: { type: 'string', example: 'Completed 5 tasks' },
+        completedTaskIds: {
+          type: 'array',
+          items: { type: 'string' },
+          example: ['task-1', 'task-2'],
+        },
+      },
+    },
+  })
+  async batchCompleteTasks(
+    @UserId() userId: string,
+    @Body() options: BatchCompleteTasksDto,
+  ): Promise<BatchCompleteTasksResponseDto> {
+    const completedTasks = await this.taskService.batchCompleteTasks(
+      userId,
+      options,
+    );
+    return {
+      success: true,
+      tasksCompleted: completedTasks.length,
+      message: `Completed ${completedTasks.length} tasks`,
+      completedTaskIds: completedTasks.map((task) => task.id),
+    };
   }
 
   @Post(':id/duplicate')
   @ApiOperation({ summary: 'Duplicate a task' })
-  @ApiParam({ name: 'id', type: 'string', description: 'Task ID' })
+  @ApiParam({ name: 'id', type: 'string', description: 'Task ID to duplicate' })
   @ApiResponse({
     status: HttpStatus.CREATED,
     description: 'Task duplicated successfully',
@@ -304,48 +377,18 @@ export class TaskController {
     return this.taskService.duplicateTask(id);
   }
 
-  @Post('support/assign-orphaned-to-inbox')
-  @ApiOperation({
-    summary: 'Assign all tasks without a project to the Inbox project',
-    description:
-      'Support operation to fix tasks that were not properly assigned to the Inbox project. Returns details about how many tasks were orphaned and fixed.',
-  })
+  @Post('assign-orphaned')
+  @ApiOperation({ summary: 'Assign orphaned tasks to inbox' })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'Tasks assigned successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        tasksAssigned: {
-          type: 'number',
-          description: 'Number of orphaned tasks that were assigned to Inbox',
-          example: 5,
-        },
-        inboxProjectId: {
-          type: 'string',
-          description: 'ID of the Inbox project where tasks were assigned',
-          example: '569c363f-1934-4e69-b324-6c2fad28bc59',
-        },
-        summary: {
-          type: 'string',
-          description: 'Human-readable summary of the operation',
-          example:
-            'Found and fixed 5 tasks that were not assigned to any project',
-        },
-        tasks: {
-          type: 'array',
-          items: { $ref: '#/components/schemas/Task' },
-          description:
-            'List of tasks that were updated with their new project assignment',
-        },
-      },
-    },
+    description: 'Orphaned tasks assigned successfully',
+    type: [Task],
   })
-  async assignOrphanedTasksToInbox() {
+  async assignOrphanedTasksToInbox(): Promise<Task[]> {
     return this.taskService.assignOrphanedTasksToInbox();
   }
 
-  @Get('views/recurring')
+  @Get('recurring')
   @ApiOperation({ summary: 'Get recurring tasks' })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -353,60 +396,8 @@ export class TaskController {
     type: [Task],
   })
   async getRecurringTasks(): Promise<Task[]> {
-    // Get all tasks that have a recurrence rule
     const filterDto = new TaskFilterDto();
-    filterDto.recurring = true;
+    filterDto.isRecurring = true;
     return this.taskService.getTasks(filterDto);
-  }
-
-  @Post('batch/complete-overdue')
-  @ApiOperation({
-    summary: 'Complete all overdue tasks with not_started status',
-    description:
-      'Batch operation to mark all overdue tasks with not_started status as completed',
-  })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Successfully completed overdue tasks',
-    type: CompleteOverdueTasksResponseDto,
-  })
-  @ApiResponse({
-    status: HttpStatus.BAD_REQUEST,
-    description: 'Invalid input',
-  })
-  async completeOverdueTasks(
-    @Body(new ValidationPipe()) options: CompleteOverdueTasksDto,
-    @Req() req: any,
-  ): Promise<CompleteOverdueTasksResponseDto> {
-    // Extract user ID from the request
-    const userId = req.user?.id || 'development-user-id';
-
-    return this.taskService.completeOverdueTasks(userId, options);
-  }
-
-  @Post('batch/complete')
-  @ApiOperation({
-    summary: 'Complete all tasks with specified status (default: not_started)',
-    description:
-      'Batch operation to mark tasks with specified status as completed. ' +
-      'Primarily for development/testing purposes.',
-  })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Successfully completed tasks',
-    type: CompleteOverdueTasksResponseDto, // Reusing the same response type
-  })
-  @ApiResponse({
-    status: HttpStatus.BAD_REQUEST,
-    description: 'Invalid input',
-  })
-  async batchCompleteTasks(
-    @Body(new ValidationPipe()) options: BatchCompleteTasksDto,
-    @Req() req: any,
-  ): Promise<BatchCompleteTasksResponseDto> {
-    // Extract user ID from the request
-    const userId = req.user?.id || 'development-user-id';
-
-    return this.taskService.batchCompleteTasks(userId, options);
   }
 }

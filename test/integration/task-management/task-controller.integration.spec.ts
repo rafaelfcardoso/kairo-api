@@ -187,12 +187,12 @@ describe('TaskController Integration Test', () => {
 
     // Create test task
     testTask = {
-      id: 'task-1',
+      id: 'test-task-id',
       title: 'Test Task',
-      description: 'A test task',
+      description: 'Test Description',
       status: TaskStatus.NOT_STARTED,
       priority: TaskPriority.MEDIUM,
-      dueDate: new Date('2025-05-01'),
+      dueDate: new Date(),
       isArchived: false,
       isRecurring: false,
       recurrenceRule: null,
@@ -203,7 +203,7 @@ describe('TaskController Integration Test', () => {
       needsReminder: false,
       hasTime: false,
       recurringParentId: null,
-      project: testProject,
+      project: null,
       tags: [],
       focusSessions: [],
       createdAt: new Date(),
@@ -211,6 +211,7 @@ describe('TaskController Integration Test', () => {
       recurrenceTimeOfDay: null,
       recurrenceTime: null,
       estimatedMinutes: 0,
+      completedAt: null,
       isCompleted: false,
     };
 
@@ -286,34 +287,31 @@ describe('TaskController Integration Test', () => {
       upcoming: 2,
     });
     jest.spyOn(taskService, 'getTasksByPriority').mockResolvedValue({
-      [TaskPriority.HIGH]: 1,
-      [TaskPriority.MEDIUM]: 2,
-      [TaskPriority.LOW]: 1,
-      [TaskPriority.NONE]: 0,
+      [TaskPriority.HIGH]: [testTask],
+      [TaskPriority.MEDIUM]: [testTask, testTask],
+      [TaskPriority.LOW]: [testTask],
+      [TaskPriority.NONE]: [],
     });
     jest.spyOn(taskService, 'duplicateTask').mockResolvedValue({
       ...testTask,
       id: 'duplicated-task-id',
       isCompleted: false,
     });
-    jest.spyOn(taskService, 'assignOrphanedTasksToInbox').mockResolvedValue({
-      tasksAssigned: 3,
-      inboxProjectId: 'inbox-project-id',
-      summary: 'Found and fixed 3 tasks',
-      tasks: [testTask, testTask, testTask],
-    });
-    jest.spyOn(taskService, 'completeOverdueTasks').mockResolvedValue({
-      success: true,
-      tasksCompleted: 3,
-      message: 'Completed 3 overdue tasks',
-      completedTaskIds: ['task-1', 'task-2', 'task-3'],
-    });
-    jest.spyOn(taskService, 'batchCompleteTasks').mockResolvedValue({
-      success: true,
-      tasksCompleted: 5,
-      message: 'Completed 5 tasks',
-      completedTaskIds: ['task-1', 'task-2', 'task-3', 'task-4', 'task-5'],
-    });
+    jest
+      .spyOn(taskService, 'assignOrphanedTasksToInbox')
+      .mockResolvedValue([testTask, testTask, testTask]);
+    jest.spyOn(taskService, 'completeOverdueTasks').mockResolvedValue([
+      { ...testTask, status: TaskStatus.COMPLETED, isCompleted: true },
+      { ...testTask, status: TaskStatus.COMPLETED, isCompleted: true },
+      { ...testTask, status: TaskStatus.COMPLETED, isCompleted: true },
+    ]);
+    jest.spyOn(taskService, 'batchCompleteTasks').mockResolvedValue([
+      { ...testTask, status: TaskStatus.COMPLETED, isCompleted: true },
+      { ...testTask, status: TaskStatus.COMPLETED, isCompleted: true },
+      { ...testTask, status: TaskStatus.COMPLETED, isCompleted: true },
+      { ...testTask, status: TaskStatus.COMPLETED, isCompleted: true },
+      { ...testTask, status: TaskStatus.COMPLETED, isCompleted: true },
+    ]);
   };
 
   afterEach(() => {
@@ -466,6 +464,34 @@ describe('TaskController Integration Test', () => {
     });
   });
 
+  describe('getTasksByPriority', () => {
+    it('should return tasks grouped by priority', async () => {
+      // Act
+      const result = await controller.getTasksByPriority();
+
+      // Assert
+      expect(result).toEqual({
+        [TaskPriority.HIGH]: 1,
+        [TaskPriority.MEDIUM]: 2,
+        [TaskPriority.LOW]: 1,
+        [TaskPriority.NONE]: 0,
+      });
+      expect(taskService.getTasksByPriority).toHaveBeenCalled();
+    });
+  });
+
+  describe('assignOrphanedTasksToInbox', () => {
+    it('should assign orphaned tasks to inbox', async () => {
+      // Act
+      const result = await controller.assignOrphanedTasksToInbox();
+
+      // Assert
+      expect(Array.isArray(result)).toBe(true);
+      expect(result).toHaveLength(3);
+      expect(taskService.assignOrphanedTasksToInbox).toHaveBeenCalled();
+    });
+  });
+
   describe('completeOverdueTasks', () => {
     it('should complete overdue tasks', async () => {
       // Arrange
@@ -475,9 +501,10 @@ describe('TaskController Integration Test', () => {
       };
 
       // Act
-      const result = await controller.completeOverdueTasks(options, {
-        user: { id: 'test-user-id' },
-      });
+      const result = await controller.completeOverdueTasks(
+        'test-user-id',
+        options,
+      );
 
       // Assert
       expect(result.success).toBe(true);
@@ -494,13 +521,14 @@ describe('TaskController Integration Test', () => {
       // Arrange
       const options: BatchCompleteTasksDto = {
         statuses: [TaskStatus.NOT_STARTED],
-        additionalFilters: {},
+        additionalFilters: { taskIds: ['task-1', 'task-2', 'task-3'] },
       };
 
       // Act
-      const result = await controller.batchCompleteTasks(options, {
-        user: { id: 'test-user-id' },
-      });
+      const result = await controller.batchCompleteTasks(
+        'test-user-id',
+        options,
+      );
 
       // Assert
       expect(result.success).toBe(true);

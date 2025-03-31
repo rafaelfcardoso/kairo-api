@@ -17,7 +17,7 @@ describe('TagsRepository', () => {
 
   // Mock task data
   const mockTask: Task = {
-    id: '1',
+    id: 'test-task-id',
     title: 'Test Task',
     description: 'Test Description',
     status: TaskStatus.NOT_STARTED,
@@ -39,8 +39,9 @@ describe('TagsRepository', () => {
     project: null,
     tags: [],
     focusSessions: [],
-    createdAt: new Date('2025-03-31T10:50:25.376Z'),
-    updatedAt: new Date('2025-03-31T10:50:25.376Z'),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    completedAt: null,
     isCompleted: false,
   };
 

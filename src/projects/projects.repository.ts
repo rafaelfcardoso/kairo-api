@@ -18,10 +18,6 @@ export class ProjectsRepository extends TreeRepository<Project> {
   async getProjects(filterDto: ProjectFilterDto): Promise<Project[]> {
     const { search, includeArchived, includeSystem, parentId } = filterDto;
 
-    console.log('Filter DTO:', filterDto);
-    console.log('includeSystem:', includeSystem);
-    console.log('Type of includeSystem:', typeof includeSystem);
-
     let query = this.createQueryBuilder('project')
       .leftJoinAndSelect('project.parent', 'parent')
       .leftJoinAndSelect('project.children', 'children')

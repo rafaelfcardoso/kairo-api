@@ -1,5 +1,6 @@
 import { Project, ProjectType } from '../../../../src/projects/projects.entity';
 import { Task, TaskStatus } from '../../../../src/tasks/tasks.entity';
+import { validate } from 'class-validator';
 
 describe('Project Entity', () => {
   let project: Project;
@@ -31,6 +32,24 @@ describe('Project Entity', () => {
       expect(project.createdAt).toBeInstanceOf(Date);
       expect(project.updatedAt).toBeInstanceOf(Date);
     });
+
+    it('should initialize with default values when not provided', () => {
+      const defaultProject = new Project();
+      expect(defaultProject.isArchived).toBe(false);
+      expect(defaultProject.isSystem).toBe(false);
+      expect(defaultProject.type).toBe(ProjectType.REGULAR);
+      expect(defaultProject.order).toBe(0);
+    });
+
+    it('should allow nullable fields to be null', () => {
+      const nullableProject = new Project();
+      nullableProject.name = 'Test';
+      expect(nullableProject.description).toBeUndefined();
+      expect(nullableProject.color).toBeUndefined();
+      expect(nullableProject.parent).toBeUndefined();
+      expect(nullableProject.children).toBeUndefined();
+      expect(nullableProject.tasks).toBeUndefined();
+    });
   });
 
   describe('Project Types', () => {
@@ -47,6 +66,14 @@ describe('Project Entity', () => {
     it('should support ARCHIVE project type', () => {
       project.type = ProjectType.ARCHIVE;
       expect(project.type).toEqual(ProjectType.ARCHIVE);
+    });
+
+    it('should not allow invalid project types', async () => {
+      const project = new Project();
+      Object.assign(project, { type: 'INVALID_TYPE' });
+      const errors = await validate(project);
+      expect(errors.length).toBeGreaterThan(0);
+      expect(errors[0].constraints).toHaveProperty('isEnum');
     });
   });
 
@@ -108,32 +135,66 @@ describe('Project Entity', () => {
       expect(childProject.parent).toBe(parentProject);
       expect(parentProject.parent).toBe(grandparentProject);
     });
+
+    it('should handle empty children array', () => {
+      const leafProject = new Project();
+      leafProject.id = 'leaf-uuid';
+      leafProject.name = 'Leaf Project';
+      leafProject.children = [];
+
+      expect(leafProject.children).toHaveLength(0);
+    });
+
+    it('should allow a project to be moved to a different parent', () => {
+      const oldParent = new Project();
+      oldParent.id = 'old-parent-uuid';
+      oldParent.name = 'Old Parent';
+
+      const newParent = new Project();
+      newParent.id = 'new-parent-uuid';
+      newParent.name = 'New Parent';
+
+      const child = new Project();
+      child.id = 'child-uuid';
+      child.name = 'Child Project';
+
+      // Initial setup
+      oldParent.children = [child];
+      child.parent = oldParent;
+
+      // Move to new parent
+      oldParent.children = [];
+      newParent.children = [child];
+      child.parent = newParent;
+
+      expect(oldParent.children).toHaveLength(0);
+      expect(newParent.children).toHaveLength(1);
+      expect(child.parent).toBe(newParent);
+    });
   });
 
   describe('Task Relationship', () => {
     it('should manage a collection of tasks', () => {
-      const task1 = new Task();
-      task1.id = 'task1-uuid';
-      task1.title = 'Task 1';
-      task1.status = TaskStatus.NOT_STARTED;
+      const project = new Project();
+      const task = new Task();
+      project.tasks = [task];
+      expect(project.tasks).toHaveLength(1);
+      expect(project.tasks[0]).toBe(task);
+    });
 
-      const task2 = new Task();
-      task2.id = 'task2-uuid';
-      task2.title = 'Task 2';
-      task2.status = TaskStatus.COMPLETED;
+    it('should handle empty tasks array', () => {
+      const project = new Project();
+      project.tasks = [];
+      expect(project.tasks).toHaveLength(0);
+    });
 
-      // Set up relationship
-      project.tasks = [task1, task2];
-      task1.project = project;
-      task2.project = project;
-
-      // Verify relationship
-      expect(project.tasks).toHaveLength(2);
-      expect(project.tasks[0].id).toEqual('task1-uuid');
-      expect(project.tasks[1].id).toEqual('task2-uuid');
-
-      expect(task1.project).toBe(project);
-      expect(task2.project).toBe(project);
+    it('should maintain bidirectional relationship with tasks', () => {
+      const project = new Project();
+      const task = new Task();
+      project.tasks = [task];
+      task.project = project;
+      expect(project.tasks[0].project).toBe(project);
+      expect(task.project.tasks[0]).toBe(task);
     });
   });
 
@@ -171,6 +232,33 @@ describe('Project Entity', () => {
       expect(project.completedTasksCount).toEqual(2);
       expect(project.progress).toBeCloseTo(66.67, 2);
     });
+
+    it('should handle zero tasks for computed properties', () => {
+      project.tasks = [];
+      project.tasksCount = 0;
+      project.completedTasksCount = 0;
+      project.progress = 0;
+
+      expect(project.tasksCount).toEqual(0);
+      expect(project.completedTasksCount).toEqual(0);
+      expect(project.progress).toEqual(0);
+    });
+
+    it('should handle all completed tasks', () => {
+      const task1 = new Task();
+      task1.status = TaskStatus.COMPLETED;
+      const task2 = new Task();
+      task2.status = TaskStatus.COMPLETED;
+
+      project.tasks = [task1, task2];
+      project.tasksCount = 2;
+      project.completedTasksCount = 2;
+      project.progress = 100;
+
+      expect(project.tasksCount).toEqual(2);
+      expect(project.completedTasksCount).toEqual(2);
+      expect(project.progress).toEqual(100);
+    });
   });
 
   describe('System Projects', () => {
@@ -182,6 +270,32 @@ describe('Project Entity', () => {
 
       expect(inboxProject.isSystem).toEqual(true);
       expect(inboxProject.type).toEqual(ProjectType.INBOX);
+    });
+
+    it('should allow regular projects to be converted to system projects', () => {
+      const regularProject = new Project();
+      regularProject.name = 'Regular Project';
+      regularProject.type = ProjectType.REGULAR;
+      regularProject.isSystem = false;
+
+      // Convert to system project
+      regularProject.isSystem = true;
+      regularProject.type = ProjectType.ARCHIVE;
+
+      expect(regularProject.isSystem).toEqual(true);
+      expect(regularProject.type).toEqual(ProjectType.ARCHIVE);
+    });
+
+    it('should handle archived system projects', () => {
+      const archivedSystem = new Project();
+      archivedSystem.name = 'Archived System';
+      archivedSystem.type = ProjectType.ARCHIVE;
+      archivedSystem.isSystem = true;
+      archivedSystem.isArchived = true;
+
+      expect(archivedSystem.isSystem).toEqual(true);
+      expect(archivedSystem.type).toEqual(ProjectType.ARCHIVE);
+      expect(archivedSystem.isArchived).toEqual(true);
     });
   });
 });

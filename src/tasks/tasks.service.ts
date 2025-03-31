@@ -183,29 +183,48 @@ export class TaskService {
     const { title, description, dueDate, recurrenceRule, needsReminder } =
       createTaskDto;
 
-    // Validate inputs
-    this.validateInput(title, 'title');
-    if (description) {
-      this.validateInput(description, 'description');
-    }
-    if (dueDate !== undefined && dueDate !== null) {
-      this.validateDate(dueDate);
-    }
-
-    // Fix malformed recurrence rule if present
-    if (recurrenceRule && recurrenceRule.includes('FREQ=DAILYINTERVAL=')) {
-      createTaskDto.recurrenceRule = recurrenceRule.replace(
-        'FREQ=DAILYINTERVAL=',
-        'FREQ=DAILY;INTERVAL=',
-      );
-    }
-
     try {
+      // Validate inputs
+      this.validateInput(title, 'title');
+      if (description) {
+        this.validateInput(description, 'description');
+      }
+      if (dueDate !== undefined && dueDate !== null) {
+        this.validateDate(dueDate);
+      }
+
+      // Fix malformed recurrence rule if present
+      if (recurrenceRule && recurrenceRule.includes('FREQ=DAILYINTERVAL=')) {
+        createTaskDto.recurrenceRule = recurrenceRule.replace(
+          'FREQ=DAILYINTERVAL=',
+          'FREQ=DAILY;INTERVAL=',
+        );
+      }
+
       const savedTask = await this.tasksRepository.createTask(createTaskDto);
 
       // Schedule reminder if needed
       if (needsReminder && savedTask.dueDate) {
-        this.scheduleTaskReminder(savedTask);
+        const notificationContent =
+          this.notificationDomainService.generateNotificationContent(savedTask);
+        this.notificationDomainService.scheduleTaskReminder(
+          savedTask,
+          notificationContent,
+        );
+      }
+
+      // Handle recurring task
+      if (
+        savedTask.isRecurring &&
+        savedTask.dueDate &&
+        savedTask.recurrenceRule
+      ) {
+        const nextDate = this.recurringTaskService.calculateNextOccurrence(
+          savedTask.dueDate,
+          savedTask.recurrenceRule,
+        );
+        savedTask.nextDueDate = nextDate;
+        await this.tasksRepository.save(savedTask);
       }
 
       this.securityLogger.logSecurityEvent('Task created successfully', {
@@ -213,15 +232,17 @@ export class TaskService {
       });
       return savedTask;
     } catch (error) {
+      this.securityLogger.logValidationFailure(
+        'Task creation failed',
+        error.message,
+        {
+          dto: createTaskDto,
+        },
+      );
       if (error instanceof NotFoundException) {
         throw error;
       }
-      this.securityLogger.logSuspiciousActivity(
-        'Task creation failed',
-        'MEDIUM',
-        { error: error.message },
-      );
-      throw error;
+      throw new BadRequestException(error.message);
     }
   }
 
@@ -233,31 +254,34 @@ export class TaskService {
     const { title, description, dueDate, status, recurrenceRule } =
       updateTaskDto;
 
-    // Validate inputs
-    if (title) {
-      this.validateInput(title, 'title');
-    }
-    if (description) {
-      this.validateInput(description, 'description');
-    }
-    if (dueDate) {
-      this.validateDate(dueDate);
-    }
-
-    // Fix malformed recurrence rule if present
-    if (recurrenceRule && recurrenceRule.includes('FREQ=DAILYINTERVAL=')) {
-      updateTaskDto.recurrenceRule = recurrenceRule.replace(
-        'FREQ=DAILYINTERVAL=',
-        'FREQ=DAILY;INTERVAL=',
-      );
+    // Get the task first to ensure it exists
+    const task = await this.tasksRepository.getTaskById(id);
+    if (!task) {
+      throw new NotFoundException(`Task with ID "${id}" not found`);
     }
 
     try {
+      // Validate inputs
+      if (title) {
+        this.validateInput(title, 'title');
+      }
+      if (description) {
+        this.validateInput(description, 'description');
+      }
+      if (dueDate) {
+        this.validateDate(dueDate);
+      }
+
+      // Fix malformed recurrence rule if present
+      if (recurrenceRule && recurrenceRule.includes('FREQ=DAILYINTERVAL=')) {
+        updateTaskDto.recurrenceRule = recurrenceRule.replace(
+          'FREQ=DAILYINTERVAL=',
+          'FREQ=DAILY;INTERVAL=',
+        );
+      }
+
       // Check if task is being completed
       if (status === TaskStatus.COMPLETED) {
-        // Get the task first
-        const task = await this.tasksRepository.getTaskById(id);
-
         // If it's a recurring task, use RecurringTaskService
         if (task.isRecurring) {
           // Mark the task as completed
@@ -265,12 +289,12 @@ export class TaskService {
           task.updatedAt = new Date();
 
           // Save the updated task
-          const updatedTask = await this.tasksRepository.save(task);
+          await this.tasksRepository.save(task);
 
           // Schedule the next occurrence
           await this.recurringTaskService.processCompletedTask(task);
 
-          return updatedTask;
+          return this.tasksRepository.getTaskById(id);
         } else {
           // For non-recurring tasks, use the domain service
           const { updatedTask } = this.taskDomainService.completeTask(task);
@@ -284,21 +308,24 @@ export class TaskService {
       }
 
       // For non-completion updates, use the regular update method
-      const savedTask = await this.tasksRepository.updateTask(
+      const updatedTask = await this.tasksRepository.updateTask(
         id,
         updateTaskDto,
       );
 
       this.securityLogger.logSecurityEvent('Task updated successfully', {
-        taskId: savedTask.id,
+        taskId: id,
       });
 
-      return savedTask;
+      return this.tasksRepository.getTaskById(id);
     } catch (error) {
       this.securityLogger.logSuspiciousActivity(
         'Task update failed',
         'MEDIUM',
-        { taskId: id, error: error.message },
+        {
+          taskId: id,
+          error: error.message,
+        },
       );
       throw error;
     }
@@ -313,7 +340,7 @@ export class TaskService {
     });
 
     if (!inboxProject) {
-      throw new Error(
+      throw new NotFoundException(
         'Inbox project not found. This is a system configuration error.',
       );
     }
@@ -322,7 +349,11 @@ export class TaskService {
   }
 
   async deleteTask(id: string): Promise<void> {
-    return this.tasksRepository.deleteTask(id);
+    const task = await this.tasksRepository.getTaskById(id);
+    if (!task) {
+      throw new NotFoundException(`Task with ID "${id}" not found`);
+    }
+    await this.tasksRepository.deleteTask(id);
   }
 
   async archiveTask(id: string): Promise<Task> {
@@ -353,12 +384,28 @@ export class TaskService {
   }
 
   async addTags(taskId: string, tagIds: string[]): Promise<Task> {
+    const task = await this.tasksRepository.getTaskById(taskId);
+    if (!task) {
+      throw new NotFoundException(`Task with ID "${taskId}" not found`);
+    }
+
     const foundTags = await this.tagsRepository.getTagsByIds(tagIds);
-    return this.tasksRepository.addTags(taskId, tagIds);
+    if (foundTags.length !== tagIds.length) {
+      throw new NotFoundException('One or more tags not found');
+    }
+
+    task.tags = [...(task.tags || []), ...foundTags];
+    return this.tasksRepository.save(task);
   }
 
   async removeTags(taskId: string, tagIds: string[]): Promise<Task> {
     const task = await this.getTaskById(taskId);
+    if (!task) {
+      throw new NotFoundException(`Task with ID "${taskId}" not found`);
+    }
+    if (!task.tags) {
+      task.tags = [];
+    }
     task.tags = task.tags.filter((tag) => !tagIds.includes(tag.id));
     return this.tasksRepository.save(task);
   }
@@ -386,65 +433,84 @@ export class TaskService {
     ]);
 
     return {
-      total,
-      completed,
-      overdue: overdue.length,
-      upcoming: upcoming.length,
+      total: Number(total) || 0,
+      completed: Number(completed) || 0,
+      overdue: Array.isArray(overdue) ? overdue.length : 0,
+      upcoming: Array.isArray(upcoming) ? upcoming.length : 0,
     };
   }
 
-  async getTasksByPriority(): Promise<Record<TaskPriority, number>> {
+  async getTasksByPriority(): Promise<Record<TaskPriority, Task[]>> {
     const tasks = await this.tasksRepository.find({
       where: { isArchived: false },
-      select: ['priority'],
+      relations: ['project', 'tags'],
     });
 
     return {
-      [TaskPriority.NONE]: tasks.filter((t) => t.priority === TaskPriority.NONE)
-        .length,
-      [TaskPriority.LOW]: tasks.filter((t) => t.priority === TaskPriority.LOW)
-        .length,
+      [TaskPriority.NONE]: tasks.filter(
+        (t) => t.priority === TaskPriority.NONE,
+      ),
+      [TaskPriority.LOW]: tasks.filter((t) => t.priority === TaskPriority.LOW),
       [TaskPriority.MEDIUM]: tasks.filter(
         (t) => t.priority === TaskPriority.MEDIUM,
-      ).length,
-      [TaskPriority.HIGH]: tasks.filter((t) => t.priority === TaskPriority.HIGH)
-        .length,
+      ),
+      [TaskPriority.HIGH]: tasks.filter(
+        (t) => t.priority === TaskPriority.HIGH,
+      ),
     };
   }
 
   async duplicateTask(id: string): Promise<Task> {
-    const sourceTask = await this.getTaskById(id);
-    const { dueDate, nextDueDate, ...taskData } = sourceTask;
+    const sourceTask = await this.tasksRepository.getTaskById(id);
+    if (!sourceTask) {
+      throw new NotFoundException(`Task with ID "${id}" not found`);
+    }
 
     // Create a properly formatted CreateTaskDto
     const createTaskDto: CreateTaskDto = {
-      ...taskData,
-      title: `${taskData.title} (Copy)`,
-      dueDate: dueDate ? dueDate.toISOString() : null,
-      nextDueDate: nextDueDate ? nextDueDate.toISOString() : null,
+      title: `${sourceTask.title} (Copy)`,
+      description: sourceTask.description,
+      priority: sourceTask.priority,
+      dueDate: sourceTask.dueDate?.toISOString(),
+      needsReminder: sourceTask.needsReminder,
+      reminderMessage: sourceTask.reminderMessage,
+      isRecurring: sourceTask.isRecurring,
+      recurrenceRule: sourceTask.recurrenceRule,
+      hasTime: sourceTask.hasTime,
     };
 
-    return this.tasksRepository.createTask(createTaskDto);
+    // Create the new task
+    const duplicatedTask = await this.createTask(createTaskDto);
+
+    // Copy project and tags if they exist
+    if (sourceTask.project) {
+      await this.assignToProject(duplicatedTask.id, sourceTask.project.id);
+    }
+    if (sourceTask.tags?.length > 0) {
+      await this.addTags(
+        duplicatedTask.id,
+        sourceTask.tags.map((tag) => tag.id),
+      );
+    }
+
+    return this.tasksRepository.getTaskById(duplicatedTask.id);
   }
 
-  async assignOrphanedTasksToInbox(): Promise<{
-    tasksAssigned: number;
-    inboxProjectId: string;
-    summary: string;
-    tasks: Task[];
-  }> {
+  async assignOrphanedTasksToInbox(): Promise<Task[]> {
     // Get the Inbox project
     const inboxProject = await this.getInboxProject();
 
     // Find all tasks without a project
     const orphanedTasks = await this.tasksRepository.getTasksWithoutProject();
+    if (!orphanedTasks.length) {
+      return [];
+    }
 
     // Assign each task to the Inbox project
     const updatedTasks = await Promise.all(
       orphanedTasks.map(async (task) => {
-        return this.tasksRepository.updateTask(task.id, {
-          projectId: inboxProject.id,
-        });
+        task.project = inboxProject;
+        return this.tasksRepository.save(task);
       }),
     );
 
@@ -456,16 +522,7 @@ export class TaskService {
       },
     );
 
-    return {
-      tasksAssigned: orphanedTasks.length,
-      inboxProjectId: inboxProject.id,
-      summary: `Found and fixed ${orphanedTasks.length} task${
-        orphanedTasks.length === 1 ? '' : 's'
-      } that ${
-        orphanedTasks.length === 1 ? 'was' : 'were'
-      } not assigned to any project`,
-      tasks: updatedTasks,
-    };
+    return updatedTasks;
   }
 
   /**
@@ -508,17 +565,17 @@ export class TaskService {
   async completeOverdueTasks(
     userId: string,
     options: CompleteOverdueTasksDto,
-  ): Promise<CompleteOverdueTasksResponseDto> {
+  ): Promise<Task[]> {
     // Set up where conditions to find overdue tasks
     const whereConditions: any = {
       status: TaskStatus.NOT_STARTED,
       dueDate: LessThan(new Date()),
       isArchived: false,
-      ...options.additionalFilters,
+      ...options?.additionalFilters,
     };
 
     // If we shouldn't include blocked tasks, add that to the conditions
-    if (!options.includeBlockedTasks) {
+    if (!options?.includeBlockedTasks) {
       whereConditions.status = TaskStatus.NOT_STARTED;
     } else {
       // If we should include blocked tasks, we need to use In operator
@@ -528,14 +585,11 @@ export class TaskService {
     // Get all matching overdue tasks
     const overdueTasks = await this.tasksRepository.find({
       where: whereConditions,
+      relations: ['project', 'tags'],
     });
 
-    if (overdueTasks.length === 0) {
-      return {
-        success: true,
-        tasksCompleted: 0,
-        message: 'No overdue tasks found to complete.',
-      };
+    if (!overdueTasks || overdueTasks.length === 0) {
+      return [];
     }
 
     // Update all tasks to completed status
@@ -545,14 +599,12 @@ export class TaskService {
       completedAt: new Date(),
     }));
 
-    await this.tasksRepository.save(taskUpdates);
+    // Save all updates
+    const updatedTasks = await Promise.all(
+      taskUpdates.map((task) => this.tasksRepository.save(task)),
+    );
 
-    return {
-      success: true,
-      tasksCompleted: overdueTasks.length,
-      message: `Successfully completed ${overdueTasks.length} overdue tasks.`,
-      completedTaskIds: overdueTasks.map((task) => task.id),
-    };
+    return updatedTasks;
   }
 
   /**
@@ -561,25 +613,26 @@ export class TaskService {
   async batchCompleteTasks(
     userId: string,
     options: BatchCompleteTasksDto,
-  ): Promise<BatchCompleteTasksResponseDto> {
+  ): Promise<Task[]> {
+    if (!options?.additionalFilters?.taskIds?.length) {
+      throw new NotFoundException('No task IDs provided');
+    }
+
     // Set up where conditions to find tasks with specified statuses
     const whereConditions: any = {
-      status: In(options.statuses),
+      status: In(options.statuses || [TaskStatus.NOT_STARTED]),
       isArchived: false,
-      ...options.additionalFilters,
+      id: In(options.additionalFilters.taskIds),
     };
 
     // Get all matching tasks
     const tasksToComplete = await this.tasksRepository.find({
       where: whereConditions,
+      relations: ['project', 'tags'],
     });
 
-    if (tasksToComplete.length === 0) {
-      return {
-        success: true,
-        tasksCompleted: 0,
-        message: `No tasks with status ${options.statuses.join(', ')} found to complete.`,
-      };
+    if (!tasksToComplete || tasksToComplete.length === 0) {
+      throw new NotFoundException('No tasks found with the provided IDs');
     }
 
     // Update all tasks to completed status
@@ -589,35 +642,11 @@ export class TaskService {
       completedAt: new Date(),
     }));
 
-    await this.tasksRepository.save(taskUpdates);
+    // Save all updates
+    const updatedTasks = await Promise.all(
+      taskUpdates.map((task) => this.tasksRepository.save(task)),
+    );
 
-    return {
-      success: true,
-      tasksCompleted: tasksToComplete.length,
-      message: `Successfully completed ${tasksToComplete.length} tasks.`,
-      completedTaskIds: tasksToComplete.map((task) => task.id),
-    };
-  }
-
-  // Schedule a reminder for a task
-  private scheduleTaskReminder(task: Task): void {
-    if (task.needsReminder && task.dueDate) {
-      try {
-        // Generate notification content
-        const notificationContent =
-          this.notificationDomainService.generateNotificationContent(task);
-        // Call the notification service method
-        this.notificationDomainService.scheduleTaskReminder(
-          task,
-          notificationContent,
-        );
-      } catch (error) {
-        this.securityLogger.logSuspiciousActivity(
-          'Failed to schedule task reminder',
-          'LOW',
-          { taskId: task.id, error: (error as Error).message },
-        );
-      }
-    }
+    return updatedTasks;
   }
 }

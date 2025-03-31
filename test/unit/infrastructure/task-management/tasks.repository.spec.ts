@@ -815,9 +815,9 @@ describe('TasksRepository', () => {
             }
           }
 
-          if (filterDto.recurring !== undefined) {
-            mockQueryBuilder.andWhere('task.isRecurring = :recurring', {
-              recurring: filterDto.recurring,
+          if (filterDto.isRecurring !== undefined) {
+            mockQueryBuilder.andWhere('task.isRecurring = :isRecurring', {
+              isRecurring: filterDto.isRecurring,
             });
           }
 
@@ -909,7 +909,7 @@ describe('TasksRepository', () => {
 
     it('should handle recurring task filter', async () => {
       // Arrange
-      const recurringFilter: TaskFilterDto = { recurring: true };
+      const recurringFilter: TaskFilterDto = { isRecurring: true };
 
       mockQueryBuilder.getCount.mockResolvedValue(2);
       mockQueryBuilder.andWhere.mockClear();
@@ -919,8 +919,8 @@ describe('TasksRepository', () => {
 
       // Assert
       expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-        'task.isRecurring = :recurring',
-        { recurring: true },
+        'task.isRecurring = :isRecurring',
+        { isRecurring: true },
       );
     });
 
