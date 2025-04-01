@@ -363,7 +363,10 @@ export class TaskController {
     return {
       success: true,
       tasksCompleted: completedTasks.length,
-      message: `Completed ${completedTasks.length} tasks`,
+      message:
+        completedTasks.length > 0
+          ? `Completed ${completedTasks.length} tasks`
+          : 'No tasks found matching the criteria',
       completedTaskIds: completedTasks.map((task) => task.id),
     };
   }

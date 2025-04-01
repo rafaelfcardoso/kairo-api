@@ -614,16 +614,16 @@ export class TaskService {
     userId: string,
     options: BatchCompleteTasksDto,
   ): Promise<Task[]> {
-    if (!options?.additionalFilters?.taskIds?.length) {
-      throw new NotFoundException('No task IDs provided');
-    }
-
     // Set up where conditions to find tasks with specified statuses
     const whereConditions: any = {
       status: In(options.statuses || [TaskStatus.NOT_STARTED]),
       isArchived: false,
-      id: In(options.additionalFilters.taskIds),
     };
+
+    // If taskIds are provided, add them to the where conditions
+    if (options?.additionalFilters?.taskIds?.length) {
+      whereConditions.id = In(options.additionalFilters.taskIds);
+    }
 
     // Get all matching tasks
     const tasksToComplete = await this.tasksRepository.find({
@@ -632,7 +632,7 @@ export class TaskService {
     });
 
     if (!tasksToComplete || tasksToComplete.length === 0) {
-      throw new NotFoundException('No tasks found with the provided IDs');
+      return [];
     }
 
     // Update all tasks to completed status
