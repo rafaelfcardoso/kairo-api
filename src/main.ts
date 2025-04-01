@@ -97,14 +97,16 @@ async function bootstrap() {
   );
 
   // Enable CORS with configuration
+  const corsOrigin = configService.get('cors.origin');
   const allowedOrigins = [
+    corsOrigin,
     'capacitor://localhost',
     'ionic://localhost',
     'http://localhost',
     'http://localhost:8080',
     'http://localhost:8100',
     'https://localhost:8000', // AI service
-  ];
+  ].filter(Boolean); // Remove any undefined/null values
 
   // Add the Railway URL if it exists
   const railwayUrl = configService.get('api.url');
@@ -112,8 +114,17 @@ async function bootstrap() {
     allowedOrigins.push(railwayUrl);
   }
 
+  console.log('Configured CORS origins:', allowedOrigins);
+
   app.enableCors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.warn(`Blocked request from unauthorized origin: ${origin}`);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
     allowedHeaders: [

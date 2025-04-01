@@ -286,6 +286,7 @@ export class TaskService {
           // Mark the task as completed
           task.status = TaskStatus.COMPLETED;
           task.updatedAt = new Date();
+          task.completedAt = new Date();
 
           // Save the updated task
           await this.tasksRepository.save(task);

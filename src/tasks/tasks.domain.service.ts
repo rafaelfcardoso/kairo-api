@@ -107,6 +107,7 @@ export class TaskDomainService {
   completeTask(task: Task): { updatedTask: Task; nextTask?: Task } {
     // Mark the task as completed
     task.status = TaskStatus.COMPLETED;
+    task.completedAt = new Date();
 
     // If the task is not recurring, just return the updated task
     if (!task.recurrenceRule) {

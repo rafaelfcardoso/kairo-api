@@ -1,6 +1,6 @@
-// src/config/typeorm.config.ts
-import { TypeOrmModuleOptions } from '@nestjs/typeorm';
-import { DataSource, LoggerOptions } from 'typeorm';
+import { DataSource } from 'typeorm';
+import { config } from 'dotenv';
+import * as path from 'path';
 import { Task } from '../tasks/tasks.entity';
 import { Project } from '../projects/projects.entity';
 import { Tag } from '../tags/tags.entity';
@@ -37,22 +37,10 @@ import { CreateNlpFeedbackTable1741912345000 } from '../migrations/1741912345000
 import { CreateNlpModelPerformanceTable1742000000000 } from '../migrations/1742000000000-CreateNlpModelPerformanceTable';
 import { RemoveIsGoalFromTagTable1743380485000 } from '../migrations/1743380485000-RemoveIsGoalFromTagTable';
 import { AddCompletedAtToTasks1743458631759 } from '../migrations/1743458631759-AddCompletedAtToTasks';
-import { DATABASE_CONFIG } from './constants';
 
-// Define interface for database configuration
-interface DatabaseConfig extends Omit<TypeOrmModuleOptions, 'type'> {
-  type: 'postgres';
-  host?: string;
-  port?: number;
-  username?: string;
-  password?: string;
-  database?: string;
-  url?: string;
-  ssl?: boolean | { rejectUnauthorized: boolean };
-  connectTimeoutMS?: number;
-}
+// Load environment variables from .env.test
+config({ path: path.resolve(process.cwd(), '.env.test') });
 
-// Define all migrations in one place for better maintenance
 const migrations = [
   InitialSchema1705759726000,
   UpdateTaskEntityWithMetadata1686501234567,
@@ -97,83 +85,66 @@ const entities = [
   ApiMetrics,
 ];
 
-interface DatabaseLogConfig {
-  url?: string;
-  host?: string;
-  port?: number;
-  database?: string;
-  ssl?: boolean | { rejectUnauthorized: boolean };
-  environment?: string;
+async function runTestDbMigration() {
+  console.log('Creating test database connection...');
+
+  // Verify we're in test mode
+  if (process.env.NODE_ENV !== 'test') {
+    console.error('This script should only be run with NODE_ENV=test');
+    console.error('Current NODE_ENV:', process.env.NODE_ENV);
+    process.exit(1);
+  }
+
+  // Create a data source specifically for test database
+  const testDataSource = new DataSource({
+    type: 'postgres',
+    host: process.env.PGHOST || 'localhost',
+    port: parseInt(process.env.PGPORT || '5432'),
+    username: process.env.PGUSER || 'postgres',
+    password: process.env.PGPASSWORD || 'postgres',
+    database: process.env.PGDATABASE || 'zenith_test',
+    entities,
+    migrations,
+    migrationsRun: true,
+    synchronize: false,
+    logging: ['error', 'warn', 'info', 'log', 'query'],
+  });
+
+  try {
+    console.log(`Connecting to test database: ${process.env.PGDATABASE}`);
+    await testDataSource.initialize();
+    console.log('Test database connection established');
+
+    console.log('Running migrations...');
+    await testDataSource.runMigrations({ transaction: 'all' });
+    console.log('Migrations completed successfully');
+
+    // Verify the completedAt column exists in the task table
+    const query = `
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'task' AND column_name = 'completedAt'
+    `;
+    const result = await testDataSource.query(query);
+
+    if (result.length > 0) {
+      console.log('✅ completedAt column exists in the task table');
+    } else {
+      console.error('❌ completedAt column was not created in the task table');
+      process.exit(1);
+    }
+
+    await testDataSource.destroy();
+    console.log('Database connection closed');
+    process.exit(0);
+  } catch (error) {
+    console.error('Error running test database migrations:', error);
+    if (testDataSource.isInitialized) {
+      await testDataSource.destroy();
+    }
+    process.exit(1);
+  }
 }
 
-// Log database configuration (safely)
-const logDatabaseConfig = (config: DatabaseLogConfig): void => {
-  console.log('Database Configuration:', {
-    url: config.url ? 'URL provided' : 'Using individual params',
-    host: config.url ? 'From URL' : config.host,
-    port: config.url ? 'From URL' : config.port,
-    database: config.url ? 'From URL' : config.database,
-    ssl: config.ssl,
-    environment: process.env.NODE_ENV,
-  });
-};
-
-// Base configuration
-const baseConfig: DatabaseConfig = {
-  type: 'postgres' as const,
-  entities,
-  migrations,
-  migrationsRun: true,
-  migrationsTableName: 'migrations',
-  synchronize: false,
-  logging: process.env.NODE_ENV === ('development' as LoggerOptions),
-  ssl: false,
-  retryAttempts: DATABASE_CONFIG.RETRY_ATTEMPTS,
-  retryDelay: DATABASE_CONFIG.RETRY_DELAY,
-  keepConnectionAlive: true,
-  connectTimeoutMS: DATABASE_CONFIG.CONNECTION_TIMEOUT,
-};
-
-// Create the configuration based on whether we have a DATABASE_URL
-export const typeOrmConfig: DatabaseConfig = process.env.DATABASE_URL
-  ? {
-      ...baseConfig,
-      url: process.env.DATABASE_URL,
-    }
-  : {
-      ...baseConfig,
-      host: process.env.PGHOST || process.env.DB_HOST || 'localhost',
-      port: parseInt(process.env.PGPORT || process.env.DB_PORT) || 5432,
-      username: process.env.PGUSER || process.env.DB_USER || 'postgres',
-      password: process.env.PGPASSWORD || process.env.DB_PASS || 'postgres',
-      database:
-        process.env.NODE_ENV === 'test'
-          ? process.env.PGDATABASE || process.env.DB_NAME || 'zenith_test'
-          : process.env.PGDATABASE || process.env.DB_NAME || 'zenith_db',
-    };
-
-// Log the configuration (safely)
-logDatabaseConfig(typeOrmConfig);
-
-// Create and export the DataSource instance
-const dataSource = new DataSource({
-  ...typeOrmConfig,
-  type: 'postgres',
-});
-
-// Add error handler with structured logging
-dataSource
-  .initialize()
-  .catch(
-    (error: Error & { code?: string; detail?: string; where?: string }) => {
-      console.error('Database initialization error:', {
-        message: error.message,
-        code: error.code,
-        detail: error.detail,
-        where: error.where,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
-      });
-    },
-  );
-
-export default dataSource;
+// Run the migration
+runTestDbMigration();

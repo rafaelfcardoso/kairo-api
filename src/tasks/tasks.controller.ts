@@ -30,6 +30,7 @@ import {
   ApiQuery,
   ApiBody,
   ApiProperty,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { ParseUUIDArrayPipe } from './pipes/parse-uuid-array.pipe';
 import { RateLimitGuard } from '../common/guards/rate-limit.guard';
@@ -45,6 +46,7 @@ import { IsNotEmpty, IsString, IsOptional } from 'class-validator';
 import { format, parseISO, isAfter } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { UserId } from '../common/decorators/user-id.decorator';
+import { AuthGuard } from '@nestjs/passport';
 
 class BatchCompleteTasksResponse {
   success: boolean;
@@ -53,8 +55,9 @@ class BatchCompleteTasksResponse {
 }
 
 @ApiTags('Tasks')
+@ApiBearerAuth()
 @Controller('tasks')
-@UseGuards(RateLimitGuard)
+@UseGuards(AuthGuard('jwt'), RateLimitGuard)
 export class TaskController {
   private readonly logger = new Logger(TaskController.name);
 

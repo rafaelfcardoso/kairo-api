@@ -33,6 +33,7 @@ export class TaskAggregate {
 
     this.task.status = TaskStatus.COMPLETED;
     this.task.updatedAt = new Date();
+    this.task.completedAt = new Date();
 
     return this.task;
   }

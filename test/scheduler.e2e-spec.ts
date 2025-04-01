@@ -95,7 +95,7 @@ describe('Scheduler E2E', () => {
 
     it('should process a recurring task and set the next due date', async () => {
       // Update the test task to be recurring
-      let task = await taskRepository.findOne({
+      const task = await taskRepository.findOne({
         where: { id: testTaskId },
       });
 
