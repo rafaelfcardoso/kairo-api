@@ -128,13 +128,21 @@ export async function closeTestApp(): Promise<void> {
       console.error('Error closing TypeORM connections:', error);
     }
 
-    // Then close the app
-    await app.close();
+    // Close any remaining connections from the app
+    try {
+      await app.close();
+      console.log('NestJS application closed');
+    } catch (error) {
+      console.error('Error closing NestJS application:', error);
+    }
 
-    // Give some time for all connections to be closed
-    await new Promise((resolve) => {
-      setTimeout(resolve, 500).unref();
+    // Give some time for all connections to be closed, but make sure to unref the timer
+    const cleanup = new Promise((resolve) => {
+      setTimeout(() => {
+        resolve(true);
+      }, 500).unref();
     });
+    await cleanup;
 
     app = undefined;
     testingModule = undefined;
