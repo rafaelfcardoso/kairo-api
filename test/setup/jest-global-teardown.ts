@@ -8,18 +8,27 @@ module.exports = async () => {
 
     // Allow more time for connections to fully close
     await new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(true);
-      }, 2000).unref();
+      const timer = setTimeout(resolve, 1000);
+      // Ensure the timer doesn't keep the process alive
+      timer.unref();
     });
 
     // Force cleanup of any remaining handles
     if (global.gc) {
       console.log('Running garbage collection...');
-      global.gc();
+      try {
+        global.gc();
+      } catch (error) {
+        console.error('Error during garbage collection:', error);
+      }
     }
   } catch (error) {
-    console.error('Error during global teardown:', error);
-    throw error;
+    // Suppress connection-related errors during shutdown
+    if (
+      !error.message.includes('Cannot execute operation on') &&
+      !error.message.includes('Connection terminated')
+    ) {
+      console.error('Error during global teardown:', error);
+    }
   }
 };

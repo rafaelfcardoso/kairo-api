@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { ApiRequestLog, ApiMetrics } from '../entities/api-metrics.entity';
@@ -27,8 +27,9 @@ export enum ApiErrorCode {
 }
 
 @Injectable()
-export class ApiMetricsService {
+export class ApiMetricsService implements OnApplicationShutdown {
   private readonly logger = new Logger(ApiMetricsService.name);
+  private isShuttingDown = false;
 
   constructor(
     @InjectRepository(ApiRequestLog)
@@ -37,6 +38,11 @@ export class ApiMetricsService {
     private apiMetricsRepository: Repository<ApiMetrics>,
     private dataSource: DataSource,
   ) {}
+
+  async onApplicationShutdown() {
+    this.isShuttingDown = true;
+    // No need to close connections here as they are managed by the app
+  }
 
   /**
    * Log an API request with its details
@@ -49,8 +55,11 @@ export class ApiMetricsService {
     errorCode?: ApiErrorCode | string,
   ): Promise<void> {
     try {
-      // Check if we're in test environment and if the connection is still active
-      if (process.env.NODE_ENV === 'test' && !this.dataSource.isInitialized) {
+      // Don't log if shutting down or in test environment with closed connection
+      if (
+        this.isShuttingDown ||
+        (process.env.NODE_ENV === 'test' && !this.dataSource.isInitialized)
+      ) {
         return;
       }
 
