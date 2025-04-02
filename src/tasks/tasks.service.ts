@@ -655,8 +655,26 @@ export class TaskService {
    * @returns number of deleted tasks
    */
   async purgeAllTasks(): Promise<number> {
-    // Delete all tasks from the repository
-    const result = await this.tasksRepository.delete({});
-    return result.affected || 0;
+    const queryRunner =
+      this.tasksRepository.manager.connection.createQueryRunner();
+
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // First, remove the relationships in the join table
+      await queryRunner.query('DELETE FROM "focus_session_tasks_task"');
+
+      // Then delete all tasks
+      const result = await queryRunner.manager.delete(Task, {});
+
+      await queryRunner.commitTransaction();
+      return result.affected || 0;
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw new Error(`Failed to purge tasks: ${error.message}`);
+    } finally {
+      await queryRunner.release();
+    }
   }
 }

@@ -394,12 +394,20 @@ export class TaskController {
     filterDto.isRecurring = true;
     return this.taskService.getTasks(filterDto);
   }
+}
 
-  @Delete('purge-all')
+@ApiTags('Development')
+@Controller('dev-ops')
+export class DevOpsController {
+  private readonly logger = new Logger(DevOpsController.name);
+
+  constructor(private taskService: TaskService) {}
+
+  @Delete('purge-all-tasks')
   @ApiOperation({
     summary: 'Delete all tasks (Development Only)',
     description:
-      'WARNING: This endpoint deletes ALL tasks and is only available in development environment',
+      'WARNING: This endpoint deletes ALL tasks and is only available in development or local environment',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -418,21 +426,28 @@ export class TaskController {
     description: 'Operation not allowed in production environment',
   })
   async purgeAllTasks(
-    @UserId() userId: string,
+    @Req() request: Request,
   ): Promise<{ success: boolean; tasksDeleted: number; message: string }> {
-    // Check if we're in development environment
-    if (process.env.NODE_ENV !== 'development') {
+    this.logger.log(
+      `Received purge-all request with headers: ${JSON.stringify(request.headers)}`,
+    );
+    this.logger.log(`Request URL: ${request.url}`);
+    this.logger.log(`Request method: ${request.method}`);
+
+    // Check if we're in development or local environment
+    const allowedEnvironments = ['development', 'local'];
+    if (!allowedEnvironments.includes(process.env.NODE_ENV)) {
       this.logger.warn(
-        `Attempted to purge all tasks in ${process.env.NODE_ENV} environment by user ${userId}`,
+        `Attempted to purge all tasks in ${process.env.NODE_ENV} environment`,
       );
       throw new HttpException(
-        'This operation is only available in development environment',
+        'This operation is only available in development or local environment',
         HttpStatus.FORBIDDEN,
       );
     }
 
     this.logger.warn(
-      `Purging all tasks in development environment by user ${userId}`,
+      `Purging all tasks in ${process.env.NODE_ENV} environment`,
     );
     const deletedCount = await this.taskService.purgeAllTasks();
 
