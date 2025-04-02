@@ -14,10 +14,8 @@ import {
   ValidationPipe,
   UseGuards,
   Req,
-  BadRequestException,
-  NotFoundException,
-  InternalServerErrorException,
   Logger,
+  HttpException,
 } from '@nestjs/common';
 import { TaskService } from './tasks.service';
 import { CreateTaskDto, UpdateTaskDto, TaskFilterDto } from './tasks.dto';
@@ -29,7 +27,6 @@ import {
   ApiParam,
   ApiQuery,
   ApiBody,
-  ApiProperty,
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { ParseUUIDArrayPipe } from './pipes/parse-uuid-array.pipe';
@@ -42,17 +39,8 @@ import {
   BatchCompleteTasksDto,
   BatchCompleteTasksResponseDto,
 } from './dto/complete-overdue-tasks.dto';
-import { IsNotEmpty, IsString, IsOptional } from 'class-validator';
-import { format, parseISO, isAfter } from 'date-fns';
-import { toZonedTime } from 'date-fns-tz';
 import { UserId } from '../common/decorators/user-id.decorator';
 import { AuthGuard } from '@nestjs/passport';
-
-class BatchCompleteTasksResponse {
-  success: boolean;
-  tasksCompleted: number;
-  message: string;
-}
 
 @ApiTags('Tasks')
 @ApiBearerAuth()
@@ -405,5 +393,53 @@ export class TaskController {
     const filterDto = new TaskFilterDto();
     filterDto.isRecurring = true;
     return this.taskService.getTasks(filterDto);
+  }
+
+  @Delete('purge-all')
+  @ApiOperation({
+    summary: 'Delete all tasks (Development Only)',
+    description:
+      'WARNING: This endpoint deletes ALL tasks and is only available in development environment',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'All tasks deleted successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        tasksDeleted: { type: 'number', example: 42 },
+        message: { type: 'string', example: 'Deleted 42 tasks' },
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'Operation not allowed in production environment',
+  })
+  async purgeAllTasks(
+    @UserId() userId: string,
+  ): Promise<{ success: boolean; tasksDeleted: number; message: string }> {
+    // Check if we're in development environment
+    if (process.env.NODE_ENV !== 'development') {
+      this.logger.warn(
+        `Attempted to purge all tasks in ${process.env.NODE_ENV} environment by user ${userId}`,
+      );
+      throw new HttpException(
+        'This operation is only available in development environment',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    this.logger.warn(
+      `Purging all tasks in development environment by user ${userId}`,
+    );
+    const deletedCount = await this.taskService.purgeAllTasks();
+
+    return {
+      success: true,
+      tasksDeleted: deletedCount,
+      message: `Deleted ${deletedCount} tasks`,
+    };
   }
 }

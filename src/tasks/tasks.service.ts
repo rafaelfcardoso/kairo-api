@@ -649,4 +649,14 @@ export class TaskService {
 
     return updatedTasks;
   }
+
+  /**
+   * Purges all tasks from the database - DEVELOPMENT ONLY
+   * @returns number of deleted tasks
+   */
+  async purgeAllTasks(): Promise<number> {
+    // Delete all tasks from the repository
+    const result = await this.tasksRepository.delete({});
+    return result.affected || 0;
+  }
 }
