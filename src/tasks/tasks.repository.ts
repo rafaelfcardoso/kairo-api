@@ -28,19 +28,16 @@ export class TasksRepository extends Repository<Task> {
   async getTasks(filterDto: TaskFilterDto): Promise<Task[]> {
     const {
       status,
-      search,
       priority,
       projectId,
       tagIds,
+      search,
       dueDate,
-      recurring,
-      dueSoon,
+      includeArchived,
+      isRecurring,
     } = filterDto;
-    const query = this.getTasksQueryBuilder();
 
-    if (!filterDto.includeArchived) {
-      query.andWhere('task.isArchived = :isArchived', { isArchived: false });
-    }
+    const query = this.getTasksQueryBuilder();
 
     if (status) {
       query.andWhere('task.status = :status', { status });
@@ -51,7 +48,7 @@ export class TasksRepository extends Repository<Task> {
     }
 
     if (projectId) {
-      query.andWhere('project.id = :projectId', { projectId });
+      query.andWhere('task.projectId = :projectId', { projectId });
     }
 
     if (tagIds && tagIds.length > 0) {
@@ -66,25 +63,26 @@ export class TasksRepository extends Repository<Task> {
     }
 
     if (dueDate) {
-      query.andWhere('task.dueDate >= :startDate AND task.dueDate < :endDate', {
-        startDate: `${dueDate}T00:00:00.000Z`,
-        endDate: `${dueDate}T23:59:59.999Z`,
+      const startOfDay = new Date(dueDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(dueDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      query.andWhere('task.dueDate BETWEEN :start AND :end', {
+        start: startOfDay,
+        end: endOfDay,
       });
     }
 
-    // Filter for tasks due today or in the past
-    if (dueSoon) {
-      const now = new Date();
-      now.setHours(23, 59, 59, 999); // End of today
-      query.andWhere('task.dueDate <= :now', { now });
+    if (!includeArchived) {
+      query.andWhere('task.isArchived = :isArchived', { isArchived: false });
     }
 
-    // Filter for recurring tasks
-    if (recurring) {
-      query.andWhere('task.recurrenceRule IS NOT NULL');
+    if (isRecurring !== undefined) {
+      query.andWhere('task.isRecurring = :isRecurring', { isRecurring });
     }
 
-    return await query.getMany();
+    return query.getMany();
   }
 
   async getTaskById(id: string): Promise<Task> {
@@ -286,11 +284,73 @@ export class TasksRepository extends Repository<Task> {
   }
 
   async getTasksWithoutProject(): Promise<Task[]> {
-    return this.createQueryBuilder('task')
-      .leftJoinAndSelect('task.project', 'project')
-      .leftJoinAndSelect('task.tags', 'tags')
-      .leftJoinAndSelect('task.focusSessions', 'focusSessions')
-      .where('task.project IS NULL')
-      .getMany();
+    return this.find({
+      where: { project: null, isArchived: false },
+    });
+  }
+
+  /**
+   * Count tasks based on filter criteria
+   * @param filterDto Task filter criteria
+   * @returns Number of tasks matching the filters
+   */
+  async countTasks(filterDto: TaskFilterDto): Promise<number> {
+    const {
+      status,
+      priority,
+      projectId,
+      tagIds,
+      search,
+      dueDate,
+      includeArchived,
+      isRecurring,
+    } = filterDto;
+
+    const query = this.getTasksQueryBuilder();
+
+    if (status) {
+      query.andWhere('task.status = :status', { status });
+    }
+
+    if (priority) {
+      query.andWhere('task.priority = :priority', { priority });
+    }
+
+    if (projectId) {
+      query.andWhere('task.projectId = :projectId', { projectId });
+    }
+
+    if (tagIds && tagIds.length > 0) {
+      query.andWhere('tags.id IN (:...tagIds)', { tagIds });
+    }
+
+    if (search) {
+      query.andWhere(
+        '(LOWER(task.title) LIKE LOWER(:search) OR LOWER(task.description) LIKE LOWER(:search))',
+        { search: `%${search}%` },
+      );
+    }
+
+    if (dueDate) {
+      const startOfDay = new Date(dueDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(dueDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      query.andWhere('task.dueDate BETWEEN :start AND :end', {
+        start: startOfDay,
+        end: endOfDay,
+      });
+    }
+
+    if (!includeArchived) {
+      query.andWhere('task.isArchived = :isArchived', { isArchived: false });
+    }
+
+    if (isRecurring !== undefined) {
+      query.andWhere('task.isRecurring = :isRecurring', { isRecurring });
+    }
+
+    return query.getCount();
   }
 }

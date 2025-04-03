@@ -17,7 +17,7 @@ npm install @nestjs/schedule @nestjs/axios rrule moment-timezone axios
 
 2. **@nestjs/axios**: For HTTP requests to external services
 
-   - Used by the AiService to communicate with the Python AI service
+   - Used for HTTP requests to external services when needed
    - Replaces the built-in HttpModule from @nestjs/common which is deprecated
 
 3. **rrule**: For handling recurrence rules (RFC 5545 / iCalendar)

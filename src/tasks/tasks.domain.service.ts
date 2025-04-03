@@ -22,6 +22,14 @@ export class TaskDomainService {
     fromDate: Date = new Date(),
   ): Date | null {
     try {
+      // Handle null task case
+      if (!task) {
+        this.logger.error(
+          'Error calculating next occurrence: task is null or undefined',
+        );
+        return null;
+      }
+
       // If task is not recurring, return null
       if (!task.recurrenceRule) {
         return null;
@@ -30,18 +38,21 @@ export class TaskDomainService {
       // Use the RRule library to calculate the next occurrence
       const rrule = RRule.fromString(task.recurrenceRule);
 
-      // Get all occurrences after fromDate (limited to just the next one)
+      // Get all occurrences after fromDate
       const nextDates = rrule.after(fromDate, true);
 
-      // If we got a next date, return it
-      if (nextDates) {
+      // If we got a next date and it's within the count limit (if any), return it
+      if (
+        nextDates &&
+        (!rrule.options.count || rrule.all().length < rrule.options.count)
+      ) {
         return nextDates;
       }
 
       return null;
     } catch (error) {
       this.logger.error(
-        `Error calculating next occurrence for task ${task.id}: ${error.message}`,
+        `Error calculating next occurrence for task ${task?.id}: ${error.message}`,
         error.stack,
       );
       return null;
@@ -96,6 +107,7 @@ export class TaskDomainService {
   completeTask(task: Task): { updatedTask: Task; nextTask?: Task } {
     // Mark the task as completed
     task.status = TaskStatus.COMPLETED;
+    task.completedAt = new Date();
 
     // If the task is not recurring, just return the updated task
     if (!task.recurrenceRule) {

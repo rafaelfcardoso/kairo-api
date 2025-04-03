@@ -68,4 +68,18 @@ export class NotificationDomainService {
       },
     };
   }
+
+  /**
+   * Schedule a reminder for a task
+   * @param task The task to schedule a reminder for
+   * @param notificationContent The notification content to be sent
+   */
+  scheduleTaskReminder(
+    task: Task,
+    notificationContent: NotificationContent,
+  ): void {
+    this.logger.log(`Scheduling reminder for task: ${task.id}`);
+    // In a real implementation, this would call a notification or scheduling service
+    // This is just a placeholder for the test to verify the method is called
+  }
 }

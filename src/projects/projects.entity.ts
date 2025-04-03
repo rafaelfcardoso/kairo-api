@@ -11,6 +11,7 @@ import {
   TreeChildren,
 } from 'typeorm';
 import { Task } from '../tasks/tasks.entity';
+import { IsEnum } from 'class-validator';
 
 export enum ProjectType {
   INBOX = 'inbox',
@@ -41,6 +42,7 @@ export class Project {
     enum: ProjectType,
     default: ProjectType.REGULAR,
   })
+  @IsEnum(ProjectType, { message: 'Invalid project type' })
   type: ProjectType;
 
   @TreeParent()
@@ -68,4 +70,11 @@ export class Project {
   tasksCount?: number;
   completedTasksCount?: number;
   progress?: number;
+
+  constructor() {
+    this.isArchived = false;
+    this.isSystem = false;
+    this.type = ProjectType.REGULAR;
+    this.order = 0;
+  }
 }

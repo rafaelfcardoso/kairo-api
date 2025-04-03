@@ -14,6 +14,8 @@ import {
   ValidationPipe,
   UseGuards,
   Req,
+  Logger,
+  HttpException,
 } from '@nestjs/common';
 import { TaskService } from './tasks.service';
 import { CreateTaskDto, UpdateTaskDto, TaskFilterDto } from './tasks.dto';
@@ -25,54 +27,29 @@ import {
   ApiParam,
   ApiQuery,
   ApiBody,
-  ApiProperty,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { ParseUUIDArrayPipe } from './pipes/parse-uuid-array.pipe';
 import { RateLimitGuard } from '../common/guards/rate-limit.guard';
 import { SanitizePipe } from '../common/pipes/sanitize.pipe';
 import { Request } from 'express';
 import {
-  AiService,
-  NaturalLanguageRequest,
-} from '../common/services/ai.service';
-import { IsNotEmpty, IsString, IsOptional } from 'class-validator';
-import { Logger } from '@nestjs/common';
-import { format, parseISO, isAfter } from 'date-fns';
-import { toZonedTime } from 'date-fns-tz';
-
-/**
- * DTO for natural language task creation
- */
-class NaturalLanguageTaskDto implements NaturalLanguageRequest {
-  @ApiProperty({
-    description: 'Natural language command to create a task',
-    example: 'Remind me to call Mom every Sunday at 2 PM',
-    required: true,
-  })
-  @IsString()
-  @IsNotEmpty()
-  command: string;
-
-  @ApiProperty({
-    description:
-      'Additional context for the AI to use when processing the command',
-    required: false,
-    example: { timezone: 'America/New_York' },
-  })
-  @IsOptional()
-  context?: Record<string, any>;
-}
+  CompleteOverdueTasksDto,
+  CompleteOverdueTasksResponseDto,
+  BatchCompleteTasksDto,
+  BatchCompleteTasksResponseDto,
+} from './dto/complete-overdue-tasks.dto';
+import { UserId } from '../common/decorators/user-id.decorator';
+import { AuthGuard } from '@nestjs/passport';
 
 @ApiTags('Tasks')
+@ApiBearerAuth()
 @Controller('tasks')
-@UseGuards(RateLimitGuard)
+@UseGuards(AuthGuard('jwt'), RateLimitGuard)
 export class TaskController {
   private readonly logger = new Logger(TaskController.name);
 
-  constructor(
-    private taskService: TaskService,
-    private aiService: AiService,
-  ) {}
+  constructor(private taskService: TaskService) {}
 
   @Get()
   @ApiOperation({ summary: 'Get all tasks' })
@@ -303,19 +280,88 @@ export class TaskController {
     return this.taskService.getTaskStats();
   }
 
-  @Get('stats/by-priority')
+  @Get('by-priority')
   @ApiOperation({ summary: 'Get tasks grouped by priority' })
   @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Retrieved priority statistics successfully',
+    status: 200,
+    description: 'Tasks grouped by priority',
+    type: Object,
   })
-  async getTasksByPriority(): Promise<Record<TaskPriority, number>> {
-    return this.taskService.getTasksByPriority();
+  async getTasksByPriority() {
+    const tasksByPriority = await this.taskService.getTasksByPriority();
+    const taskCountByPriority: Record<TaskPriority, number> = {
+      [TaskPriority.NONE]: tasksByPriority[TaskPriority.NONE]?.length || 0,
+      [TaskPriority.LOW]: tasksByPriority[TaskPriority.LOW]?.length || 0,
+      [TaskPriority.MEDIUM]: tasksByPriority[TaskPriority.MEDIUM]?.length || 0,
+      [TaskPriority.HIGH]: tasksByPriority[TaskPriority.HIGH]?.length || 0,
+    };
+    return taskCountByPriority;
+  }
+
+  @Post('complete-overdue')
+  @ApiOperation({ summary: 'Complete all overdue tasks' })
+  @ApiResponse({
+    status: 200,
+    description: 'Tasks completed successfully',
+    type: CompleteOverdueTasksResponseDto,
+  })
+  async completeOverdueTasks(
+    @UserId() userId: string,
+    @Body() options: CompleteOverdueTasksDto,
+  ): Promise<CompleteOverdueTasksResponseDto> {
+    const completedTasks = await this.taskService.completeOverdueTasks(
+      userId,
+      options,
+    );
+    return {
+      success: true,
+      tasksCompleted: completedTasks.length,
+      message: `Completed ${completedTasks.length} overdue tasks`,
+      completedTaskIds: completedTasks.map((task) => task.id),
+    };
+  }
+
+  @Post('batch-complete')
+  @ApiOperation({ summary: 'Complete multiple tasks at once' })
+  @ApiResponse({
+    status: 200,
+    description: 'Tasks completed successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        tasksCompleted: { type: 'number', example: 5 },
+        message: { type: 'string', example: 'Completed 5 tasks' },
+        completedTaskIds: {
+          type: 'array',
+          items: { type: 'string' },
+          example: ['task-1', 'task-2'],
+        },
+      },
+    },
+  })
+  async batchCompleteTasks(
+    @UserId() userId: string,
+    @Body() options: BatchCompleteTasksDto,
+  ): Promise<BatchCompleteTasksResponseDto> {
+    const completedTasks = await this.taskService.batchCompleteTasks(
+      userId,
+      options,
+    );
+    return {
+      success: true,
+      tasksCompleted: completedTasks.length,
+      message:
+        completedTasks.length > 0
+          ? `Completed ${completedTasks.length} tasks`
+          : 'No tasks found matching the criteria',
+      completedTaskIds: completedTasks.map((task) => task.id),
+    };
   }
 
   @Post(':id/duplicate')
   @ApiOperation({ summary: 'Duplicate a task' })
-  @ApiParam({ name: 'id', type: 'string', description: 'Task ID' })
+  @ApiParam({ name: 'id', type: 'string', description: 'Task ID to duplicate' })
   @ApiResponse({
     status: HttpStatus.CREATED,
     description: 'Task duplicated successfully',
@@ -325,169 +371,18 @@ export class TaskController {
     return this.taskService.duplicateTask(id);
   }
 
-  @Post('support/assign-orphaned-to-inbox')
-  @ApiOperation({
-    summary: 'Assign all tasks without a project to the Inbox project',
-    description:
-      'Support operation to fix tasks that were not properly assigned to the Inbox project. Returns details about how many tasks were orphaned and fixed.',
-  })
+  @Post('assign-orphaned')
+  @ApiOperation({ summary: 'Assign orphaned tasks to inbox' })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'Tasks assigned successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        tasksAssigned: {
-          type: 'number',
-          description: 'Number of orphaned tasks that were assigned to Inbox',
-          example: 5,
-        },
-        inboxProjectId: {
-          type: 'string',
-          description: 'ID of the Inbox project where tasks were assigned',
-          example: '569c363f-1934-4e69-b324-6c2fad28bc59',
-        },
-        summary: {
-          type: 'string',
-          description: 'Human-readable summary of the operation',
-          example:
-            'Found and fixed 5 tasks that were not assigned to any project',
-        },
-        tasks: {
-          type: 'array',
-          items: { $ref: '#/components/schemas/Task' },
-          description:
-            'List of tasks that were updated with their new project assignment',
-        },
-      },
-    },
+    description: 'Orphaned tasks assigned successfully',
+    type: [Task],
   })
-  async assignOrphanedTasksToInbox() {
+  async assignOrphanedTasksToInbox(): Promise<Task[]> {
     return this.taskService.assignOrphanedTasksToInbox();
   }
 
-  @Post('natural-language')
-  @ApiOperation({
-    summary: 'Create a task using natural language',
-    description:
-      'Process a natural language command and create a task based on the AI interpretation. ' +
-      'Can handle commands like "Create a task to review project proposal by next Friday" or ' +
-      '"Remind me to call Mom every Sunday at 2 PM".',
-  })
-  @ApiBody({ type: NaturalLanguageTaskDto })
-  @ApiResponse({
-    status: HttpStatus.CREATED,
-    description: 'Task created successfully from natural language',
-  })
-  @ApiResponse({
-    status: HttpStatus.BAD_REQUEST,
-    description: 'Invalid input or could not interpret command',
-  })
-  @ApiResponse({
-    status: HttpStatus.SERVICE_UNAVAILABLE,
-    description: 'AI service unavailable',
-  })
-  async createTaskFromNaturalLanguage(
-    @Body() naturalLanguageDto: NaturalLanguageRequest,
-    @Req() request: Request,
-  ): Promise<any> {
-    // Process the natural language input
-    const aiResponse =
-      await this.aiService.processNaturalLanguage(naturalLanguageDto);
-
-    this.logger.log(`AI response: ${JSON.stringify(aiResponse)}`);
-
-    // Check if the warning about past date is accurate based on timezone
-    if (
-      aiResponse.analysis.is_past_date &&
-      aiResponse.analysis.due_date &&
-      naturalLanguageDto.context?.timezone
-    ) {
-      try {
-        const timezone = naturalLanguageDto.context.timezone;
-        this.logger.log(`Checking timezone: ${timezone}`);
-
-        // Extract the time from the command
-        const commandLower = naturalLanguageDto.command.toLowerCase();
-        this.logger.log(`Command: ${commandLower}`);
-
-        // Check if the command contains a time reference like "8 PM" or "8:00 PM"
-        const timeRegex = /(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i;
-        const timeMatch = commandLower.match(timeRegex);
-
-        if (timeMatch) {
-          const hour = parseInt(timeMatch[1]);
-          const minute = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
-          const isPM = timeMatch[3].toLowerCase() === 'pm';
-
-          // Convert to 24-hour format
-          let hour24 = hour;
-          if (isPM && hour < 12) hour24 += 12;
-          if (!isPM && hour === 12) hour24 = 0;
-
-          this.logger.log(
-            `Extracted time: ${hour24}:${minute} (${isPM ? 'PM' : 'AM'})`,
-          );
-
-          // Get current date and time in the user's timezone
-          const now = new Date();
-          const nowInUserTz = toZonedTime(now, timezone);
-          const nowHour = nowInUserTz.getHours();
-          const nowMinute = nowInUserTz.getMinutes();
-
-          this.logger.log(`Current time in timezone: ${nowHour}:${nowMinute}`);
-
-          // If the specified time is later today
-          if (hour24 > nowHour || (hour24 === nowHour && minute > nowMinute)) {
-            this.logger.log(
-              `Time is in the future today. Removing past date warning.`,
-            );
-            delete aiResponse.analysis.warning;
-            aiResponse.analysis.is_past_date = false;
-          } else {
-            this.logger.log(`Time is in the past today.`);
-          }
-        } else {
-          this.logger.log(`No specific time found in command: ${commandLower}`);
-        }
-      } catch (error) {
-        this.logger.error(`Error processing timezone: ${error.message}`);
-      }
-    }
-
-    // Get the inbox project to use as default
-    const inboxProject = await this.taskService.getInboxProject();
-
-    // Create a task DTO from the parsed data
-    const taskDto: CreateTaskDto = {
-      title: aiResponse.analysis.title,
-      description: aiResponse.analysis.description,
-      priority: aiResponse.analysis.priority as TaskPriority,
-      dueDate: aiResponse.analysis.due_date,
-      // Convert recurrence rule string if present
-      recurrenceRule: aiResponse.analysis.recurrence_rule,
-      // Use the needsReminder flag for reminder functionality
-      needsReminder: aiResponse.analysis.title.toLowerCase().includes('remind'),
-      // Include a custom message for reminders
-      reminderMessage: aiResponse.analysis.title
-        .toLowerCase()
-        .includes('remind')
-        ? `Auto-generated reminder for: ${aiResponse.analysis.title}`
-        : null,
-      // Assign to the inbox project by default
-      projectId: inboxProject.id,
-    } as CreateTaskDto; // Use type assertion to resolve the linter error
-
-    // Create the task in the database
-    const createdTask = await this.taskService.createTask(taskDto, request.ip);
-
-    // Update the response with the actual task ID
-    aiResponse.task_id = createdTask.id;
-
-    return aiResponse;
-  }
-
-  @Get('views/recurring')
+  @Get('recurring')
   @ApiOperation({ summary: 'Get recurring tasks' })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -495,9 +390,71 @@ export class TaskController {
     type: [Task],
   })
   async getRecurringTasks(): Promise<Task[]> {
-    // Get all tasks that have a recurrence rule
     const filterDto = new TaskFilterDto();
-    filterDto.recurring = true;
+    filterDto.isRecurring = true;
     return this.taskService.getTasks(filterDto);
+  }
+}
+
+@ApiTags('Development')
+@Controller('dev-ops')
+export class DevOpsController {
+  private readonly logger = new Logger(DevOpsController.name);
+
+  constructor(private taskService: TaskService) {}
+
+  @Delete('purge-all-tasks')
+  @ApiOperation({
+    summary: 'Delete all tasks (Development Only)',
+    description:
+      'WARNING: This endpoint deletes ALL tasks and is only available in development or local environment',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'All tasks deleted successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        tasksDeleted: { type: 'number', example: 42 },
+        message: { type: 'string', example: 'Deleted 42 tasks' },
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'Operation not allowed in production environment',
+  })
+  async purgeAllTasks(
+    @Req() request: Request,
+  ): Promise<{ success: boolean; tasksDeleted: number; message: string }> {
+    this.logger.log(
+      `Received purge-all request with headers: ${JSON.stringify(request.headers)}`,
+    );
+    this.logger.log(`Request URL: ${request.url}`);
+    this.logger.log(`Request method: ${request.method}`);
+
+    // Check if we're in development or local environment
+    const allowedEnvironments = ['development', 'local'];
+    if (!allowedEnvironments.includes(process.env.NODE_ENV)) {
+      this.logger.warn(
+        `Attempted to purge all tasks in ${process.env.NODE_ENV} environment`,
+      );
+      throw new HttpException(
+        'This operation is only available in development or local environment',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    this.logger.warn(
+      `Purging all tasks in ${process.env.NODE_ENV} environment`,
+    );
+    const deletedCount = await this.taskService.purgeAllTasks();
+
+    return {
+      success: true,
+      tasksDeleted: deletedCount,
+      message: `Deleted ${deletedCount} tasks`,
+    };
   }
 }

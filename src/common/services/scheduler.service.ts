@@ -142,6 +142,7 @@ export class SchedulerService {
       } else {
         // No more occurrences, mark task as completed
         task.status = TaskStatus.COMPLETED;
+        task.completedAt = new Date();
         await this.taskRepository.save(task);
 
         this.logger.log(

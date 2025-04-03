@@ -54,9 +54,97 @@ $ npm run test
 # e2e tests
 $ npm run test:e2e
 
+# domain layer tests (DDD-focused)
+$ npm run test:domain
+
+# domain layer test coverage
+$ npm run test:domain:cov
+
 # test coverage
 $ npm run test:cov
 ```
+
+## Testing
+
+The Zenith API follows a Domain-Driven Design (DDD) approach with comprehensive test coverage across all layers.
+
+### Test Structure
+
+Our tests are organized by architectural layers to ensure proper isolation and focus:
+
+- **Domain Layer Tests**: Core business rules and domain logic
+- **Application Layer Tests**: Use cases and application services
+- **Infrastructure Layer Tests**: Repositories and external services
+- **Interface Layer Tests**: Controllers and API endpoints
+- **Integration Tests**: Cross-layer interactions
+- **E2E Tests**: Full API workflows
+
+The test directory structure follows this organization:
+
+```
+test/
+├── unit/
+│   ├── domain/            # Domain layer tests
+│   │   └── task-management/
+│   ├── application/       # Application layer tests
+│   │   └── task-management/
+│   ├── infrastructure/    # Infrastructure layer tests
+│   │   └── task-management/
+│   └── interface/         # Interface layer tests
+│       └── task-management/
+├── integration/           # Integration tests
+│   └── task-management/
+└── e2e/                   # End-to-end tests
+```
+
+### Running Tests
+
+```bash
+# All unit tests
+npm run test
+
+# Domain layer tests
+npm run test:domain
+
+# Application layer tests
+npm run test:application
+
+# Integration tests
+npm run test:integration
+
+# End-to-end tests
+npm run test:e2e
+
+# Test coverage for domain layer
+npm run test:domain:cov
+
+# Test coverage for application layer
+npm run test:application:cov
+
+# Overall test coverage
+npm run test:cov
+```
+
+### Test Coverage Documentation
+
+We maintain detailed documentation of our testing strategy and progress:
+
+- [Test Coverage Plan](docs/active/test-coverage-plan.md): Our overall plan for test coverage across all layers
+- [Application Layer Test Plan](docs/active/application-layer-test-plan.md): Detailed plan for application layer tests
+- [Domain Layer Test Plan](docs/active/domain-layer-test-plan.md): Detailed plan for domain layer tests
+- [Project Management Tests Summary](docs/active/project-management-tests-summary.md): Summary of Project domain tests across all layers
+- [Task Management Tests Summary](docs/active/task-management-tests-summary.md): Summary of Task domain tests across all layers
+
+### AI Service Mocking
+
+For testing, we've implemented a mock version of the AI service to provide deterministic responses without making actual HTTP calls to the external AI service.
+
+To use the mocked AI service in tests:
+
+1. Initialize the test application with `getTestApp(true)`
+2. The mock service will provide predictable responses based on input patterns
+
+See [AI Service Mocking Documentation](docs/ai-service-mocking.md) for details on the implementation and usage.
 
 ## Deployment
 

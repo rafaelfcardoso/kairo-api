@@ -1,4 +1,4 @@
-import { IsString, IsHexColor, IsOptional } from 'class-validator';
+import { IsString, IsHexColor, IsOptional, IsBoolean } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateTagDto {

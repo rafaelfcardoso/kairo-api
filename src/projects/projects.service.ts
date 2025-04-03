@@ -331,4 +331,30 @@ export class ProjectsService {
 
     return this.tasksRepository.createTask(newTaskData);
   }
+
+  /**
+   * Count projects based on filter criteria
+   * @param filters Object with filter criteria
+   * @returns Number of projects matching the filters
+   */
+  async countProjects(filters: Record<string, any>): Promise<number> {
+    const query = this.projectsRepository.createQueryBuilder('project');
+
+    // Apply filters if provided
+    if (filters.name) {
+      query.andWhere('project.name LIKE :name', { name: `%${filters.name}%` });
+    }
+
+    if (filters.type) {
+      query.andWhere('project.type = :type', { type: filters.type });
+    }
+
+    if (filters.isActive !== undefined) {
+      query.andWhere('project.isActive = :isActive', {
+        isActive: filters.isActive,
+      });
+    }
+
+    return query.getCount();
+  }
 }

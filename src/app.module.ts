@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TasksModule } from './tasks/tasks.module';
@@ -13,7 +13,9 @@ import { FocusSessionsModule } from './focus-sessions/focus-sessions.module';
 import { StatsModule } from './stats/stats.module';
 import { DATABASE_CONFIG } from './config/constants';
 import { SchedulerModule } from './common/services/scheduler.module';
-import { McpModule } from './mcp/mcp.module';
+import { HealthModule } from './common/health/health.module';
+import { ApiMetricsModule } from './api-metrics/api-metrics.module';
+import { ApiMetricsMiddleware } from './common/middleware/api-metrics.middleware';
 
 @Module({
   imports: [
@@ -77,6 +79,7 @@ import { McpModule } from './mcp/mcp.module';
       },
       inject: [ConfigService],
     }),
+    HealthModule,
     TasksModule,
     ProjectsModule,
     TagsModule,
@@ -85,9 +88,14 @@ import { McpModule } from './mcp/mcp.module';
     FocusSessionsModule,
     StatsModule,
     SchedulerModule,
-    McpModule,
+    ApiMetricsModule,
   ],
   controllers: [AppController],
   providers: [],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Enable the API metrics middleware to track request metrics
+    consumer.apply(ApiMetricsMiddleware).forRoutes('*');
+  }
+}

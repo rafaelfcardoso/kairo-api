@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Task } from '../../tasks/tasks.entity';
-import { AiService } from './ai.service';
 import {
   NotificationDomainService,
   NotificationContent,
@@ -23,7 +22,6 @@ export class NotificationService {
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly aiService: AiService,
     private readonly notificationDomainService: NotificationDomainService,
   ) {}
 
@@ -82,26 +80,25 @@ export class NotificationService {
     try {
       // Use the needsReminder flag instead of checking task types
       if (task.needsReminder) {
-        // Get AI-generated reminder text
-        const reminderContext = {
-          task_title: task.title,
-          task_description: task.description || '',
-          user_timezone: userTimezone,
-          current_time: new Date().toISOString(),
-        };
+        // Generate a simple reminder text instead of using AI service
+        context.aiReminderText = `Don't forget about your task: ${task.title}`;
 
-        const smartReminder = await this.aiService.getSmartReminder({
-          task_id: task.id,
-          task_title: task.title,
-          task_description: task.description,
-          task_due_date: task.dueDate?.toISOString(),
-          task_priority: task.priority,
-          task_tags: task.tags?.map((tag) => tag.name),
-          task_project: task.project?.name,
-          user_timezone: reminderContext.user_timezone,
-        });
+        if (task.dueDate) {
+          const formattedDate = new Date(task.dueDate).toLocaleString('en-US', {
+            timeZone: userTimezone,
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+          context.aiReminderText += ` (due ${formattedDate})`;
+        }
 
-        context.aiReminderText = smartReminder.reminder_text;
+        if (task.project?.name) {
+          context.aiReminderText += ` - ${task.project.name}`;
+        }
       }
 
       // Standard tasks don't need extra processing

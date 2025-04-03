@@ -1,0 +1,24 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "skipLibCheck": true,
+    "noImplicitAny": false,
+    "noEmit": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "esModuleInterop": true,
+    "module": "commonjs",
+    "target": "es2017",
+    "types": ["jest", "node"]
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.spec.ts",
+    "src/**/*.test.ts",
+    "test/**/*.ts",
+    "test/**/*.spec.ts",
+    "test/**/*.e2e-spec.ts",
+    "test/**/*.integration.spec.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

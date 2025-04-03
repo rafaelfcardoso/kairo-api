@@ -19,7 +19,7 @@ export class AppController {
   }
 
   @Get('health')
-  @ApiOperation({ summary: 'API Health and Status' })
+  @ApiOperation({ summary: 'Basic API Health Status (Legacy)' })
   @ApiResponse({
     status: 200,
     description: 'Application health and status information',
@@ -32,13 +32,15 @@ export class AppController {
         environment: { type: 'string' },
         version: { type: 'string' },
         uptime: { type: 'number' },
-        documentation: { type: 'string' },
-        memoryUsage: {
+        note: { type: 'string' },
+        enhancedEndpoints: {
           type: 'object',
           properties: {
-            heapTotal: { type: 'number' },
-            heapUsed: { type: 'number' },
-            rss: { type: 'number' },
+            overall: { type: 'string' },
+            detailed: { type: 'string' },
+            database: { type: 'string' },
+            memory: { type: 'string' },
+            disk: { type: 'string' },
           },
         },
         database: {
@@ -64,8 +66,14 @@ export class AppController {
       environment: this.configService.get('nodeEnv') || 'development',
       version: process.env.npm_package_version || '1.0.0',
       uptime: process.uptime(),
-      documentation: `${baseUrl}/api`,
-      memoryUsage: process.memoryUsage(),
+      note: 'This is a legacy health endpoint. Please use the enhanced health endpoints for more detailed information.',
+      enhancedEndpoints: {
+        overall: `${baseUrl}/api/v1/system-health`,
+        detailed: `${baseUrl}/api/v1/system-health/detailed`,
+        database: `${baseUrl}/api/v1/system-health/db`,
+        memory: `${baseUrl}/api/v1/system-health/memory`,
+        disk: `${baseUrl}/api/v1/system-health/disk`,
+      },
       database: {
         status: dbStatus,
       },

@@ -34,6 +34,18 @@ module.exports = {
       },
     },
     {
+      files: ['test/**/*.ts', 'test/**/*.spec.ts', 'test/**/*.e2e-spec.ts'],
+      parserOptions: {
+        project: './test/tsconfig.test.json',
+      },
+    },
+    {
+      files: ['src/**/*.spec.ts', 'src/**/*.test.ts'],
+      parserOptions: {
+        project: './tsconfig.test.json',
+      },
+    },
+    {
       files: ['src/migrations/*.ts'],
       rules: {
         '@typescript-eslint/no-unused-vars': 'off',

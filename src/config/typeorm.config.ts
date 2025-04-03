@@ -6,6 +6,8 @@ import { Project } from '../projects/projects.entity';
 import { Tag } from '../tags/tags.entity';
 import { FocusSession } from '../focus-sessions/focus-sessions.entity';
 import { BlockRule } from '../entities/block-rule.entity';
+import { SystemHealth } from '../entities/system-health.entity';
+import { ApiRequestLog, ApiMetrics } from '../entities/api-metrics.entity';
 import { InitialSchema1705759726000 } from '../migrations/1705759726000-InitialSchema';
 import { FixProjectColors1738362321118 } from '../migrations/1738362321118-FixProjectColors';
 import { EnsureInboxProject1738362321119 } from '../migrations/1738362321119-EnsureInboxProject';
@@ -28,6 +30,13 @@ import { AddBlockRuleTypeEnum1739279174964 } from '../migrations/1739279174964-A
 import { RemoveTaskTypeColumn1741011691203 } from '../migrations/1741011691203-RemoveTaskTypeColumn';
 import { AddRecurrenceRuleColumn1741013788916 } from '../migrations/1741013788916-AddRecurrenceRuleColumn';
 import { AddNextDueDateColumn1741014300000 } from '../migrations/1741014300000-AddNextDueDateColumn';
+import { AddIsGoalToTagTable1741607800000 } from '../migrations/1741607800000-AddIsGoalToTagTable';
+import { CreateSystemHealthTable1741800000000 } from '../migrations/1741800000000-CreateSystemHealthTable';
+import { CreateApiMetricsTable1741900000000 } from '../migrations/1741900000000-CreateApiMetricsTable';
+import { CreateNlpFeedbackTable1741912345000 } from '../migrations/1741912345000-CreateNlpFeedbackTable';
+import { CreateNlpModelPerformanceTable1742000000000 } from '../migrations/1742000000000-CreateNlpModelPerformanceTable';
+import { RemoveIsGoalFromTagTable1743380485000 } from '../migrations/1743380485000-RemoveIsGoalFromTagTable';
+import { AddCompletedAtToTasks1743458631759 } from '../migrations/1743458631759-AddCompletedAtToTasks';
 import { DATABASE_CONFIG } from './constants';
 
 // Define interface for database configuration
@@ -67,10 +76,26 @@ const migrations = [
   RemoveTaskTypeColumn1741011691203,
   AddRecurrenceRuleColumn1741013788916,
   AddNextDueDateColumn1741014300000,
+  AddIsGoalToTagTable1741607800000,
+  CreateSystemHealthTable1741800000000,
+  CreateApiMetricsTable1741900000000,
+  CreateNlpFeedbackTable1741912345000,
+  CreateNlpModelPerformanceTable1742000000000,
+  RemoveIsGoalFromTagTable1743380485000,
+  AddCompletedAtToTasks1743458631759,
 ];
 
 // Define all entities in one place for better maintenance
-const entities = [Task, Project, Tag, FocusSession, BlockRule];
+const entities = [
+  Task,
+  Project,
+  Tag,
+  FocusSession,
+  BlockRule,
+  SystemHealth,
+  ApiRequestLog,
+  ApiMetrics,
+];
 
 interface DatabaseLogConfig {
   url?: string;
@@ -121,7 +146,10 @@ export const typeOrmConfig: DatabaseConfig = process.env.DATABASE_URL
       port: parseInt(process.env.PGPORT || process.env.DB_PORT) || 5432,
       username: process.env.PGUSER || process.env.DB_USER || 'postgres',
       password: process.env.PGPASSWORD || process.env.DB_PASS || 'postgres',
-      database: process.env.PGDATABASE || process.env.DB_NAME || 'zenith_db',
+      database:
+        process.env.NODE_ENV === 'test'
+          ? process.env.PGDATABASE || process.env.DB_NAME || 'zenith_test'
+          : process.env.PGDATABASE || process.env.DB_NAME || 'zenith_db',
     };
 
 // Log the configuration (safely)

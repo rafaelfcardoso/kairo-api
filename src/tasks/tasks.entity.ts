@@ -233,4 +233,12 @@ export class Task {
   @ApiProperty()
   @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
+
+  @ApiProperty({
+    example: '2024-03-15T12:00:00Z',
+    description: 'When the task was completed',
+    required: false,
+  })
+  @Column({ nullable: true, type: 'timestamp' })
+  completedAt: Date;
 }
