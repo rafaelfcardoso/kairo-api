@@ -25,6 +25,7 @@ module.exports = {
       argsIgnorePattern: '^_',
       varsIgnorePattern: '^_',
     }],
+    '@typescript-eslint/no-var-requires': 'off'
   },
   overrides: [
     {

@@ -32,8 +32,7 @@ export class GenerateApiTokenDto {
 
   @ApiProperty({
     type: String,
-    description:
-      'Service key for authentication (from API_SERVICE_KEY env var)',
+    description: 'Service key for authentication (from ZENITH_API_KEY env var)',
     example: 'your-service-key-here',
   } as ApiPropertyOptions)
   @IsString()
@@ -51,7 +50,7 @@ export class AuthController {
     summary: 'Generate API token for service',
     description: `
       Generates a JWT token for service-to-service authentication.
-      The service key must match the API_SERVICE_KEY environment variable.
+      The service key must match the ZENITH_API_KEY environment variable.
       The generated token should be used in the Authorization header as "Bearer <token>" for subsequent requests.
     `,
   })
@@ -70,7 +69,7 @@ export class AuthController {
     @Body() generateApiTokenDto: GenerateApiTokenDto,
   ): Promise<TokenResponseDto> {
     const expectedServiceKey =
-      process.env.API_SERVICE_KEY || 'your-service-key-here';
+      process.env.ZENITH_API_KEY || 'your-service-key-here';
 
     if (generateApiTokenDto.serviceKey !== expectedServiceKey) {
       throw new UnauthorizedException('Invalid service key');

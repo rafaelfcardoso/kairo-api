@@ -33,7 +33,7 @@ describe('AuthController', () => {
 
   describe('generateToken', () => {
     const validServiceKey = 'your-service-key-here';
-    process.env.API_SERVICE_KEY = validServiceKey;
+    process.env.ZENITH_API_KEY = validServiceKey;
 
     it('should generate a token with valid service key', async () => {
       const dto = {
