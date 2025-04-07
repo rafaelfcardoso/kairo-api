@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { RRule } from 'rrule';
-import * as moment from 'moment-timezone';
+import moment from 'moment-timezone';
 import { Task, TaskStatus } from './tasks.entity';
 
 /**

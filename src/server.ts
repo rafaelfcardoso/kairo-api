@@ -1,19 +1,89 @@
-const express = require('express');
-const cors = require('cors');
-const mcp = require('@modelcontextprotocol/sdk/server/mcp.js');
+import express from 'express';
+import {
+  McpServer,
+  ResourceTemplate,
+} from '@modelcontextprotocol/sdk/server/mcp.js';
+import cors from 'cors';
+import mcp from '@modelcontextprotocol/sdk/server/mcp.js';
+import fetch from 'node-fetch';
+import dotenv from 'dotenv';
+
 const {
   SSEServerTransport,
 } = require('@modelcontextprotocol/sdk/server/sse.js');
 const { z } = require('zod');
 
-// Assume Zenith API base URL and Key are in environment variables
-const ZENITH_API_URL =
-  process.env.ZENITH_API_URL || 'http://localhost:8000/api'; // Example default
-const ZENITH_API_KEY = process.env.ZENITH_API_KEY || ''; // Provide your API key
+dotenv.config(); // Ensure environment variables are loaded
 
-// Update variable declarations to fix ResourceTemplate
-const McpServer = mcp.McpServer;
-const ResourceTemplate = mcp.ResourceTemplate;
+const {
+  ZENITH_API_URL,
+  API_VERSION,
+  ZENITH_API_KEY,
+  // ... other variables if needed
+} = process.env;
+
+const ZENITH_API_BASE_PATH = `${ZENITH_API_URL}${API_VERSION}`;
+
+// --- Store the fetched JWT token ---
+let jwtToken: string | null = null;
+
+// --- Function to fetch the JWT token ---
+async function fetchAuthToken(): Promise<string> {
+  const authUrl = `${ZENITH_API_BASE_PATH}/auth/token`;
+  console.log(`Attempting to fetch auth token from: ${authUrl}`);
+  try {
+    const response = await fetch(authUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        serviceName: 'mcp-server', // As per curl example
+        serviceKey: ZENITH_API_KEY,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text(); // Use text() first, might not be JSON
+      console.error(
+        `Auth token fetch failed (${response.status}): ${errorBody}`,
+      );
+      throw new Error(
+        `Failed to fetch auth token: ${response.status} ${errorBody}`,
+      );
+    }
+
+    const data = await response.json();
+    // Use 'token' based on the API response structure
+    if (!data || typeof data.token !== 'string') {
+      console.error('Invalid auth token response:', data);
+      throw new Error('Received invalid auth token response');
+    }
+    console.log('Successfully fetched auth token.');
+    return data.token;
+  } catch (error) {
+    console.error('Error during auth token fetch:', error);
+    // Rethrow to be handled by the caller or potentially crash if auth is critical
+    throw error instanceof Error ? error : new Error(String(error));
+  }
+}
+
+// --- Function to ensure token is available ---
+async function ensureAuthToken(): Promise<void> {
+  if (jwtToken === null) {
+    try {
+      jwtToken = await fetchAuthToken();
+    } catch (error) {
+      console.error('Failed to ensure auth token:', error);
+      // Decide how to handle failure: maybe retry, or prevent further requests
+      // For now, we clear the token and let subsequent calls fail or retry
+      jwtToken = null;
+      throw new Error('Authentication failed, cannot proceed.'); // Make it explicit
+    }
+  }
+  // Add token expiry check and refresh logic here if needed in the future
+}
 
 // --- Server Initialization ---
 const server = new McpServer({
@@ -24,40 +94,106 @@ const server = new McpServer({
 // --- Transport Setup ---
 const app = express();
 app.use(cors()); // Enable CORS for client connections
-app.use(express.json()); // Needed for POST requests if the client sends JSON
 
 const transports = {};
 
 // --- Helper for API Requests ---
 async function zenithApiRequest(endpoint, method, data = undefined) {
-  const response = await fetch(`${ZENITH_API_URL}${endpoint}`, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${ZENITH_API_KEY}`, // Adjust auth mechanism if needed
-    },
-    body: data ? JSON.stringify(data) : undefined,
-  });
+  const fullUrl = `${ZENITH_API_BASE_PATH}${endpoint}`;
 
-  if (!response.ok) {
-    let errorMessage = `API request failed with status ${response.status}`;
+  // Ensure token is available for non-auth requests
+  if (endpoint !== '/auth/token') {
     try {
-      const errorBody = await response.json();
-      errorMessage = errorBody.message || errorMessage;
-    } catch (e) {
-      // Ignore if response body is not JSON
+      await ensureAuthToken();
+    } catch (authError) {
+      // If authentication fails, we cannot make the intended request.
+      console.error(
+        `Authentication required for ${method} ${fullUrl}, but failed.`,
+      );
+      // Re-throw or return an error structure appropriate for your MCP server
+      throw authError;
     }
-    console.error(`Zenith API Error (${method} ${endpoint}): ${errorMessage}`);
-    throw new Error(errorMessage);
   }
 
-  // Handle potential empty responses for methods like DELETE or certain POSTs
-  const contentType = response.headers.get('content-type');
-  if (contentType && contentType.indexOf('application/json') !== -1) {
-    return response.json();
-  } else {
-    // Return an empty object or handle as appropriate for non-JSON responses
-    return {};
+  try {
+    console.log(`Attempting authenticated fetch: ${method} ${fullUrl}`);
+
+    // Construct headers dynamically
+    const headers: { [key: string]: string } = {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    };
+
+    // Add Authorization header only if we have a token (i.e., not for the /auth/token request)
+    if (endpoint !== '/auth/token' && jwtToken) {
+      headers['Authorization'] = `Bearer ${jwtToken}`;
+    } else if (endpoint !== '/auth/token' && !jwtToken) {
+      // This case should ideally be prevented by ensureAuthToken throwing an error
+      console.error(
+        `Attempted ${method} ${fullUrl} without a token after auth check.`,
+      );
+      throw new Error('Internal error: Auth token missing after check.');
+    }
+
+    const response = await fetch(fullUrl, {
+      method,
+      headers: headers,
+      body: data ? JSON.stringify(data) : undefined,
+    });
+
+    if (!response.ok) {
+      // Keep existing error handling, but improve details slightly
+      let errorMessage = `API request failed (${method} ${fullUrl}) with status ${response.status}`;
+      let errorDetails = response.statusText; // Default
+      try {
+        // Attempt to read body for more details, prioritizing JSON
+        const errorBodyText = await response.text();
+        try {
+          const errorBodyJson = JSON.parse(errorBodyText);
+          errorDetails =
+            typeof errorBodyJson === 'string'
+              ? errorBodyJson
+              : errorBodyJson.message ||
+                errorBodyJson.error ||
+                JSON.stringify(errorBodyJson);
+        } catch (jsonError) {
+          // If not JSON, use the raw text if not empty
+          errorDetails = errorBodyText || errorDetails;
+        }
+        errorMessage = `${errorMessage}: ${errorDetails}`;
+      } catch (readError) {
+        // Ignore if reading response body fails
+        console.warn(
+          `Could not read error response body for ${method} ${fullUrl}: ${readError}`,
+        );
+      }
+      console.error(`Zenith API Error: ${errorMessage}`);
+      // Throw a more informative error, including the specific details found
+      throw new Error(`Fetch failed: ${response.status} ${errorDetails}`);
+    }
+
+    // Handle potential empty responses
+    const contentType = response.headers.get('content-type');
+    if (response.status === 204 || !contentType) {
+      // 204 No Content or no content type header
+      return {}; // Return empty object for no content responses
+    }
+    if (contentType && contentType.includes('application/json')) {
+      return response.json();
+    } else {
+      // Handle other content types if necessary, or return raw text/blob
+      console.warn(
+        `Received non-JSON response from ${method} ${fullUrl} with Content-Type: ${contentType}`,
+      );
+      return response.text(); // Example: return text for non-JSON
+    }
+  } catch (fetchError) {
+    // Log the raw error if it's not the one we threw above
+    if (!fetchError.message.startsWith('Fetch failed:')) {
+      console.error(`RAW FETCH ERROR during ${method} ${fullUrl}:`, fetchError);
+    }
+    // Rethrow the specific error or a generic one
+    throw new Error(fetchError.message || 'fetch failed');
   }
 }
 
@@ -388,9 +524,9 @@ app.get('/sse', async (_, res) => {
 });
 
 // Endpoint for clients to send messages (requests/notifications) to the server
-app.post('/messages', express.json(), async (req, res) => {
+app.post('/messages', async (req, res) => {
   // Ensure express.json() middleware is used
-  const sessionId = req.query.sessionId;
+  const sessionId = req.query.sessionId as string;
   const transport = transports[sessionId];
   if (transport) {
     try {
@@ -411,7 +547,7 @@ app.post('/messages', express.json(), async (req, res) => {
 });
 
 // --- Start the Server ---
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.MCP_PORT || 3002;
 app.listen(PORT, () => {
   console.log(`Zenith MCP Adapter Server running on port ${PORT}`);
   console.log(`SSE connections on: http://localhost:${PORT}/sse`);
