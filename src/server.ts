@@ -345,16 +345,29 @@ server.tool(
   async (params) => {
     try {
       const createdTask = await zenithApiRequest('/tasks', 'POST', params);
+      console.log('Task created successfully via API:', createdTask.id); // Log success on server
+      // OLD Response with resource
+      // return {
+      //   content: [
+      //     {
+      //       type: 'resource',
+      //       resource: {
+      //         uri: `zenith://tasks/${createdTask.id}`,
+      //         json: createdTask,
+      //       },
+      //     },
+      //   ],
+      // };
+      // TODO: Remove this once we have a proper response structure
+      // NEW Response structure: Simple text
       return {
         content: [
           {
-            type: 'resource',
-            resource: {
-              uri: `zenith://tasks/${createdTask.id}`,
-              json: createdTask,
-            },
+            type: 'text', // Use type 'text'
+            text: `Task "${createdTask.title || params.title}" (ID: ${createdTask.id}) created successfully.`, // Provide confirmation text
           },
         ],
+        isError: false, // Explicitly set isError to false for clarity
       };
     } catch (error) {
       console.error(`MCP Tool Error (create-task): ${error.message}`);
