@@ -359,6 +359,39 @@ server.tool(
       //   ],
       // };
       // TODO: Remove this once we have a proper response structure
+
+      // if (clientTransport) { //TODO Example Snippet for Server Push (Option 3 - Conceptual):
+      //   // Check if transport is available
+      //   try {
+      //     await clientTransport.send({
+      //       // Use the transport's send method
+      //       type: 'message', // Standard message type
+      //       message: {
+      //         role: 'assistant', // Or 'system'/'tool' depending on context
+      //         content: [
+      //           {
+      //             type: 'resource',
+      //             resource: {
+      //               uri: `zenith://tasks/${createdTask.id}`,
+      //               json: createdTask,
+      //             },
+      //           },
+      //         ],
+      //       },
+      //     });
+      //     console.log(
+      //       `Pushed resource update for task ${createdTask.id} to client.`,
+      //     );
+      //   } catch (sendError) {
+      //     console.error(
+      //       `Failed to push resource update to client: ${sendError}`,
+      //     );
+      //   }
+      // } else {
+      //   console.warn(
+      //     'Could not find client transport to push resource update.',
+      //   );
+      // }
       // NEW Response structure: Simple text
       return {
         content: [
