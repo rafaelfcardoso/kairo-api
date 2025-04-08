@@ -8,10 +8,12 @@ import {
   JoinTable,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { Task } from '../tasks/tasks.entity';
 import { Project } from '../projects/projects.entity';
 import { ApiProperty } from '@nestjs/swagger';
+import { User } from '../entities/user.entity';
 
 export enum EnergyLevel {
   LOW = 'low',
@@ -96,6 +98,21 @@ export class FocusSession {
   })
   @Column({ nullable: true })
   projectId: string;
+
+  @ApiProperty({ nullable: true })
+  @Column({ nullable: true })
+  taskId: string;
+
+  @ManyToOne(() => User, (user) => user.focusSessions, {
+    nullable: false,
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'userId' })
+  user: User;
+
+  @Index()
+  @Column({ type: 'uuid', nullable: false })
+  userId: string;
 
   @ApiProperty()
   @CreateDateColumn({ type: 'timestamp' })

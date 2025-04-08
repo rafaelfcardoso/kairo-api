@@ -290,13 +290,36 @@ export class RecurringTaskService {
    * @returns The newly created task for the next occurrence
    */
   async scheduleNextRecurrence(completedTask: Task): Promise<Task> {
+    if (!completedTask.recurrenceRule) {
+      throw new Error(
+        'Cannot schedule next recurrence: recurrence rule missing',
+      );
+    }
+
+    // Get the user ID from the completed task
+    const userId = completedTask.userId;
+    if (!userId) {
+      // This shouldn't happen if data integrity is maintained, but good to check
+      this.logger.error(
+        `Cannot schedule next recurrence for task ${completedTask.id}: userId is missing.`,
+      );
+      throw new Error('Completed task is missing userId.');
+    }
+
     try {
       const nextDate = this.calculateNextOccurrence(
         completedTask.dueDate,
         completedTask.recurrenceRule,
       );
 
-      // Create a DTO for the next task
+      if (!nextDate) {
+        this.logger.log(
+          `No further occurrences for recurring task ${completedTask.id}`,
+        );
+        return null; // No next occurrence
+      }
+
+      // Create DTO for the next task
       const nextTaskDto: CreateTaskDto = {
         title: completedTask.title,
         description: completedTask.description,
@@ -318,8 +341,11 @@ export class RecurringTaskService {
         nextTaskDto.projectId = completedTask.project.id;
       }
 
-      // Create the next task
-      const nextTask = await this.tasksRepository.createTask(nextTaskDto);
+      // Create the next task, passing the userId
+      const nextTask = await this.tasksRepository.createTask(
+        nextTaskDto,
+        userId,
+      );
 
       this.logger.log(
         `Scheduled next occurrence of recurring task ${completedTask.id} for ${nextDate.toISOString()}`,

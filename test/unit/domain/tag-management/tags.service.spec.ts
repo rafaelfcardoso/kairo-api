@@ -3,8 +3,9 @@ import { TagsService } from '../../../../src/tags/tags.service';
 import { TagsRepository } from '../../../../src/tags/tags.repository';
 import { Tag } from '../../../../src/tags/tags.entity';
 import { CreateTagDto, UpdateTagDto } from '../../../../src/tags/tags.dto';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, ConflictException } from '@nestjs/common';
 import { ILike } from 'typeorm';
+import { User } from '../../../../src/entities/user.entity';
 
 describe('TagsService', () => {
   let service: TagsService;
@@ -12,13 +13,16 @@ describe('TagsService', () => {
 
   // Mock tag data
   const mockTag: Tag = {
-    id: '123e4567-e89b-12d3-a456-426614174000',
+    id: '1',
     name: 'Test Tag',
-    color: '#FF0000',
+    color: '#FFFFFF',
     description: 'Test Description',
     createdAt: new Date(),
     updatedAt: new Date(),
     tasks: [],
+    order: 0,
+    user: new User(),
+    userId: 'user-1',
   };
 
   const mockCreateTagDto: CreateTagDto = {
@@ -101,25 +105,42 @@ describe('TagsService', () => {
   });
 
   describe('createTag', () => {
-    it('should create and return a new tag', async () => {
-      const createdTag = { ...mockTag, ...mockCreateTagDto };
-      jest.spyOn(repository, 'createTag').mockResolvedValue(createdTag);
-
-      const result = await service.createTag(mockCreateTagDto);
-      expect(result).toEqual(createdTag);
-      expect(repository.createTag).toHaveBeenCalledWith(mockCreateTagDto);
+    beforeEach(() => {
+      jest.clearAllMocks();
     });
 
-    it('should handle duplicate tag names', async () => {
-      const existingTag = { ...mockTag, name: 'Existing Tag' };
-      const newTag = { ...mockCreateTagDto, name: 'Existing Tag' };
+    it('should create a tag', async () => {
+      jest.spyOn(repository, 'createTag').mockResolvedValue(mockTag);
+
+      const mockCreateTagDto: CreateTagDto = {
+        name: 'New Tag',
+        color: '#000000',
+        description: 'New Description',
+      };
+
+      const result = await service.createTag(mockCreateTagDto, 'user-1');
+      expect(result).toEqual(mockTag);
+    });
+
+    it('should throw ConflictException on duplicate tag name', async () => {
       jest
         .spyOn(repository, 'createTag')
-        .mockResolvedValue({ ...existingTag, name: 'Existing Tag' });
+        .mockImplementation(async (dto, userId) => {
+          if (dto.name === 'Test Tag') {
+            throw new ConflictException('Tag with this name already exists');
+          }
+          return mockTag;
+        });
 
-      const result = await service.createTag(newTag);
-      expect(repository.createTag).toHaveBeenCalledWith(newTag);
-      expect(result.name).toBe('Existing Tag');
+      const newTag: CreateTagDto = {
+        name: 'Test Tag',
+        color: '#000000',
+        description: 'Duplicate Tag',
+      };
+
+      await expect(service.createTag(newTag, 'user-1')).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 

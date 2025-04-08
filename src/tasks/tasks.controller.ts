@@ -16,6 +16,7 @@ import {
   Req,
   Logger,
   HttpException,
+  UsePipes,
 } from '@nestjs/common';
 import { TaskService } from './tasks.service';
 import { CreateTaskDto, UpdateTaskDto, TaskFilterDto } from './tasks.dto';
@@ -41,11 +42,13 @@ import {
 } from './dto/complete-overdue-tasks.dto';
 import { UserId } from '../common/decorators/user-id.decorator';
 import { AuthGuard } from '@nestjs/passport';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { User } from '../entities/user.entity';
 
 @ApiTags('Tasks')
-@ApiBearerAuth()
+@ApiBearerAuth('JWT-auth')
 @Controller('tasks')
-@UseGuards(AuthGuard('jwt'), RateLimitGuard)
+@UseGuards(AuthGuard('jwt'), RateLimitGuard, JwtAuthGuard)
 export class TaskController {
   private readonly logger = new Logger(TaskController.name);
 
@@ -139,12 +142,17 @@ export class TaskController {
     status: HttpStatus.BAD_REQUEST,
     description: 'Invalid input',
   })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Unauthorized',
+  })
   async createTask(
     @Body(new ValidationPipe(), new SanitizePipe())
     createTaskDto: CreateTaskDto,
     @Req() request: Request,
   ): Promise<Task> {
-    return this.taskService.createTask(createTaskDto, request.ip);
+    const userId = (request.user as User).id;
+    return this.taskService.createTask(createTaskDto, userId);
   }
 
   @Put(':id')

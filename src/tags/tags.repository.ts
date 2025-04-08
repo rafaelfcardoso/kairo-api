@@ -31,8 +31,11 @@ export class TagsRepository {
     return tag;
   }
 
-  async createTag(createTagDto: CreateTagDto): Promise<Tag> {
-    const tag = this.repository.create(createTagDto);
+  async createTag(createTagDto: CreateTagDto, userId: string): Promise<Tag> {
+    const tag = this.repository.create({
+      ...createTagDto,
+      userId: userId,
+    });
     await this.repository.save(tag);
     return this.getTagById(tag.id);
   }

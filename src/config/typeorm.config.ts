@@ -8,6 +8,7 @@ import { FocusSession } from '../focus-sessions/focus-sessions.entity';
 import { BlockRule } from '../entities/block-rule.entity';
 import { SystemHealth } from '../entities/system-health.entity';
 import { ApiRequestLog, ApiMetrics } from '../entities/api-metrics.entity';
+import { User } from '../entities/user.entity';
 import { InitialSchema1705759726000 } from '../migrations/1705759726000-InitialSchema';
 import { FixProjectColors1738362321118 } from '../migrations/1738362321118-FixProjectColors';
 import { EnsureInboxProject1738362321119 } from '../migrations/1738362321119-EnsureInboxProject';
@@ -37,6 +38,9 @@ import { CreateNlpFeedbackTable1741912345000 } from '../migrations/1741912345000
 import { CreateNlpModelPerformanceTable1742000000000 } from '../migrations/1742000000000-CreateNlpModelPerformanceTable';
 import { RemoveIsGoalFromTagTable1743380485000 } from '../migrations/1743380485000-RemoveIsGoalFromTagTable';
 import { AddCompletedAtToTasks1743458631759 } from '../migrations/1743458631759-AddCompletedAtToTasks';
+import { AddUserEntityAndRelations1744054661856 } from '../migrations/1744054661856-AddUserEntityAndRelations';
+import { AssignExistingDataToDefaultUser1744054769246 } from '../migrations/1744054769246-AssignExistingDataToDefaultUser';
+import { MakeUserIdNonNullable1744054883888 } from '../migrations/1744054883888-MakeUserIdNonNullable';
 import { DATABASE_CONFIG } from './constants';
 
 // Define interface for database configuration
@@ -83,6 +87,9 @@ const migrations = [
   CreateNlpModelPerformanceTable1742000000000,
   RemoveIsGoalFromTagTable1743380485000,
   AddCompletedAtToTasks1743458631759,
+  AddUserEntityAndRelations1744054661856,
+  AssignExistingDataToDefaultUser1744054769246,
+  MakeUserIdNonNullable1744054883888,
 ];
 
 // Define all entities in one place for better maintenance
@@ -95,6 +102,7 @@ const entities = [
   SystemHealth,
   ApiRequestLog,
   ApiMetrics,
+  User,
 ];
 
 interface DatabaseLogConfig {

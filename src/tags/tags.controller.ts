@@ -10,6 +10,8 @@ import {
   ParseUUIDPipe,
   ParseIntPipe,
   HttpStatus,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
 import { TagsService } from './tags.service';
 import { CreateTagDto, UpdateTagDto } from './tags.dto';
@@ -20,9 +22,14 @@ import {
   ApiResponse,
   ApiParam,
   ApiQuery,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
+import { Request } from 'express';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { User } from '../entities/user.entity';
 
 @ApiTags('Tags')
+@ApiBearerAuth('JWT-auth')
 @Controller('tags')
 export class TagsController {
   constructor(private tagsService: TagsService) {}
@@ -101,14 +108,20 @@ export class TagsController {
   }
 
   @Post()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Create a new tag' })
   @ApiResponse({
     status: HttpStatus.CREATED,
     description: 'Tag created successfully',
     type: Tag,
   })
-  async createTag(@Body() createTagDto: CreateTagDto): Promise<Tag> {
-    return this.tagsService.createTag(createTagDto);
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  async createTag(
+    @Body() createTagDto: CreateTagDto,
+    @Req() request: Request,
+  ): Promise<Tag> {
+    const userId = (request.user as User).id;
+    return this.tagsService.createTag(createTagDto, userId);
   }
 
   @Put(':id')

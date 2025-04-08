@@ -31,8 +31,34 @@ export class ProjectsService {
     return this.projectsRepository.getProjectById(id);
   }
 
-  async createProject(createProjectDto: CreateProjectDto): Promise<Project> {
-    return this.projectsRepository.createProject(createProjectDto);
+  async createProject(
+    createProjectDto: CreateProjectDto,
+    userId: string,
+  ): Promise<Project> {
+    // Find the highest order for the user's root projects
+    const result = await this.projectsRepository
+      .createQueryBuilder('project')
+      .select('MAX(project.order)', 'maxOrder')
+      .where('project."parentId" IS NULL') // Filter for root projects
+      .andWhere('project."userId" = :userId', { userId }) // Filter by user
+      .getRawOne();
+
+    const nextOrder = (result?.maxOrder ?? -1) + 1;
+
+    // Create the entity instance, including userId and calculated order
+    const project = this.projectsRepository.create({
+      ...createProjectDto,
+      userId: userId,
+      order: nextOrder,
+    });
+
+    try {
+      // Save the entity instance
+      await this.projectsRepository.save(project);
+      return project;
+    } catch (error) {
+      // ... error handling ...
+    }
   }
 
   async updateProject(
@@ -132,6 +158,7 @@ export class ProjectsService {
 
   async duplicateProject(
     id: string,
+    userId: string,
     options: {
       includeSubprojects?: boolean;
       includeTasks?: boolean;
@@ -148,7 +175,7 @@ export class ProjectsService {
       parent: sourceProject.parent,
     };
 
-    const newProject = await this.createProject(newProjectData);
+    const newProject = await this.createProject(newProjectData, userId);
 
     if (includeTasks) {
       // Duplicate tasks
@@ -161,7 +188,7 @@ export class ProjectsService {
           status: task.status,
           projectId: newProject.id,
         };
-        return this.tasksRepository.createTask(newTaskData);
+        return this.tasksRepository.createTask(newTaskData, userId);
       });
       await Promise.all(taskPromises);
     }
@@ -169,7 +196,7 @@ export class ProjectsService {
     if (includeSubprojects) {
       // Recursively duplicate subprojects
       const subprojectPromises = sourceProject.children.map((child) =>
-        this.duplicateProject(child.id, options),
+        this.duplicateProject(child.id, userId, options),
       );
       await Promise.all(subprojectPromises);
     }
@@ -288,6 +315,7 @@ export class ProjectsService {
   async duplicateTaskToProject(
     taskId: string,
     projectId: string,
+    userId: string,
   ): Promise<Task> {
     const task = await this.tasksRepository.getTaskById(taskId);
     const project = await this.projectsRepository.findOne({
@@ -308,10 +336,14 @@ export class ProjectsService {
       projectId,
     };
 
-    return this.tasksRepository.createTask(newTaskData);
+    return this.tasksRepository.createTask(newTaskData, userId);
   }
 
-  async createTaskWithProject(projectId: string, task: Task): Promise<Task> {
+  async createTaskWithProject(
+    projectId: string,
+    task: Task,
+    userId: string,
+  ): Promise<Task> {
     const project = await this.projectsRepository.findOne({
       where: { id: projectId },
     });
@@ -329,7 +361,7 @@ export class ProjectsService {
       projectId,
     };
 
-    return this.tasksRepository.createTask(newTaskData);
+    return this.tasksRepository.createTask(newTaskData, userId);
   }
 
   /**

@@ -12,6 +12,8 @@ import {
   HttpStatus,
   HttpCode,
   ValidationPipe,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -19,6 +21,7 @@ import {
   ApiResponse,
   ApiParam,
   ApiQuery,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { ProjectsService } from './projects.service';
 import {
@@ -28,8 +31,12 @@ import {
   ProjectMoveDto,
 } from './projects.dto';
 import { Project } from './projects.entity';
+import { Request } from 'express';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { User } from '../entities/user.entity';
 
 @ApiTags('Projects')
+@ApiBearerAuth('JWT-auth')
 @Controller('projects')
 export class ProjectsController {
   constructor(private projectService: ProjectsService) {}
@@ -175,19 +182,25 @@ export class ProjectsController {
   }
 
   @Post()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Create a new project' })
   @ApiResponse({
     status: HttpStatus.CREATED,
     description: 'Project created successfully',
     type: Project,
   })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
   async createProject(
     @Body() createProjectDto: CreateProjectDto,
+    @Req() request: Request,
   ): Promise<Project> {
-    return this.projectService.createProject(createProjectDto);
+    const userId = (request.user as User).id;
+    return this.projectService.createProject(createProjectDto, userId);
   }
 
   @Post(':id/duplicate')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Duplicate a project' })
   @ApiParam({ name: 'id', type: String })
   @ApiQuery({ name: 'includeSubprojects', required: false, type: Boolean })
@@ -197,12 +210,15 @@ export class ProjectsController {
     description: 'Project duplicated successfully',
     type: Project,
   })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
   async duplicateProject(
     @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: Request,
     @Query('includeSubprojects') includeSubprojects?: boolean,
     @Query('includeTasks') includeTasks?: boolean,
   ): Promise<Project> {
-    return this.projectService.duplicateProject(id, {
+    const userId = (request.user as User).id;
+    return this.projectService.duplicateProject(id, userId, {
       includeSubprojects,
       includeTasks,
     });

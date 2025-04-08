@@ -178,7 +178,10 @@ export class TaskService {
     return this.tasksRepository.getTaskById(id);
   }
 
-  async createTask(createTaskDto: CreateTaskDto, _ip?: string): Promise<Task> {
+  async createTask(
+    createTaskDto: CreateTaskDto,
+    userId: string,
+  ): Promise<Task> {
     const { title, description, dueDate, recurrenceRule, needsReminder } =
       createTaskDto;
 
@@ -200,7 +203,11 @@ export class TaskService {
         );
       }
 
-      const savedTask = await this.tasksRepository.createTask(createTaskDto);
+      // Pass userId to the repository method
+      const savedTask = await this.tasksRepository.createTask(
+        createTaskDto,
+        userId,
+      );
 
       // Schedule reminder if needed
       if (needsReminder && savedTask.dueDate) {
@@ -228,6 +235,7 @@ export class TaskService {
 
       this.securityLogger.logSecurityEvent('Task created successfully', {
         taskId: savedTask.id,
+        userId: userId,
       });
       return savedTask;
     } catch (error) {
@@ -236,6 +244,7 @@ export class TaskService {
         error.message,
         {
           dto: createTaskDto,
+          userId: userId,
         },
       );
       if (error instanceof NotFoundException) {
@@ -480,7 +489,7 @@ export class TaskService {
     };
 
     // Create the new task
-    const duplicatedTask = await this.createTask(createTaskDto);
+    const duplicatedTask = await this.createTask(createTaskDto, '');
 
     // Copy project and tags if they exist
     if (sourceTask.project) {

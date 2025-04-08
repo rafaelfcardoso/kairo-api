@@ -35,9 +35,11 @@ export class FocusSessionsService {
 
   async create(
     createFocusSessionDto: CreateFocusSessionDto,
+    userId: string,
   ): Promise<FocusSessionResponseDto> {
     const session = await this.focusSessionsRepository.create(
       createFocusSessionDto,
+      userId,
     );
     return this.mapToResponseDto([session])[0];
   }

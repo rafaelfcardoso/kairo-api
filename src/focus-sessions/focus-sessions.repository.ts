@@ -70,11 +70,13 @@ export class FocusSessionsRepository {
 
   async create(
     createFocusSessionDto: CreateFocusSessionDto,
+    userId: string,
   ): Promise<FocusSession> {
     const { taskIds, projectId, ...focusSessionData } = createFocusSessionDto;
 
     const focusSession = this.focusSessionRepository.create({
       ...focusSessionData,
+      userId: userId,
       projectId,
     });
 

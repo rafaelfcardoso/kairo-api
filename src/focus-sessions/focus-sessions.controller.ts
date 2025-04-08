@@ -11,6 +11,8 @@ import {
   ParseUUIDPipe,
   HttpStatus,
   HttpCode,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
 import { FocusSessionsService } from './focus-sessions.service';
 import {
@@ -27,25 +29,34 @@ import {
   ApiParam,
   ApiBody,
   ApiQuery,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
+import { Request } from 'express';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { User } from '../entities/user.entity';
 
 @ApiTags('Focus Sessions')
+@ApiBearerAuth('JWT-auth')
 @Controller('focus-sessions')
 export class FocusSessionsController {
   constructor(private readonly focusSessionsService: FocusSessionsService) {}
 
   @Post()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Create a new focus session' })
   @ApiResponse({
     status: 201,
     description: 'The focus session has been successfully created.',
     type: FocusSessionResponseDto,
   })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiBody({ type: CreateFocusSessionDto })
   async create(
     @Body() createFocusSessionDto: CreateFocusSessionDto,
+    @Req() request: Request,
   ): Promise<FocusSessionResponseDto> {
-    return this.focusSessionsService.create(createFocusSessionDto);
+    const userId = (request.user as User).id;
+    return this.focusSessionsService.create(createFocusSessionDto, userId);
   }
 
   @Get()

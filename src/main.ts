@@ -203,7 +203,7 @@ async function bootstrap() {
     .addTag('Tasks', 'Task management endpoints')
     .addTag('Projects', 'Project management endpoints')
     .addTag('Tags', 'Tag management endpoints')
-    .addTag('Auth', 'Authentication endpoints')
+    .addTag('Authentication', 'Authentication endpoints')
     .addTag('Focus Sessions', 'Focus session management endpoints')
     .addTag('Statistics', 'Statistics endpoints')
     .addBearerAuth(

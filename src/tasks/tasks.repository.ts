@@ -97,11 +97,17 @@ export class TasksRepository extends Repository<Task> {
     return task;
   }
 
-  async createTask(createTaskDto: CreateTaskDto): Promise<Task> {
+  async createTask(
+    createTaskDto: CreateTaskDto,
+    userId: string,
+  ): Promise<Task> {
     const { projectId, tagIds, ...taskData } = createTaskDto;
 
-    // Create the base task
-    const task = this.create(taskData);
+    // Create the base task, including the userId
+    const task = this.create({
+      ...taskData,
+      userId: userId,
+    });
 
     // Handle project assignment
     if (projectId) {

@@ -16,8 +16,8 @@ export class TagsService {
     return this.tagsRepository.getTagById(id);
   }
 
-  async createTag(createTagDto: CreateTagDto): Promise<Tag> {
-    return this.tagsRepository.createTag(createTagDto);
+  async createTag(createTagDto: CreateTagDto, userId: string): Promise<Tag> {
+    return this.tagsRepository.createTag(createTagDto, userId);
   }
 
   async updateTag(id: string, updateTagDto: UpdateTagDto): Promise<Tag> {
