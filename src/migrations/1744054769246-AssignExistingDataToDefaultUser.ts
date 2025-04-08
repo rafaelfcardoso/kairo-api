@@ -24,16 +24,54 @@ export class AssignExistingDataToDefaultUser1744054769246
     console.log(`Default user created with ID: ${defaultUserId}`);
 
     // 2. Update existing records to use the default user ID
-    const tablesToUpdate = ['project', 'task', 'tag', 'focus_session'];
+    // First, handle tables we know for sure have userId: project, task, focus_session
+    const safeTablesByDefault = ['project', 'task', 'focus_session'];
 
-    for (const table of tablesToUpdate) {
+    for (const table of safeTablesByDefault) {
       console.log(`Updating table: ${table}`);
-      const updateResult = await queryRunner.query(
+      await queryRunner.query(
         `UPDATE "${table}" SET "userId" = $1 WHERE "userId" IS NULL`,
         [defaultUserId],
       );
-      // Optional: Log update results (can be verbose)
-      // console.log(`  -> Affected rows: ${updateResult?.[1]}`);
+    }
+
+    // Handle tag table with a check first
+    try {
+      // Check if userId column exists in tag table
+      const tagTableColumns = await queryRunner.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'tag' AND column_name = 'userId'
+      `);
+
+      // If userId column exists in tag table, update it
+      if (tagTableColumns && tagTableColumns.length > 0) {
+        console.log('Updating tag table with userId column');
+        await queryRunner.query(
+          `UPDATE "tag" SET "userId" = $1 WHERE "userId" IS NULL`,
+          [defaultUserId],
+        );
+      } else {
+        // If userId column doesn't exist in tag table, add it
+        console.log('Adding userId column to tag table');
+        await queryRunner.query(`ALTER TABLE "tag" ADD "userId" uuid`);
+
+        // Create index and foreign key constraint
+        await queryRunner.query(
+          `CREATE INDEX "IDX_e12875dfb3b1d92d7d7c5377e2" ON "tag" ("userId") `,
+        );
+        await queryRunner.query(
+          `ALTER TABLE "tag" ADD CONSTRAINT "FK_tag_user" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE`,
+        );
+
+        // Then update all tags to use the default user
+        await queryRunner.query(`UPDATE "tag" SET "userId" = $1`, [
+          defaultUserId,
+        ]);
+      }
+    } catch (error) {
+      console.error('Error handling tag table:', error);
+      // Continue with other tables even if tag table update fails
     }
 
     console.log('Finished assigning existing data to default user.');
@@ -58,13 +96,32 @@ export class AssignExistingDataToDefaultUser1744054769246
       console.log(`Found default user ID: ${defaultUserId} for rollback.`);
 
       // Set userId back to NULL for associated records
-      const tablesToUpdate = ['project', 'task', 'tag', 'focus_session'];
+      const tablesToUpdate = ['project', 'task', 'focus_session'];
       for (const table of tablesToUpdate) {
         console.log(`Rolling back table: ${table}`);
         await queryRunner.query(
           `UPDATE "${table}" SET "userId" = NULL WHERE "userId" = $1`,
           [defaultUserId],
         );
+      }
+
+      // Handle tag table separately with a check
+      try {
+        const tagTableColumns = await queryRunner.query(`
+          SELECT column_name 
+          FROM information_schema.columns 
+          WHERE table_name = 'tag' AND column_name = 'userId'
+        `);
+
+        if (tagTableColumns && tagTableColumns.length > 0) {
+          console.log('Rolling back tag table');
+          await queryRunner.query(
+            `UPDATE "tag" SET "userId" = NULL WHERE "userId" = $1`,
+            [defaultUserId],
+          );
+        }
+      } catch (error) {
+        console.error('Error rolling back tag table:', error);
       }
 
       // Optionally delete the default user

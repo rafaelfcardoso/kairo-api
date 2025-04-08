@@ -31,6 +31,11 @@ import { CreateApiMetricsTable1741900000000 } from '../migrations/1741900000000-
 import { CreateNlpFeedbackTable1741912345000 } from '../migrations/1741912345000-CreateNlpFeedbackTable';
 import { CreateNlpModelPerformanceTable1742000000000 } from '../migrations/1742000000000-CreateNlpModelPerformanceTable';
 import { RemoveIsGoalFromTagTable1743380485000 } from '../migrations/1743380485000-RemoveIsGoalFromTagTable';
+import { AddCompletedAtToTasks1743458631759 } from '../migrations/1743458631759-AddCompletedAtToTasks';
+import { AddIsSystemToTag1712592000000 } from '../migrations/1712592000000-AddIsSystemToTag';
+import { AddUserEntityAndRelations1744054661856 } from '../migrations/1744054661856-AddUserEntityAndRelations';
+import { AssignExistingDataToDefaultUser1744054769246 } from '../migrations/1744054769246-AssignExistingDataToDefaultUser';
+import { MakeUserIdNonNullable1744054883888 } from '../migrations/1744054883888-MakeUserIdNonNullable';
 
 // Import the actual entities
 import { Task } from '../tasks/tasks.entity';
@@ -71,6 +76,7 @@ export const databaseProviders = [
           SimplifyTaskEntity1705759726002,
           CleanupUnusedTaskTypes1705759726003,
           AddNonePriorityEnum1710000000000,
+          AddIsSystemToTag1712592000000,
           AddNonePriorityEnum1738178127099,
           FixProjectColors1738362321118,
           AddSystemProjectAndInbox1738360717263,
@@ -94,6 +100,10 @@ export const databaseProviders = [
           CreateApiMetricsTable1741900000000,
           CreateNlpFeedbackTable1741912345000,
           CreateNlpModelPerformanceTable1742000000000,
+          AddCompletedAtToTasks1743458631759,
+          AddUserEntityAndRelations1744054661856,
+          AssignExistingDataToDefaultUser1744054769246,
+          MakeUserIdNonNullable1744054883888,
         ],
         synchronize: false,
         logging: configService.get<string>('NODE_ENV') !== 'production',

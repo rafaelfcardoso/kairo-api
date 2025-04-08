@@ -21,6 +21,7 @@ export class AddUserEntityAndRelations1744054661856
     await queryRunner.query(`ALTER TABLE "project" ADD "userId" uuid`);
     await queryRunner.query(`ALTER TABLE "focus_session" ADD "userId" uuid`);
     await queryRunner.query(`ALTER TABLE "task" ADD "userId" uuid`);
+    await queryRunner.query(`ALTER TABLE "tag" ADD "userId" uuid`);
     await queryRunner.query(
       `ALTER TABLE "api_request_log" ALTER COLUMN "requestId" DROP DEFAULT`,
     );
@@ -37,6 +38,9 @@ export class AddUserEntityAndRelations1744054661856
       `CREATE INDEX "IDX_f316d3fe53497d4d8a2957db8b" ON "task" ("userId") `,
     );
     await queryRunner.query(
+      `CREATE INDEX "IDX_e12875dfb3b1d92d7d7c5377e2" ON "tag" ("userId") `,
+    );
+    await queryRunner.query(
       `ALTER TABLE "project" ADD CONSTRAINT "FK_project_user" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE`,
     );
     await queryRunner.query(
@@ -45,11 +49,17 @@ export class AddUserEntityAndRelations1744054661856
     await queryRunner.query(
       `ALTER TABLE "task" ADD CONSTRAINT "FK_task_user" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE`,
     );
+    await queryRunner.query(
+      `ALTER TABLE "tag" ADD CONSTRAINT "FK_tag_user" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
       `ALTER TABLE "task" DROP CONSTRAINT IF EXISTS "FK_task_user"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "tag" DROP CONSTRAINT IF EXISTS "FK_tag_user"`,
     );
     await queryRunner.query(
       `ALTER TABLE "focus_session" DROP CONSTRAINT IF EXISTS "FK_focus_session_user"`,
@@ -60,6 +70,7 @@ export class AddUserEntityAndRelations1744054661856
     await queryRunner.query(
       `ALTER TABLE "task" DROP COLUMN IF EXISTS "userId"`,
     );
+    await queryRunner.query(`ALTER TABLE "tag" DROP COLUMN IF EXISTS "userId"`);
     await queryRunner.query(
       `ALTER TABLE "focus_session" DROP COLUMN IF EXISTS "userId"`,
     );
@@ -74,6 +85,9 @@ export class AddUserEntityAndRelations1744054661856
     );
     await queryRunner.query(
       `DROP INDEX "public"."IDX_f316d3fe53497d4d8a2957db8b"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_e12875dfb3b1d92d7d7c5377e2"`,
     );
     await queryRunner.query(
       `DROP INDEX "public"."IDX_7c4b0d3b77eaf26f8b4da879e6"`,
