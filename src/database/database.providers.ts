@@ -19,9 +19,9 @@ import { AddBlockRuleTypeEnum1739279174964 } from '../migrations/1739279174964-A
 import { CreateFocusSessionTables1740494148045 } from '../migrations/1740494148045-CreateFocusSessionTables';
 import { AddProjectIdToFocusSession1740589432291 } from '../migrations/1740589432291-AddProjectIdToFocusSession';
 import { AddRecurringTaskFields1740916550124 } from '../migrations/1740916550124-AddRecurringTaskFields';
-import { UpdateTaskEntityWithMetadata1686501234567 } from '../migrations/1686501234567-UpdateTaskEntityWithMetadata';
-import { SimplifyTaskEntity1686501245678 } from '../migrations/1686501245678-SimplifyTaskEntity';
-import { CleanupUnusedTaskTypes1686501256789 } from '../migrations/1686501256789-CleanupUnusedTaskTypes';
+import { UpdateTaskEntityWithMetadata1705759726001 } from '../migrations/1705759726001-UpdateTaskEntityWithMetadata';
+import { SimplifyTaskEntity1705759726002 } from '../migrations/1705759726002-SimplifyTaskEntity';
+import { CleanupUnusedTaskTypes1705759726003 } from '../migrations/1705759726003-CleanupUnusedTaskTypes';
 import { RemoveTaskTypeColumn1741011691203 } from '../migrations/1741011691203-RemoveTaskTypeColumn';
 import { AddRecurrenceRuleColumn1741013788916 } from '../migrations/1741013788916-AddRecurrenceRuleColumn';
 import { AddNextDueDateColumn1741014300000 } from '../migrations/1741014300000-AddNextDueDateColumn';
@@ -67,9 +67,9 @@ export const databaseProviders = [
         ],
         migrations: [
           InitialSchema1705759726000,
-          UpdateTaskEntityWithMetadata1686501234567,
-          SimplifyTaskEntity1686501245678,
-          CleanupUnusedTaskTypes1686501256789,
+          UpdateTaskEntityWithMetadata1705759726001,
+          SimplifyTaskEntity1705759726002,
+          CleanupUnusedTaskTypes1705759726003,
           AddNonePriorityEnum1710000000000,
           AddNonePriorityEnum1738178127099,
           FixProjectColors1738362321118,
