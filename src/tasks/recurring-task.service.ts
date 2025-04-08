@@ -128,7 +128,7 @@ export class RecurringTaskService {
    * @param recurrenceRule The recurrence rule string to fix
    * @returns The fixed recurrence rule string
    */
-  private fixRecurrenceRule(recurrenceRule: string): string {
+  public fixRecurrenceRule(recurrenceRule: string): string {
     if (!recurrenceRule) return recurrenceRule;
 
     // Fix missing semicolon between FREQ=DAILY and INTERVAL=
@@ -136,6 +136,27 @@ export class RecurringTaskService {
       return recurrenceRule.replace(
         'FREQ=DAILYINTERVAL=',
         'FREQ=DAILY;INTERVAL=',
+      );
+    }
+
+    // Fix missing semicolon between FREQ=WEEKLY and BYDAY=
+    if (recurrenceRule.includes('FREQ=WEEKLYBYDAY=')) {
+      return recurrenceRule.replace('FREQ=WEEKLYBYDAY=', 'FREQ=WEEKLY;BYDAY=');
+    }
+
+    // Fix missing semicolon between FREQ=MONTHLY and other parameters
+    if (recurrenceRule.includes('FREQ=MONTHLYINTERVAL=')) {
+      return recurrenceRule.replace(
+        'FREQ=MONTHLYINTERVAL=',
+        'FREQ=MONTHLY;INTERVAL=',
+      );
+    }
+
+    // Fix missing semicolon between FREQ=YEARLY and other parameters
+    if (recurrenceRule.includes('FREQ=YEARLYINTERVAL=')) {
+      return recurrenceRule.replace(
+        'FREQ=YEARLYINTERVAL=',
+        'FREQ=YEARLY;INTERVAL=',
       );
     }
 
@@ -153,10 +174,7 @@ export class RecurringTaskService {
     if (!recurrenceRule) return null;
 
     // Fix common formatting issue where semicolon is missing
-    if (recurrenceRule.includes('FREQ=DAILYINTERVAL=')) {
-      // This is a malformed rule, but we can still extract the pattern
-      return RecurrencePattern.DAILY;
-    }
+    recurrenceRule = this.fixRecurrenceRule(recurrenceRule);
 
     if (recurrenceRule.includes('FREQ=DAILY')) {
       return RecurrencePattern.DAILY;
@@ -168,6 +186,8 @@ export class RecurringTaskService {
       return RecurrencePattern.YEARLY;
     }
 
+    // If we reach here, it's not a valid pattern
+    this.logger.warn(`Invalid recurrence pattern: ${recurrenceRule}`);
     return null;
   }
 

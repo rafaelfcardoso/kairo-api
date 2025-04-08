@@ -208,12 +208,13 @@ describe('Recurring Tasks E2E', () => {
       futureDueDate.setDate(futureDueDate.getDate() + 3); // 3 days from now
       futureDueDate.setHours(10, 0, 0, 0);
 
+      const validRule = 'FREQ=WEEKLY;BYDAY=MO,WE,FR';
       const createTaskDto = {
         title: 'E2E Test Weekly Recurring Task',
         description: 'This task recurs on specific days of the week',
         dueDate: futureDueDate.toISOString(),
         isRecurring: true,
-        recurrenceRule: 'FREQ=WEEKLY;BYDAY=MO,WE,FR',
+        recurrenceRule: validRule,
         needsReminder: true,
       };
 
@@ -226,9 +227,8 @@ describe('Recurring Tasks E2E', () => {
       expect(response.body).toBeDefined();
       expect(response.body.title).toBe(createTaskDto.title);
       expect(response.body.isRecurring).toBe(true);
-      expect(response.body.recurrenceRule).toBe('FREQ=WEEKLY;BYDAY=MO,WE,FR');
+      expect(response.body.recurrenceRule).toBe(validRule);
 
-      // Clean up this specific task immediately
       await taskRepository.delete(response.body.id);
     });
 

@@ -57,12 +57,8 @@ export class CreateTaskDto {
     example: 'FREQ=WEEKLY;BYDAY=SU',
     description: 'Recurrence rule in iCalendar format for recurring tasks',
   })
-  @IsString()
   @ValidateIf((o) => o.isRecurring === true)
   @IsNotEmpty({ message: 'recurrenceRule is required if isRecurring is true' })
-  @Matches(/^[A-Z0-9=;,]+$/i, {
-    message: 'recurrenceRule contains invalid characters',
-  })
   recurrenceRule?: string;
 
   @ApiPropertyOptional({

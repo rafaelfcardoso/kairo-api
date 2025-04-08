@@ -4,7 +4,7 @@ import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { DataSource } from 'typeorm';
 import { getDataSourceToken, getRepositoryToken } from '@nestjs/typeorm';
-import { TaskStatus } from '../../src/tasks/task-status.enum';
+import { TaskStatus } from '../../src/tasks/tasks.entity';
 import { Repository } from 'typeorm';
 import { Task } from '../../src/tasks/tasks.entity';
 import { User } from '../../src/entities/user.entity';
@@ -156,7 +156,6 @@ describe('API 500 Error Check (E2E)', () => {
         .send({ status: TaskStatus.COMPLETED })
         .expect(200);
 
-      // Use repository for verification
       const result = await taskRepository.findOne({
         where: { id: taskIdForTests },
       });

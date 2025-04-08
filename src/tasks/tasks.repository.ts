@@ -158,6 +158,11 @@ export class TasksRepository extends Repository<Task> {
       task.tags = [];
     }
 
+    // Log before saving
+    this.logger.debug(
+      `Saving task with recurrenceRule: '${task.recurrenceRule}'`,
+      task,
+    );
     await this.save(task);
     return this.getTaskById(task.id);
   }

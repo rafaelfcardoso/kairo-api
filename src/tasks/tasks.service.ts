@@ -213,12 +213,59 @@ export class TaskService {
     return task;
   }
 
+  /**
+   * Validate a recurrence rule string
+   * @param recurrenceRule The recurrence rule to validate
+   * @throws BadRequestException if the rule is invalid
+   */
+  private validateRecurrenceRule(recurrenceRule: string): void {
+    // If no recurrence rule, nothing to validate
+    if (!recurrenceRule) return;
+
+    try {
+      // Basic validation: must include a valid FREQ parameter
+      if (
+        !recurrenceRule.includes('FREQ=DAILY') &&
+        !recurrenceRule.includes('FREQ=WEEKLY') &&
+        !recurrenceRule.includes('FREQ=MONTHLY') &&
+        !recurrenceRule.includes('FREQ=YEARLY')
+      ) {
+        throw new Error('Invalid frequency in recurrence rule');
+      }
+
+      // Fix any malformed rule
+      recurrenceRule =
+        this.recurringTaskService.fixRecurrenceRule(recurrenceRule);
+
+      // If we can calculate a next occurrence, the rule is valid enough
+      const testDate = new Date();
+      const nextDate = this.recurringTaskService.calculateNextOccurrence(
+        testDate,
+        recurrenceRule,
+      );
+
+      if (!nextDate) {
+        throw new Error('Could not calculate next occurrence');
+      }
+    } catch (error) {
+      throw new BadRequestException(
+        `Invalid recurrence rule: ${error.message}`,
+      );
+    }
+  }
+
   async createTask(
     createTaskDto: CreateTaskDto,
     userId: string,
   ): Promise<Task> {
-    const { title, description, dueDate, recurrenceRule, needsReminder } =
-      createTaskDto;
+    const {
+      title,
+      description,
+      dueDate,
+      recurrenceRule,
+      needsReminder,
+      isRecurring,
+    } = createTaskDto;
 
     try {
       // Validate inputs
@@ -230,12 +277,19 @@ export class TaskService {
         this.validateDate(dueDate);
       }
 
-      // Fix malformed recurrence rule if present
-      if (recurrenceRule && recurrenceRule.includes('FREQ=DAILYINTERVAL=')) {
-        createTaskDto.recurrenceRule = recurrenceRule.replace(
-          'FREQ=DAILYINTERVAL=',
-          'FREQ=DAILY;INTERVAL=',
+      // Validate recurrence rule if task is recurring
+      if (isRecurring && recurrenceRule) {
+        this.validateRecurrenceRule(recurrenceRule);
+      } else if (isRecurring && !recurrenceRule) {
+        throw new BadRequestException(
+          'Recurring tasks must have a recurrence rule',
         );
+      }
+
+      // Fix malformed recurrence rule if present
+      if (recurrenceRule) {
+        createTaskDto.recurrenceRule =
+          this.recurringTaskService.fixRecurrenceRule(recurrenceRule);
       }
 
       // Pass userId to the repository method
