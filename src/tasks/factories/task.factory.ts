@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Task, TaskStatus } from '../tasks.entity';
+import { Task, TaskStatus, TaskPriority } from '../tasks.entity';
 import { CreateTaskDto } from '../tasks.dto';
 import { TaskAggregate } from '../aggregates/task.aggregate';
 import { Tag } from '../../tags/tags.entity';
@@ -16,27 +16,20 @@ export class TaskFactory {
    * @param createTaskDto DTO containing task data
    * @returns A new Task entity
    */
-  createTask(createTaskDto: CreateTaskDto): Task {
+  create(createTaskDto: CreateTaskDto): Task {
     const task = new Task();
     task.title = createTaskDto.title;
     task.description = createTaskDto.description || null;
+    task.priority = createTaskDto.priority || TaskPriority.NONE;
     task.status = TaskStatus.NOT_STARTED;
-    task.priority = createTaskDto.priority || null;
     task.dueDate = createTaskDto.dueDate
       ? new Date(createTaskDto.dueDate)
       : null;
+    task.isRecurring = createTaskDto.isRecurring || false;
+    task.recurrenceRule = createTaskDto.recurrenceRule || null;
     task.hasTime = createTaskDto.hasTime || false;
     task.needsReminder = createTaskDto.needsReminder || false;
     task.reminderMessage = createTaskDto.reminderMessage || null;
-    task.recurrenceRule = createTaskDto.recurrenceRule || null;
-    task.isRecurring = createTaskDto.isRecurring || false;
-    task.recurrencePattern = createTaskDto.recurrencePattern || null;
-    task.recurrenceDays = createTaskDto.recurrenceDays || null;
-    task.recurrenceTimeOfDay = createTaskDto.recurrenceTimeOfDay || null;
-    task.recurrenceTime = createTaskDto.recurrenceTime || null;
-    task.nextDueDate = createTaskDto.nextDueDate
-      ? new Date(createTaskDto.nextDueDate)
-      : null;
     task.recurringParentId = createTaskDto.recurringParentId || null;
 
     return task;

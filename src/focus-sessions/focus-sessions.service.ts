@@ -1,5 +1,9 @@
 // src/focus-sessions/focus-sessions.service.ts
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { FocusSessionsRepository } from './focus-sessions.repository';
 import {
   CreateFocusSessionDto,
@@ -9,6 +13,8 @@ import {
   FocusSessionResponseDto,
 } from './focus-sessions.dto';
 import { FocusSession, EnergyLevel } from './focus-sessions.entity';
+import { SecurityLoggerService } from '../common/services/security-logger.service';
+import { User } from '../entities/user.entity';
 
 @Injectable()
 export class FocusSessionsService {
@@ -16,21 +22,40 @@ export class FocusSessionsService {
     private readonly focusSessionsRepository: FocusSessionsRepository,
   ) {}
 
+  private async checkFocusSessionOwnership(
+    sessionId: string,
+    userId: string,
+  ): Promise<FocusSession> {
+    const session = await this.focusSessionsRepository.findOne(sessionId);
+    if (!session) {
+      throw new NotFoundException(
+        `Focus session with ID ${sessionId} not found`,
+      );
+    }
+    if (session.userId !== userId) {
+      throw new ForbiddenException('You do not own this focus session');
+    }
+    return session;
+  }
+
   async findAll(
-    filters?: GetFocusSessionsHistoryDto,
+    filters: GetFocusSessionsHistoryDto,
+    userId: string,
   ): Promise<FocusSessionResponseDto[]> {
-    const sessions = await this.focusSessionsRepository.findAll(filters);
+    const userFilters = { ...filters, userId: userId };
+    const sessions = await this.focusSessionsRepository.findAll(userFilters);
     return this.mapToResponseDto(sessions);
   }
 
-  async findOne(id: string): Promise<FocusSessionResponseDto> {
-    const session = await this.focusSessionsRepository.findOne(id);
-
-    if (!session) {
-      throw new NotFoundException(`Focus session with ID ${id} not found`);
+  async findOne(id: string, userId: string): Promise<FocusSessionResponseDto> {
+    const session = await this.checkFocusSessionOwnership(id, userId);
+    const sessionWithRelations = await this.focusSessionsRepository.findOne(id);
+    if (!sessionWithRelations) {
+      throw new NotFoundException(
+        `Focus session with ID ${id} not found after ownership check.`,
+      );
     }
-
-    return this.mapToResponseDto([session])[0];
+    return this.mapToResponseDto([sessionWithRelations])[0];
   }
 
   async create(
@@ -47,34 +72,33 @@ export class FocusSessionsService {
   async update(
     id: string,
     updateFocusSessionDto: UpdateFocusSessionDto,
+    userId: string,
   ): Promise<FocusSessionResponseDto> {
-    const existingSession = await this.focusSessionsRepository.findOne(id);
+    await this.checkFocusSessionOwnership(id, userId);
 
-    if (!existingSession) {
-      throw new NotFoundException(`Focus session with ID ${id} not found`);
+    if (updateFocusSessionDto.taskIds) {
+      // TODO: Verify user owns all taskIds
+    }
+    if (updateFocusSessionDto.projectId !== undefined) {
+      // TODO: Verify user owns projectId (or it's null)
     }
 
     const updatedSession = await this.focusSessionsRepository.update(
       id,
       updateFocusSessionDto,
     );
-
     return this.mapToResponseDto([updatedSession])[0];
   }
 
   async complete(
     id: string,
     completeFocusSessionDto: CompleteFocusSessionDto,
+    userId: string,
   ): Promise<FocusSessionResponseDto> {
+    await this.checkFocusSessionOwnership(id, userId);
+
     const { endTime, energyLevel, wasSuccessful, notes } =
       completeFocusSessionDto;
-
-    const existingSession = await this.focusSessionsRepository.findOne(id);
-
-    if (!existingSession) {
-      throw new NotFoundException(`Focus session with ID ${id} not found`);
-    }
-
     const completedSession = await this.focusSessionsRepository.complete(
       id,
       endTime,
@@ -82,21 +106,16 @@ export class FocusSessionsService {
       wasSuccessful,
       notes,
     );
-
     return this.mapToResponseDto([completedSession])[0];
   }
 
-  async remove(id: string): Promise<void> {
-    const existingSession = await this.focusSessionsRepository.findOne(id);
-
-    if (!existingSession) {
-      throw new NotFoundException(`Focus session with ID ${id} not found`);
-    }
-
+  async remove(id: string, userId: string): Promise<void> {
+    await this.checkFocusSessionOwnership(id, userId);
     await this.focusSessionsRepository.remove(id);
   }
 
   async getSessionStats(
+    userId: string,
     startDate?: Date,
     endDate?: Date,
     projectId?: string,
@@ -113,7 +132,11 @@ export class FocusSessionsService {
     };
     projectDistribution?: Record<string, { name: string; minutes: number }>;
   }> {
+    if (projectId) {
+      // TODO: Verify user owns projectId or it's a system project they can access
+    }
     const stats = await this.focusSessionsRepository.getSessionStats(
+      userId,
       startDate,
       endDate,
       projectId,
@@ -139,7 +162,6 @@ export class FocusSessionsService {
     };
   }
 
-  // Helper method to transform entities to DTOs
   private mapToResponseDto(
     sessions: FocusSession[],
   ): FocusSessionResponseDto[] {
@@ -155,7 +177,6 @@ export class FocusSessionsService {
       responseDto.createdAt = session.createdAt;
       responseDto.projectId = session.projectId;
 
-      // Map related tasks to simpler objects
       responseDto.tasks = session.tasks
         ? session.tasks.map((task) => ({
             id: task.id,
@@ -163,7 +184,6 @@ export class FocusSessionsService {
           }))
         : [];
 
-      // Map project to a simpler object if it exists
       if (session.project) {
         responseDto.project = {
           id: session.project.id,

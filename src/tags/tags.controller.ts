@@ -30,6 +30,7 @@ import { User } from '../entities/user.entity';
 
 @ApiTags('Tags')
 @ApiBearerAuth('JWT-auth')
+@UseGuards(JwtAuthGuard)
 @Controller('tags')
 export class TagsController {
   constructor(private tagsService: TagsService) {}
@@ -41,8 +42,9 @@ export class TagsController {
     description: 'Retrieved tags successfully',
     type: [Tag],
   })
-  async getTags(): Promise<Tag[]> {
-    return this.tagsService.getTags();
+  async getTags(@Req() request: Request): Promise<Tag[]> {
+    const userId = (request.user as User).id;
+    return this.tagsService.getTags(userId);
   }
 
   @Get('search')
@@ -53,8 +55,12 @@ export class TagsController {
     description: 'Found matching tags',
     type: [Tag],
   })
-  async searchTags(@Query('name') name: string): Promise<Tag[]> {
-    return this.tagsService.findSimilarTags(name);
+  async searchTags(
+    @Query('name') name: string,
+    @Req() request: Request,
+  ): Promise<Tag[]> {
+    const userId = (request.user as User).id;
+    return this.tagsService.findSimilarTags(name, userId);
   }
 
   @Get('stats')
@@ -63,8 +69,11 @@ export class TagsController {
     status: HttpStatus.OK,
     description: 'Retrieved tag statistics successfully',
   })
-  async getTagStats(): Promise<Array<{ tag: Tag; taskCount: number }>> {
-    return this.tagsService.getTagStats();
+  async getTagStats(
+    @Req() request: Request,
+  ): Promise<Array<{ tag: Tag; taskCount: number }>> {
+    const userId = (request.user as User).id;
+    return this.tagsService.getTagStats(userId);
   }
 
   @Get('most-used')
@@ -75,9 +84,11 @@ export class TagsController {
     description: 'Retrieved most used tags successfully',
   })
   async getMostUsedTags(
+    @Req() request: Request,
     @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
   ): Promise<Array<{ tag: Tag; taskCount: number }>> {
-    return this.tagsService.getMostUsedTags(limit);
+    const userId = (request.user as User).id;
+    return this.tagsService.getMostUsedTags(limit, userId);
   }
 
   @Get('unused')
@@ -87,8 +98,9 @@ export class TagsController {
     description: 'Retrieved unused tags successfully',
     type: [Tag],
   })
-  async getUnusedTags(): Promise<Tag[]> {
-    return this.tagsService.getUnusedTags();
+  async getUnusedTags(@Req() request: Request): Promise<Tag[]> {
+    const userId = (request.user as User).id;
+    return this.tagsService.getUnusedTags(userId);
   }
 
   @Get(':id')
@@ -103,8 +115,12 @@ export class TagsController {
     status: HttpStatus.NOT_FOUND,
     description: 'Tag not found',
   })
-  async getTagById(@Param('id', ParseUUIDPipe) id: string): Promise<Tag> {
-    return this.tagsService.getTagById(id);
+  async getTagById(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: Request,
+  ): Promise<Tag> {
+    const userId = (request.user as User).id;
+    return this.tagsService.getTagById(id, userId);
   }
 
   @Post()
@@ -135,8 +151,10 @@ export class TagsController {
   async updateTag(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateTagDto: UpdateTagDto,
+    @Req() request: Request,
   ): Promise<Tag> {
-    return this.tagsService.updateTag(id, updateTagDto);
+    const userId = (request.user as User).id;
+    return this.tagsService.updateTag(id, updateTagDto, userId);
   }
 
   @Delete(':id')
@@ -146,7 +164,11 @@ export class TagsController {
     status: HttpStatus.NO_CONTENT,
     description: 'Tag deleted successfully',
   })
-  async deleteTag(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
-    await this.tagsService.deleteTag(id);
+  async deleteTag(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: Request,
+  ): Promise<void> {
+    const userId = (request.user as User).id;
+    await this.tagsService.deleteTag(id, userId);
   }
 }

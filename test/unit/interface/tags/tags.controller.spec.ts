@@ -5,6 +5,7 @@ import { NotFoundException } from '@nestjs/common';
 import { CreateTagDto, UpdateTagDto } from '../../../../src/tags/tags.dto';
 import { Tag } from '../../../../src/tags/tags.entity';
 import { v4 as uuidv4 } from 'uuid';
+import { mockRequest, mockUser } from '../../../mocks/request.mock';
 
 describe('TagsController', () => {
   let controller: TagsController;
@@ -30,6 +31,11 @@ describe('TagsController', () => {
     createdAt: new Date(),
     updatedAt: new Date(),
     tasks: [],
+    isSystem: false,
+    isArchived: false,
+    order: 0,
+    user: mockUser,
+    userId: mockUser.id,
   };
 
   beforeEach(async () => {
@@ -58,10 +64,10 @@ describe('TagsController', () => {
     it('should return all tags', async () => {
       mockTagsService.getTags.mockResolvedValue([mockTag]);
 
-      const result = await controller.getTags();
+      const result = await controller.getTags(mockRequest);
 
       expect(result).toEqual([mockTag]);
-      expect(tagsService.getTags).toHaveBeenCalled();
+      expect(tagsService.getTags).toHaveBeenCalledWith(mockUser.id);
     });
   });
 
@@ -70,10 +76,13 @@ describe('TagsController', () => {
       const searchTerm = 'import';
       mockTagsService.findSimilarTags.mockResolvedValue([mockTag]);
 
-      const result = await controller.searchTags(searchTerm);
+      const result = await controller.searchTags(searchTerm, mockRequest);
 
       expect(result).toEqual([mockTag]);
-      expect(tagsService.findSimilarTags).toHaveBeenCalledWith(searchTerm);
+      expect(tagsService.findSimilarTags).toHaveBeenCalledWith(
+        searchTerm,
+        mockUser.id,
+      );
     });
   });
 
@@ -82,10 +91,10 @@ describe('TagsController', () => {
       const tagStats = [{ tag: mockTag, taskCount: 5 }];
       mockTagsService.getTagStats.mockResolvedValue(tagStats);
 
-      const result = await controller.getTagStats();
+      const result = await controller.getTagStats(mockRequest);
 
       expect(result).toEqual(tagStats);
-      expect(tagsService.getTagStats).toHaveBeenCalled();
+      expect(tagsService.getTagStats).toHaveBeenCalledWith(mockUser.id);
     });
   });
 
@@ -94,10 +103,13 @@ describe('TagsController', () => {
       const tagStats = [{ tag: mockTag, taskCount: 10 }];
       mockTagsService.getMostUsedTags.mockResolvedValue(tagStats);
 
-      const result = await controller.getMostUsedTags();
+      const result = await controller.getMostUsedTags(mockRequest);
 
       expect(result).toEqual(tagStats);
-      expect(tagsService.getMostUsedTags).toHaveBeenCalledWith(undefined);
+      expect(tagsService.getMostUsedTags).toHaveBeenCalledWith(
+        undefined,
+        mockUser.id,
+      );
     });
 
     it('should return most used tags with specified limit', async () => {
@@ -105,10 +117,13 @@ describe('TagsController', () => {
       const tagStats = [{ tag: mockTag, taskCount: 10 }];
       mockTagsService.getMostUsedTags.mockResolvedValue(tagStats);
 
-      const result = await controller.getMostUsedTags(limit);
+      const result = await controller.getMostUsedTags(mockRequest, limit);
 
       expect(result).toEqual(tagStats);
-      expect(tagsService.getMostUsedTags).toHaveBeenCalledWith(limit);
+      expect(tagsService.getMostUsedTags).toHaveBeenCalledWith(
+        limit,
+        mockUser.id,
+      );
     });
   });
 
@@ -116,10 +131,10 @@ describe('TagsController', () => {
     it('should return unused tags', async () => {
       mockTagsService.getUnusedTags.mockResolvedValue([mockTag]);
 
-      const result = await controller.getUnusedTags();
+      const result = await controller.getUnusedTags(mockRequest);
 
       expect(result).toEqual([mockTag]);
-      expect(tagsService.getUnusedTags).toHaveBeenCalled();
+      expect(tagsService.getUnusedTags).toHaveBeenCalledWith(mockUser.id);
     });
   });
 
@@ -127,20 +142,23 @@ describe('TagsController', () => {
     it('should return a tag by id', async () => {
       mockTagsService.getTagById.mockResolvedValue(mockTag);
 
-      const result = await controller.getTagById(mockTag.id);
+      const result = await controller.getTagById(mockTag.id, mockRequest);
 
       expect(result).toEqual(mockTag);
-      expect(tagsService.getTagById).toHaveBeenCalledWith(mockTag.id);
+      expect(tagsService.getTagById).toHaveBeenCalledWith(
+        mockTag.id,
+        mockUser.id,
+      );
     });
 
     it('should throw NotFoundException when tag is not found', async () => {
       const id = 'non-existent-id';
       mockTagsService.getTagById.mockRejectedValue(new NotFoundException());
 
-      await expect(controller.getTagById(id)).rejects.toThrow(
+      await expect(controller.getTagById(id, mockRequest)).rejects.toThrow(
         NotFoundException,
       );
-      expect(tagsService.getTagById).toHaveBeenCalledWith(id);
+      expect(tagsService.getTagById).toHaveBeenCalledWith(id, mockUser.id);
     });
   });
 
@@ -160,12 +178,15 @@ describe('TagsController', () => {
         description: createDto.description,
       });
 
-      const result = await controller.createTag(createDto);
+      const result = await controller.createTag(createDto, mockRequest);
 
       expect(result.name).toEqual(createDto.name);
       expect(result.color).toEqual(createDto.color);
       expect(result.description).toEqual(createDto.description);
-      expect(tagsService.createTag).toHaveBeenCalledWith(createDto);
+      expect(tagsService.createTag).toHaveBeenCalledWith(
+        createDto,
+        mockUser.id,
+      );
     });
   });
 
@@ -184,10 +205,18 @@ describe('TagsController', () => {
 
       mockTagsService.updateTag.mockResolvedValue(updatedTag);
 
-      const result = await controller.updateTag(mockTag.id, updateDto);
+      const result = await controller.updateTag(
+        mockTag.id,
+        updateDto,
+        mockRequest,
+      );
 
       expect(result).toEqual(updatedTag);
-      expect(tagsService.updateTag).toHaveBeenCalledWith(mockTag.id, updateDto);
+      expect(tagsService.updateTag).toHaveBeenCalledWith(
+        mockTag.id,
+        updateDto,
+        mockUser.id,
+      );
     });
 
     it('should throw NotFoundException when tag does not exist', async () => {
@@ -198,10 +227,9 @@ describe('TagsController', () => {
 
       mockTagsService.updateTag.mockRejectedValue(new NotFoundException());
 
-      await expect(controller.updateTag(id, updateDto)).rejects.toThrow(
-        NotFoundException,
-      );
-      expect(tagsService.updateTag).toHaveBeenCalledWith(id, updateDto);
+      await expect(
+        controller.updateTag(id, updateDto, mockRequest),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -209,18 +237,22 @@ describe('TagsController', () => {
     it('should delete a tag', async () => {
       mockTagsService.deleteTag.mockResolvedValue(undefined);
 
-      await controller.deleteTag(mockTag.id);
+      await controller.deleteTag(mockTag.id, mockRequest);
 
-      expect(tagsService.deleteTag).toHaveBeenCalledWith(mockTag.id);
+      expect(tagsService.deleteTag).toHaveBeenCalledWith(
+        mockTag.id,
+        mockUser.id,
+      );
     });
 
     it('should throw NotFoundException when tag does not exist', async () => {
       const id = 'non-existent-id';
-
       mockTagsService.deleteTag.mockRejectedValue(new NotFoundException());
 
-      await expect(controller.deleteTag(id)).rejects.toThrow(NotFoundException);
-      expect(tagsService.deleteTag).toHaveBeenCalledWith(id);
+      await expect(controller.deleteTag(id, mockRequest)).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(tagsService.deleteTag).toHaveBeenCalledWith(id, mockUser.id);
     });
   });
 });

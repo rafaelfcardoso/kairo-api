@@ -1,24 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import * as request from 'supertest';
+import request from 'supertest';
 import { AppModule } from '../../src/app.module';
-import { AuthGuard } from '@nestjs/passport';
-import { ExecutionContext } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { getDataSourceToken } from '@nestjs/typeorm';
-
-// Mock JWT auth guard to bypass authentication
-class MockAuthGuard {
-  canActivate(context: ExecutionContext) {
-    const req = context.switchToHttp().getRequest();
-    req.user = {
-      id: 'test-user-id',
-      username: 'test-user',
-      email: 'test@example.com',
-    };
-    return true;
-  }
-}
+import { getDataSourceToken, getRepositoryToken } from '@nestjs/typeorm';
+import { TaskStatus } from '../../src/tasks/task-status.enum';
+import { Repository } from 'typeorm';
+import { Task } from '../../src/tasks/tasks.entity';
+import { User } from '../../src/entities/user.entity';
 
 /**
  * This E2E test specifically checks API endpoints for 500 errors
@@ -27,41 +16,74 @@ class MockAuthGuard {
 describe('API 500 Error Check (E2E)', () => {
   let app: INestApplication;
   let dataSource: DataSource;
-  let testTaskId: string;
+  let taskRepository: Repository<Task>;
+  let userRepository: Repository<User>;
+  let authToken: string;
+  let testUserId: string;
+
+  // Test user credentials
+  const testUserEmail = `test-500-${Date.now()}@e2e.com`;
+  const testUserPassword = 'TestPassword123!';
 
   beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    })
-      .overrideGuard(AuthGuard('jwt'))
-      .useClass(MockAuthGuard)
-      .compile();
+    jest.setTimeout(120000);
+    try {
+      const moduleFixture: TestingModule = await Test.createTestingModule({
+        imports: [AppModule],
+      }).compile();
 
-    app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        transform: true,
-      }),
-    );
+      app = moduleFixture.createNestApplication();
+      app.useGlobalPipes(
+        new ValidationPipe({
+          whitelist: true,
+          transform: true,
+        }),
+      );
 
-    await app.init();
-    dataSource = moduleFixture.get(getDataSourceToken());
+      await app.init();
+      dataSource = moduleFixture.get(getDataSourceToken());
+      taskRepository = moduleFixture.get(getRepositoryToken(Task));
+      userRepository = moduleFixture.get(getRepositoryToken(User));
 
-    // Create a test task
-    const response = await request(app.getHttpServer())
-      .post('/tasks')
-      .set('Authorization', 'Bearer test-token')
-      .set('user-id', 'test-user-id')
-      .send({
-        title: 'Test Task for 500 Error Check',
-        description: 'This task tests for 500 errors',
-      });
+      // Register test user
+      await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({
+          email: testUserEmail,
+          password: testUserPassword,
+          name: 'E2E 500 User',
+        })
+        .expect(201);
 
-    testTaskId = response.body.id;
-  });
+      // Login to get token
+      const loginResponse = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email: testUserEmail, password: testUserPassword })
+        .expect(200);
+
+      authToken = loginResponse.body.access_token;
+      testUserId = loginResponse.body.user.id;
+      expect(authToken).toBeDefined();
+
+      // No initial data creation here
+    } catch (error) {
+      console.error('Error setting up 500 test module:', error);
+      throw error;
+    }
+  }, 120000);
 
   afterAll(async () => {
+    try {
+      // Clean up user only
+      if (testUserId) await userRepository.delete(testUserId);
+    } catch (error) {
+      console.error('Error cleaning up 500 test data:', error);
+    }
+    if (dataSource && dataSource.isInitialized) {
+      // Explicit destroy
+      await dataSource.destroy();
+      console.log('[afterAll] DataSource destroyed.');
+    }
     await app.close();
   });
 
@@ -76,11 +98,28 @@ describe('API 500 Error Check (E2E)', () => {
   });
 
   describe('Tasks API', () => {
+    let taskIdForTests: string;
+
+    beforeEach(async () => {
+      const task = await taskRepository.save({
+        title: 'Test Task for 500 Error Check',
+        description: 'This task tests for 500 errors',
+        userId: testUserId,
+      });
+      taskIdForTests = task.id;
+    });
+
+    afterEach(async () => {
+      if (taskIdForTests) {
+        await taskRepository.delete(taskIdForTests);
+        taskIdForTests = null;
+      }
+    });
+
     it('should return 200 for GET /tasks', async () => {
       const response = await request(app.getHttpServer())
         .get('/tasks')
-        .set('Authorization', 'Bearer test-token')
-        .set('user-id', 'test-user-id')
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
       expect(response.body).toBeDefined();
@@ -88,42 +127,42 @@ describe('API 500 Error Check (E2E)', () => {
     });
 
     it('should return 200 for GET /tasks/:id', async () => {
+      expect(taskIdForTests).toBeDefined();
       const response = await request(app.getHttpServer())
-        .get(`/tasks/${testTaskId}`)
-        .set('Authorization', 'Bearer test-token')
-        .set('user-id', 'test-user-id')
+        .get(`/tasks/${taskIdForTests}`)
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
-      expect(response.body).toBeDefined();
-      expect(response.body.id).toBe(testTaskId);
+      expect(response.body.id).toBe(taskIdForTests);
     });
 
     it('should return 200 when completing a task (PUT /tasks/:id)', async () => {
+      expect(taskIdForTests).toBeDefined();
       const response = await request(app.getHttpServer())
-        .put(`/tasks/${testTaskId}`)
-        .set('Authorization', 'Bearer test-token')
-        .set('user-id', 'test-user-id')
-        .send({ status: 'completed' })
+        .put(`/tasks/${taskIdForTests}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ status: TaskStatus.COMPLETED })
         .expect(200);
 
-      expect(response.body).toBeDefined();
-      expect(response.body.status).toBe('completed');
+      expect(response.body.status).toBe(TaskStatus.COMPLETED);
     });
 
     it('should verify completedAt is properly set in the database', async () => {
-      // Check that the completedAt field was set
-      const result = await dataSource.query(
-        `
-              SELECT "completedAt" 
-              FROM "task" 
-              WHERE "id" = $1
-             `,
-        [testTaskId],
-      );
+      expect(taskIdForTests).toBeDefined();
+      // Complete task first
+      await request(app.getHttpServer())
+        .put(`/tasks/${taskIdForTests}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ status: TaskStatus.COMPLETED })
+        .expect(200);
 
+      // Use repository for verification
+      const result = await taskRepository.findOne({
+        where: { id: taskIdForTests },
+      });
       expect(result).toBeDefined();
-      expect(result.length).toBe(1);
-      expect(result[0].completedAt).not.toBeNull();
+      expect(result.status).toBe(TaskStatus.COMPLETED);
+      expect(result.completedAt).not.toBeNull();
     });
   });
 
@@ -131,6 +170,7 @@ describe('API 500 Error Check (E2E)', () => {
     it('should return 200 for GET /projects', async () => {
       const response = await request(app.getHttpServer())
         .get('/projects')
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
       expect(response.body).toBeDefined();
@@ -142,6 +182,7 @@ describe('API 500 Error Check (E2E)', () => {
     it('should return 200 for GET /tags', async () => {
       const response = await request(app.getHttpServer())
         .get('/tags')
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
       expect(response.body).toBeDefined();

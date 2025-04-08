@@ -14,6 +14,7 @@ import {
   ValidationPipe,
   UseGuards,
   Req,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -37,12 +38,13 @@ import { User } from '../entities/user.entity';
 
 @ApiTags('Projects')
 @ApiBearerAuth('JWT-auth')
+@UseGuards(JwtAuthGuard)
 @Controller('projects')
 export class ProjectsController {
   constructor(private projectService: ProjectsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get all projects with optional filters' })
+  @ApiOperation({ summary: 'Get projects for the authenticated user' })
   @ApiQuery({
     name: 'search',
     required: false,
@@ -80,36 +82,46 @@ export class ProjectsController {
       }),
     )
     filterDto: ProjectFilterDto,
+    @Req() request: Request,
   ): Promise<Project[]> {
-    return this.projectService.getProjects(filterDto);
+    const userId = (request.user as User).id;
+    return this.projectService.getProjects(filterDto, userId);
   }
 
   @Get('tree')
-  @ApiOperation({ summary: 'Get project hierarchy as a tree' })
+  @ApiOperation({ summary: 'Get user project hierarchy as a tree' })
   @ApiQuery({ name: 'rootId', required: false, type: String })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Retrieved project tree successfully',
     type: [Project],
   })
-  async getProjectTree(@Query('rootId') rootId?: string): Promise<Project[]> {
-    return this.projectService.getProjectTree(rootId);
+  async getProjectTree(
+    @Req() request: Request,
+    @Query('rootId') rootId?: string,
+  ): Promise<Project[]> {
+    const userId = (request.user as User).id;
+    return this.projectService.getProjectTree(userId, rootId);
   }
 
   @Get('search')
-  @ApiOperation({ summary: 'Search projects' })
+  @ApiOperation({ summary: 'Search user projects' })
   @ApiQuery({ name: 'query', required: true, type: String })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Search results',
     type: [Project],
   })
-  async searchProjects(@Query('query') query: string): Promise<Project[]> {
-    return this.projectService.searchProjects(query);
+  async searchProjects(
+    @Query('query') query: string,
+    @Req() request: Request,
+  ): Promise<Project[]> {
+    const userId = (request.user as User).id;
+    return this.projectService.searchProjects(query, userId);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get a project by ID' })
+  @ApiOperation({ summary: 'Get a specific project by ID (owned by user)' })
   @ApiParam({ name: 'id', type: String })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -118,24 +130,34 @@ export class ProjectsController {
   })
   async getProjectById(
     @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: Request,
   ): Promise<Project> {
-    return this.projectService.getProjectById(id);
+    const userId = (request.user as User).id;
+    const project = await this.projectService.getProjectById(id, userId);
+    if (!project) {
+      throw new NotFoundException(`Project with ID "${id}" not found`);
+    }
+    return project;
   }
 
   @Get(':id/with-ancestors')
-  @ApiOperation({ summary: 'Get project with its ancestors' })
+  @ApiOperation({ summary: 'Get user project with its ancestors' })
   @ApiParam({ name: 'id', type: String })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Retrieved project with ancestors',
     type: Project,
   })
-  async getProjectWithAncestors(@Param('id', ParseUUIDPipe) id: string) {
-    return this.projectService.getProjectWithAncestors(id);
+  async getProjectWithAncestors(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: Request,
+  ) {
+    const userId = (request.user as User).id;
+    return this.projectService.getProjectWithAncestors(id, userId);
   }
 
   @Get(':id/breadcrumb')
-  @ApiOperation({ summary: 'Get project breadcrumb trail' })
+  @ApiOperation({ summary: 'Get user project breadcrumb trail' })
   @ApiParam({ name: 'id', type: String })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -144,41 +166,55 @@ export class ProjectsController {
   })
   async getProjectBreadcrumb(
     @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: Request,
   ): Promise<Project[]> {
-    return this.projectService.getProjectBreadcrumb(id);
+    const userId = (request.user as User).id;
+    return this.projectService.getProjectBreadcrumb(id, userId);
   }
 
   @Get(':id/stats')
-  @ApiOperation({ summary: 'Get project statistics' })
+  @ApiOperation({ summary: 'Get user project statistics' })
   @ApiParam({ name: 'id', type: String })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Retrieved project statistics',
   })
-  async getProjectStats(@Param('id', ParseUUIDPipe) id: string) {
-    return this.projectService.getProjectStats(id);
+  async getProjectStats(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: Request,
+  ) {
+    const userId = (request.user as User).id;
+    return this.projectService.getProjectStats(id, userId);
   }
 
   @Get(':id/timeline')
-  @ApiOperation({ summary: 'Get project timeline' })
+  @ApiOperation({ summary: 'Get user project timeline' })
   @ApiParam({ name: 'id', type: String })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Retrieved project timeline',
   })
-  async getProjectTimeline(@Param('id', ParseUUIDPipe) id: string) {
-    return this.projectService.getProjectTimeline(id);
+  async getProjectTimeline(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: Request,
+  ) {
+    const userId = (request.user as User).id;
+    return this.projectService.getProjectTimeline(id, userId);
   }
 
   @Get(':id/health')
-  @ApiOperation({ summary: 'Get project health status' })
+  @ApiOperation({ summary: 'Get user project health status' })
   @ApiParam({ name: 'id', type: String })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Retrieved project health status',
   })
-  async getProjectHealth(@Param('id', ParseUUIDPipe) id: string) {
-    return this.projectService.calculateProjectHealth(id);
+  async getProjectHealth(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: Request,
+  ) {
+    const userId = (request.user as User).id;
+    return this.projectService.calculateProjectHealth(id, userId);
   }
 
   @Post()
@@ -235,8 +271,10 @@ export class ProjectsController {
   async updateProject(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateProjectDto: UpdateProjectDto,
+    @Req() request: Request,
   ): Promise<Project> {
-    return this.projectService.updateProject(id, updateProjectDto);
+    const userId = (request.user as User).id;
+    return this.projectService.updateProject(id, updateProjectDto, userId);
   }
 
   @Put('move')
@@ -245,8 +283,12 @@ export class ProjectsController {
     status: HttpStatus.OK,
     description: 'Project moved successfully',
   })
-  async moveProject(@Body() moveDto: ProjectMoveDto): Promise<void> {
-    return this.projectService.moveProject(moveDto);
+  async moveProject(
+    @Body() moveDto: ProjectMoveDto,
+    @Req() request: Request,
+  ): Promise<void> {
+    const userId = (request.user as User).id;
+    return this.projectService.moveProject(moveDto, userId);
   }
 
   @Put('reorder')
@@ -255,8 +297,12 @@ export class ProjectsController {
     status: HttpStatus.OK,
     description: 'Projects reordered successfully',
   })
-  async reorderProjects(@Body() projectIds: string[]): Promise<void> {
-    return this.projectService.reorderProjects(projectIds);
+  async reorderProjects(
+    @Body() projectIds: string[],
+    @Req() request: Request,
+  ): Promise<void> {
+    const userId = (request.user as User).id;
+    return this.projectService.reorderProjects(projectIds, userId);
   }
 
   @Put(':id/archive')
@@ -269,8 +315,10 @@ export class ProjectsController {
   })
   async archiveProject(
     @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: Request,
   ): Promise<Project> {
-    return this.projectService.archiveProject(id);
+    const userId = (request.user as User).id;
+    return this.projectService.archiveProject(id, userId);
   }
 
   @Post('merge')
@@ -283,19 +331,25 @@ export class ProjectsController {
   async mergeProjects(
     @Body('sourceId', ParseUUIDPipe) sourceId: string,
     @Body('targetId', ParseUUIDPipe) targetId: string,
+    @Req() request: Request,
   ): Promise<Project> {
-    return this.projectService.mergeProjects(sourceId, targetId);
+    const userId = (request.user as User).id;
+    return this.projectService.mergeProjects(sourceId, targetId, userId);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete a project' })
+  @ApiOperation({ summary: 'Delete a project (owned by user)' })
   @ApiParam({ name: 'id', type: String })
   @ApiResponse({
     status: HttpStatus.NO_CONTENT,
     description: 'Project deleted successfully',
   })
-  async deleteProject(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
-    return this.projectService.deleteProject(id);
+  async deleteProject(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: Request,
+  ): Promise<void> {
+    const userId = (request.user as User).id;
+    return this.projectService.deleteProject(id, userId);
   }
 }

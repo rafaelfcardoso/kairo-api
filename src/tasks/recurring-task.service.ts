@@ -325,14 +325,11 @@ export class RecurringTaskService {
         description: completedTask.description,
         priority: completedTask.priority,
         dueDate: nextDate.toISOString(),
-        hasTime: true, // Always set hasTime for recurring tasks
+        hasTime: true,
         needsReminder: completedTask.needsReminder,
         reminderMessage: completedTask.reminderMessage,
         isRecurring: true,
-        recurrencePattern: completedTask.recurrencePattern,
-        recurrenceDays: completedTask.recurrenceDays,
-        recurrenceTimeOfDay: completedTask.recurrenceTimeOfDay,
-        recurrenceTime: completedTask.recurrenceTime,
+        recurrenceRule: completedTask.recurrenceRule,
         recurringParentId: completedTask.recurringParentId || completedTask.id,
       };
 
@@ -395,7 +392,7 @@ export class RecurringTaskService {
       throw new Error('Could not calculate next occurrence');
     }
 
-    // Create a new task for the next occurrence
+    // Create a new task entity for the next occurrence
     const nextTask = new Task();
     nextTask.title = completedTask.title;
     nextTask.description = completedTask.description;
@@ -405,12 +402,8 @@ export class RecurringTaskService {
     nextTask.hasTime = completedTask.hasTime;
     nextTask.needsReminder = completedTask.needsReminder;
     nextTask.reminderMessage = completedTask.reminderMessage;
-    nextTask.recurrenceRule = completedTask.recurrenceRule;
     nextTask.isRecurring = true;
-    nextTask.recurrencePattern = completedTask.recurrencePattern;
-    nextTask.recurrenceDays = completedTask.recurrenceDays;
-    nextTask.recurrenceTimeOfDay = completedTask.recurrenceTimeOfDay;
-    nextTask.recurrenceTime = completedTask.recurrenceTime;
+    nextTask.recurrenceRule = completedTask.recurrenceRule;
 
     // Copy project relationship
     if (completedTask.project) {

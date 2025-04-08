@@ -10,6 +10,7 @@ import {
   IsArray,
   Min,
   ValidateIf,
+  IsDateString,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { EnergyLevel } from './focus-sessions.entity';
@@ -225,54 +226,39 @@ export class FocusSessionResponseDto {
 // DTO for querying focus sessions history with filters
 export class GetFocusSessionsHistoryDto {
   @ApiPropertyOptional({
-    description: 'Filter by start date (range start)',
-    example: '2023-04-01T00:00:00Z',
+    description: 'Filter sessions starting after this date (ISO 8601)',
   })
   @IsOptional()
-  @IsDate()
-  @Type(() => Date)
-  startDate?: Date;
+  @IsDateString()
+  startDate?: string;
 
   @ApiPropertyOptional({
-    description: 'Filter by end date (range end)',
-    example: '2023-04-30T23:59:59Z',
+    description: 'Filter sessions starting before this date (ISO 8601)',
   })
   @IsOptional()
-  @IsDate()
-  @Type(() => Date)
-  endDate?: Date;
+  @IsDateString()
+  endDate?: string;
 
-  @ApiPropertyOptional({
-    description: 'Filter by specific task ID',
-    example: '123e4567-e89b-12d3-a456-426614174000',
-  })
-  @IsOptional()
-  @IsUUID('4')
-  taskId?: string;
-
-  @ApiPropertyOptional({
-    description: 'Filter by specific project ID',
-    example: '123e4567-e89b-12d3-a456-426614174000',
-  })
-  @IsOptional()
-  @IsUUID('4')
-  projectId?: string;
-
-  @ApiPropertyOptional({
-    description: 'Filter by success status',
-    example: true,
-  })
-  @IsOptional()
-  @IsBoolean()
-  @Type(() => Boolean)
-  wasSuccessful?: boolean;
-
-  @ApiPropertyOptional({
-    description: 'Filter by energy level',
-    enum: EnergyLevel,
-    example: EnergyLevel.HIGH,
-  })
+  @ApiPropertyOptional({ enum: EnergyLevel })
   @IsOptional()
   @IsEnum(EnergyLevel)
   energyLevel?: EnergyLevel;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  wasSuccessful?: boolean;
+
+  @ApiPropertyOptional({ description: 'Filter by project ID' })
+  @IsOptional()
+  @IsUUID()
+  projectId?: string;
+
+  @ApiPropertyOptional({ description: 'Filter by associated task ID' })
+  @IsOptional()
+  @IsUUID()
+  taskId?: string;
+
+  // Add userId for internal filtering
+  userId?: string;
 }

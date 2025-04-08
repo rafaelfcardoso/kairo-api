@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import * as request from 'supertest';
+import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import {
   Task,
@@ -8,36 +8,42 @@ import {
   TaskPriority,
   RecurrencePattern,
 } from '../src/tasks/tasks.entity';
+import { User } from '../src/entities/user.entity';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 describe('Recurring Task Scheduling (E2E)', () => {
   let app: INestApplication;
   let taskRepository: Repository<Task>;
+  let userRepository: Repository<User>;
+
+  // Test user credentials and token
+  const testUserEmail = `test-recurring-${Date.now()}@e2e.com`;
+  const testUserPassword = 'TestPassword123!';
+  let testUserId: string;
+  let authToken: string;
 
   // Track created entities for cleanup
   const createdTaskIds: string[] = [];
-  const mockDate = new Date('2025-03-15T10:00:00Z');
+  // const mockDate = new Date('2025-03-15T10:00:00Z'); // Mock date commented out
 
   // Save original Date implementation
-  const RealDate = global.Date;
+  // const RealDate = global.Date; // Mock date commented out
 
   beforeAll(async () => {
     // Increase timeout for database connection
-    jest.setTimeout(60000);
+    jest.setTimeout(120000);
 
-    // Mock Date for consistent testing
-    // @ts-expect-error - intentionally mocking Date
-    global.Date = class extends RealDate {
-      constructor() {
-        super();
-        return mockDate;
-      }
-
-      static now() {
-        return mockDate.getTime();
-      }
-    };
+    // Mock Date for consistent testing - COMMENTED OUT
+    // global.Date = class extends RealDate {
+    //   constructor() {
+    //     super();
+    //     return mockDate;
+    //   }
+    //   static now() {
+    //     return mockDate.getTime();
+    //   }
+    // };
 
     try {
       const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -50,22 +56,52 @@ describe('Recurring Task Scheduling (E2E)', () => {
       taskRepository = moduleFixture.get<Repository<Task>>(
         getRepositoryToken(Task),
       );
+      userRepository = moduleFixture.get<Repository<User>>(
+        getRepositoryToken(User),
+      );
 
       await app.init();
 
-      // Clean up any existing test data (defensive cleanup)
+      // Register test user
+      await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({
+          email: testUserEmail,
+          password: testUserPassword,
+          name: 'E2E Recurring User',
+        })
+        .expect(201);
+
+      // Login to get token
+      const loginResponse = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email: testUserEmail, password: testUserPassword })
+        .expect(200);
+
+      authToken = loginResponse.body.access_token;
+      testUserId = loginResponse.body.user.id;
+      expect(authToken).toBeDefined();
+
+      // Force cleanup using TRUNCATE before tests for tables created in InitialSchema
+      console.log('Truncating initial schema tables before test suite...');
       try {
-        await taskRepository.delete({
-          title: 'Recurring Task E2E Test',
-        });
+        // await taskRepository.query(`TRUNCATE TABLE "task_tags_tag" CASCADE`); // Created later
+        // await taskRepository.query(
+        //   `TRUNCATE TABLE "task_focus_sessions_focus_session" CASCADE`,
+        // ); // Created later
+        // await taskRepository.query(`TRUNCATE TABLE "focus_session" CASCADE`); // Created later
+        await taskRepository.query(`TRUNCATE TABLE "tag" CASCADE`);
+        await taskRepository.query(`TRUNCATE TABLE "task" CASCADE`);
+        // No project/project_closure here
+        console.log('Tables truncated.');
       } catch (error) {
-        console.error('Error cleaning up existing test data:', error);
+        console.error('Error truncating tables:', error);
       }
     } catch (error) {
       console.error('Error setting up test module:', error);
       throw error;
     }
-  }, 60000); // Increase timeout for beforeAll
+  }, 120000);
 
   afterAll(async () => {
     // Clean up test data
@@ -73,12 +109,16 @@ describe('Recurring Task Scheduling (E2E)', () => {
       if (createdTaskIds.length > 0) {
         await taskRepository.delete(createdTaskIds);
       }
+      // Delete the test user
+      if (testUserId) {
+        await userRepository.delete(testUserId);
+      }
     } catch (error) {
       console.error('Error cleaning up test data:', error);
     }
 
-    // Restore original Date
-    global.Date = RealDate;
+    // Restore original Date - COMMENTED OUT
+    // global.Date = RealDate;
 
     await app.close();
   });
@@ -98,6 +138,7 @@ describe('Recurring Task Scheduling (E2E)', () => {
 
       const response = await request(app.getHttpServer())
         .post('/tasks')
+        .set('Authorization', `Bearer ${authToken}`)
         .send(dailyTask)
         .expect(201);
 
@@ -136,6 +177,7 @@ describe('Recurring Task Scheduling (E2E)', () => {
 
       const response = await request(app.getHttpServer())
         .post('/tasks')
+        .set('Authorization', `Bearer ${authToken}`)
         .send(weeklyTask)
         .expect(201);
 
@@ -152,6 +194,7 @@ describe('Recurring Task Scheduling (E2E)', () => {
 
     it('should complete a recurring task and generate the next occurrence', async () => {
       // Get the daily task
+      expect(createdTaskIds.length).toBeGreaterThanOrEqual(1);
       const taskId = createdTaskIds[0];
 
       // Get the current task before completion
@@ -167,6 +210,7 @@ describe('Recurring Task Scheduling (E2E)', () => {
 
       await request(app.getHttpServer())
         .put(`/tasks/${taskId}`)
+        .set('Authorization', `Bearer ${authToken}`)
         .send(updateTaskDto)
         .expect(200);
 
@@ -174,6 +218,7 @@ describe('Recurring Task Scheduling (E2E)', () => {
       // Get all tasks with the same title
       const response = await request(app.getHttpServer())
         .get('/tasks?title=Recurring Task E2E Test - Daily')
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
       expect(response.body).toBeDefined();
@@ -208,6 +253,7 @@ describe('Recurring Task Scheduling (E2E)', () => {
 
     it('should reschedule a recurring task', async () => {
       // Get the weekly task
+      expect(createdTaskIds.length).toBeGreaterThanOrEqual(2);
       const taskId = createdTaskIds[1];
 
       // Reschedule the task
@@ -219,6 +265,7 @@ describe('Recurring Task Scheduling (E2E)', () => {
 
       const response = await request(app.getHttpServer())
         .put(`/tasks/${taskId}`)
+        .set('Authorization', `Bearer ${authToken}`)
         .send(updateTaskDto)
         .expect(200);
 
@@ -253,6 +300,7 @@ describe('Recurring Task Scheduling (E2E)', () => {
 
       await request(app.getHttpServer())
         .post('/tasks')
+        .set('Authorization', `Bearer ${authToken}`)
         .send(invalidTask)
         .expect(400); // Should return Bad Request
     });
@@ -261,6 +309,7 @@ describe('Recurring Task Scheduling (E2E)', () => {
       // Get all recurring tasks
       const response = await request(app.getHttpServer())
         .get('/tasks?isRecurring=true')
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
       expect(response.body).toBeDefined();
@@ -274,6 +323,7 @@ describe('Recurring Task Scheduling (E2E)', () => {
 
     it('should allow cancelling a recurring task', async () => {
       // Get the daily task
+      expect(createdTaskIds.length).toBeGreaterThanOrEqual(1);
       const taskId = createdTaskIds[0];
 
       // Cancel recurring behavior by setting isRecurring to false
@@ -283,6 +333,7 @@ describe('Recurring Task Scheduling (E2E)', () => {
 
       const response = await request(app.getHttpServer())
         .put(`/tasks/${taskId}`)
+        .set('Authorization', `Bearer ${authToken}`)
         .send(updateTaskDto)
         .expect(200);
 

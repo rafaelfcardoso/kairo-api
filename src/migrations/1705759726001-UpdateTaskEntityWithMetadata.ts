@@ -1,10 +1,11 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
+import { BaseMigration } from './base/BaseMigration';
 
-export class UpdateTaskEntityWithMetadata1686501234567
-  implements MigrationInterface
-{
-  public async up(queryRunner: QueryRunner): Promise<void> {
-    // Check if taskType column exists
+export class UpdateTaskEntityWithMetadata1705759726001 extends BaseMigration {
+  name = 'UpdateTaskEntityWithMetadata1705759726001';
+
+  protected async executeUp(queryRunner: QueryRunner): Promise<void> {
+    // Check if taskType column exists using base class helper
     const taskTypeExists = await this.columnExists(
       queryRunner,
       'task',
@@ -16,7 +17,7 @@ export class UpdateTaskEntityWithMetadata1686501234567
       await queryRunner.query(`ALTER TABLE "task" DROP COLUMN "taskType"`);
     }
 
-    // Check if metadata column exists
+    // Check if metadata column exists using base class helper
     const metadataExists = await this.columnExists(
       queryRunner,
       'task',
@@ -31,8 +32,8 @@ export class UpdateTaskEntityWithMetadata1686501234567
     }
   }
 
-  public async down(queryRunner: QueryRunner): Promise<void> {
-    // Check if metadata column exists
+  protected async executeDown(queryRunner: QueryRunner): Promise<void> {
+    // Check if metadata column exists using base class helper
     const metadataExists = await this.columnExists(
       queryRunner,
       'task',
@@ -43,22 +44,5 @@ export class UpdateTaskEntityWithMetadata1686501234567
       // Drop the metadata column
       await queryRunner.query(`ALTER TABLE "task" DROP COLUMN "metadata"`);
     }
-  }
-
-  // Helper method to check if a column exists
-  private async columnExists(
-    queryRunner: QueryRunner,
-    table: string,
-    column: string,
-  ): Promise<boolean> {
-    const result = await queryRunner.query(`
-      SELECT EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_name = '${table}'
-        AND column_name = '${column}'
-      );
-    `);
-    return result[0].exists;
   }
 }

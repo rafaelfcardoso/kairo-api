@@ -1,6 +1,10 @@
 import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import {
+  Repository,
+  DataSource,
+  QueryRunnerAlreadyReleasedError,
+} from 'typeorm';
 import { ApiRequestLog, ApiMetrics } from '../entities/api-metrics.entity';
 import { Request, Response } from 'express';
 
@@ -101,8 +105,18 @@ export class ApiMetricsService implements OnApplicationShutdown {
         responseTime,
       );
     } catch (error) {
-      // In test environment, suppress logging errors
-      if (process.env.NODE_ENV !== 'test') {
+      // Catch errors during request logging
+      if (
+        error instanceof QueryRunnerAlreadyReleasedError ||
+        error.message?.includes('Driver not Connected') ||
+        error.message?.includes('Connection terminated') ||
+        error.message?.includes('Cannot use a pool after calling end') ||
+        error.code === 'ECONNRESET'
+      ) {
+        this.logger.warn(
+          `Failed to log API request (connection likely closed/released during shutdown): ${error.message}`,
+        );
+      } else {
         this.logger.error(
           `Failed to log API request: ${error.message}`,
           error.stack,
@@ -114,39 +128,32 @@ export class ApiMetricsService implements OnApplicationShutdown {
   /**
    * Update aggregated metrics for an endpoint
    */
-  private async updateMetrics(
+  async updateMetrics(
     endpoint: string,
     method: string,
     version: string,
     statusCode: number,
     responseTime: number,
   ): Promise<void> {
-    try {
-      const now = new Date();
-      const date = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const hour = now.getHours();
-
-      // Use a transaction with serializable isolation to prevent race conditions
-      await this.apiMetricsRepository.manager.transaction(
-        async (transactionalEntityManager) => {
-          // Find or create metrics record with a SELECT FOR UPDATE lock
-          let metrics = await transactionalEntityManager
-            .createQueryBuilder(ApiMetrics, 'metrics')
-            .setLock('pessimistic_write')
-            .where('metrics.endpoint = :endpoint', { endpoint })
-            .andWhere('metrics.method = :method', { method })
-            .andWhere('metrics.version = :version', { version })
-            .andWhere('metrics.date = :date', { date })
-            .andWhere('metrics.hour = :hour', { hour })
-            .getOne();
+    // Don't update if shutting down or connection closed
+    if (this.isShuttingDown || !this.dataSource.isInitialized) {
+      return;
+    }
+    await this.apiMetricsRepository.manager.transaction(
+      async (transactionalEntityManager) => {
+        try {
+          let metrics = await transactionalEntityManager.findOne(ApiMetrics, {
+            where: { endpoint, method, version },
+            lock: { mode: 'pessimistic_write' },
+          });
 
           if (!metrics) {
             metrics = this.apiMetricsRepository.create({
               endpoint,
               method,
               version,
-              date,
-              hour,
+              date: new Date(),
+              hour: new Date().getHours(),
               requestCount: 0,
               successCount: 0,
               errorCount: 0,
@@ -175,7 +182,6 @@ export class ApiMetricsService implements OnApplicationShutdown {
           ) {
             metrics.minResponseTime = responseTime;
           }
-
           if (
             metrics.maxResponseTime === null ||
             responseTime > metrics.maxResponseTime
@@ -183,17 +189,30 @@ export class ApiMetricsService implements OnApplicationShutdown {
             metrics.maxResponseTime = responseTime;
           }
 
-          // Save updated metrics within the transaction
-          await transactionalEntityManager.save(metrics);
-        },
-      );
-    } catch (error) {
-      this.logger.error(
-        `Failed to update API metrics: ${error.message}`,
-        error.stack,
-      );
-      // Continue execution - metrics error shouldn't affect main functionality
-    }
+          // Save updated/new metrics
+          await transactionalEntityManager.save(ApiMetrics, metrics);
+        } catch (error) {
+          // Catch errors during metric update
+          if (
+            error instanceof QueryRunnerAlreadyReleasedError ||
+            error.message?.includes('Driver not Connected') ||
+            error.message?.includes('Connection terminated') ||
+            error.message?.includes('Connection is closed') ||
+            error.message?.includes('Cannot use a pool after calling end')
+          ) {
+            this.logger.warn(
+              `Failed to update API metrics (connection likely closed/released during shutdown): ${error.message}`,
+            );
+          } else {
+            this.logger.error(
+              `Failed to update API metrics: ${error.message}`,
+              error.stack,
+            );
+            throw error;
+          }
+        }
+      },
+    );
   }
 
   /**

@@ -22,6 +22,7 @@ import {
 } from './tasks.entity';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PartialType } from '@nestjs/swagger';
+import { Transform, Type } from 'class-transformer';
 
 export class CreateTaskDto {
   @ApiProperty({
@@ -53,11 +54,15 @@ export class CreateTaskDto {
   priority?: TaskPriority;
 
   @ApiPropertyOptional({
-    example: 'FREQ=WEEKLY;BYDAY=SU;BYHOUR=14;BYMINUTE=0',
+    example: 'FREQ=WEEKLY;BYDAY=SU',
     description: 'Recurrence rule in iCalendar format for recurring tasks',
   })
   @IsString()
-  @IsOptional()
+  @ValidateIf((o) => o.isRecurring === true)
+  @IsNotEmpty({ message: 'recurrenceRule is required if isRecurring is true' })
+  @Matches(/^[A-Z0-9=;,]+$/i, {
+    message: 'recurrenceRule contains invalid characters',
+  })
   recurrenceRule?: string;
 
   @ApiPropertyOptional({
@@ -133,44 +138,6 @@ export class CreateTaskDto {
   isRecurring?: boolean;
 
   @ApiPropertyOptional({
-    enum: RecurrencePattern,
-    example: RecurrencePattern.DAILY,
-    description:
-      'The pattern for task recurrence (daily, weekly, monthly, yearly)',
-  })
-  @IsEnum(RecurrencePattern, {
-    message: 'recurrencePattern must be one of: daily, weekly, monthly, yearly',
-  })
-  @ValidateIf((o) => o.isRecurring === true)
-  @IsOptional()
-  recurrencePattern?: string;
-
-  @ApiPropertyOptional({
-    example: 'monday,wednesday,friday',
-    description: 'Specific days for weekly recurrence',
-  })
-  @IsString()
-  @IsOptional()
-  recurrenceDays?: string;
-
-  @ApiPropertyOptional({
-    enum: RecurrenceTimeOfDay,
-    example: RecurrenceTimeOfDay.MORNING,
-    description: 'Time of day for the recurring task',
-  })
-  @IsString()
-  @IsOptional()
-  recurrenceTimeOfDay?: string;
-
-  @ApiPropertyOptional({
-    example: '08:00',
-    description: 'Specific time for custom recurrence time',
-  })
-  @IsString()
-  @IsOptional()
-  recurrenceTime?: string;
-
-  @ApiPropertyOptional({
     example: '123e4567-e89b-12d3-a456-426614174000',
     description: 'The ID of the parent recurring task if this is an instance',
   })
@@ -213,8 +180,14 @@ export class TaskFilterDto {
 
   @ApiProperty({ required: false, type: [String] })
   @IsOptional()
+  @Transform(({ value }) =>
+    Array.isArray(value) ? value : [value].filter((v) => v != null),
+  )
   @IsArray()
-  @IsUUID(undefined, { each: true })
+  @IsUUID('all', {
+    each: true,
+    message: 'Each tagId must be a valid UUID',
+  })
   tagIds?: string[];
 
   @ApiProperty({ required: false })
@@ -229,6 +202,14 @@ export class TaskFilterDto {
 
   @ApiProperty({ required: false })
   @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
   @IsBoolean()
   isRecurring?: boolean;
+
+  // Add userId property (internal use, not exposed via API query)
+  userId?: string;
 }

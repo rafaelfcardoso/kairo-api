@@ -37,12 +37,12 @@ import { User } from '../entities/user.entity';
 
 @ApiTags('Focus Sessions')
 @ApiBearerAuth('JWT-auth')
+@UseGuards(JwtAuthGuard)
 @Controller('focus-sessions')
 export class FocusSessionsController {
   constructor(private readonly focusSessionsService: FocusSessionsService) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Create a new focus session' })
   @ApiResponse({
     status: 201,
@@ -70,8 +70,10 @@ export class FocusSessionsController {
   })
   async findAll(
     @Query() filters: GetFocusSessionsHistoryDto,
+    @Req() request: Request,
   ): Promise<FocusSessionResponseDto[]> {
-    return this.focusSessionsService.findAll(filters);
+    const userId = (request.user as User).id;
+    return this.focusSessionsService.findAll(filters, userId);
   }
 
   @Get('stats')
@@ -99,11 +101,14 @@ export class FocusSessionsController {
     description: 'Filter stats by project ID',
   })
   async getStats(
+    @Req() request: Request,
     @Query('startDate') startDate?: Date,
     @Query('endDate') endDate?: Date,
     @Query('projectId') projectId?: string,
   ) {
+    const userId = (request.user as User).id;
     return this.focusSessionsService.getSessionStats(
+      userId,
       startDate,
       endDate,
       projectId,
@@ -121,8 +126,10 @@ export class FocusSessionsController {
   @ApiParam({ name: 'id', description: 'Focus session ID', type: 'string' })
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: Request,
   ): Promise<FocusSessionResponseDto> {
-    return this.focusSessionsService.findOne(id);
+    const userId = (request.user as User).id;
+    return this.focusSessionsService.findOne(id, userId);
   }
 
   @Patch(':id')
@@ -138,8 +145,10 @@ export class FocusSessionsController {
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateFocusSessionDto: UpdateFocusSessionDto,
+    @Req() request: Request,
   ): Promise<FocusSessionResponseDto> {
-    return this.focusSessionsService.update(id, updateFocusSessionDto);
+    const userId = (request.user as User).id;
+    return this.focusSessionsService.update(id, updateFocusSessionDto, userId);
   }
 
   @Patch(':id/complete')
@@ -155,8 +164,14 @@ export class FocusSessionsController {
   async complete(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() completeFocusSessionDto: CompleteFocusSessionDto,
+    @Req() request: Request,
   ): Promise<FocusSessionResponseDto> {
-    return this.focusSessionsService.complete(id, completeFocusSessionDto);
+    const userId = (request.user as User).id;
+    return this.focusSessionsService.complete(
+      id,
+      completeFocusSessionDto,
+      userId,
+    );
   }
 
   @Delete(':id')
@@ -168,7 +183,11 @@ export class FocusSessionsController {
   })
   @ApiResponse({ status: 404, description: 'Focus session not found.' })
   @ApiParam({ name: 'id', description: 'Focus session ID', type: 'string' })
-  async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
-    return this.focusSessionsService.remove(id);
+  async remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: Request,
+  ): Promise<void> {
+    const userId = (request.user as User).id;
+    return this.focusSessionsService.remove(id, userId);
   }
 }

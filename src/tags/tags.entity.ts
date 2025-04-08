@@ -9,9 +9,9 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Task } from '../tasks/tasks.entity';
-import { IsHexColor } from 'class-validator';
+import { IsHexColor, IsOptional, IsBoolean } from 'class-validator';
 import { User } from '../entities/user.entity';
 
 @Entity()
@@ -44,6 +44,15 @@ export class Tag {
   })
   @Column({ nullable: true })
   description: string;
+
+  @ApiPropertyOptional({ description: 'Is this a system tag?' })
+  @Column({ default: false })
+  @IsBoolean()
+  @IsOptional()
+  isSystem: boolean;
+
+  @Column({ default: false })
+  isArchived: boolean;
 
   @ApiProperty()
   @CreateDateColumn()

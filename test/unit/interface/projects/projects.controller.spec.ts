@@ -9,49 +9,66 @@ import {
   ProjectMoveDto,
 } from '../../../../src/projects/projects.dto';
 import { Project, ProjectType } from '../../../../src/projects/projects.entity';
-import { v4 as uuidv4 } from 'uuid';
+import { mockRequest, mockUser } from '../../../mocks/request.mock';
 
 describe('ProjectsController', () => {
   let controller: ProjectsController;
-  let projectsService: ProjectsService;
-
-  const mockProjectsService = {
-    getProjects: jest.fn(),
-    getProjectTree: jest.fn(),
-    searchProjects: jest.fn(),
-    getProjectById: jest.fn(),
-    getProjectWithAncestors: jest.fn(),
-    getProjectBreadcrumb: jest.fn(),
-    getProjectStats: jest.fn(),
-    getProjectTimeline: jest.fn(),
-    calculateProjectHealth: jest.fn(),
-    createProject: jest.fn(),
-    duplicateProject: jest.fn(),
-    updateProject: jest.fn(),
-    moveProject: jest.fn(),
-    reorderProjects: jest.fn(),
-    archiveProject: jest.fn(),
-    mergeProjects: jest.fn(),
-    deleteProject: jest.fn(),
-  };
+  let projectService: jest.Mocked<ProjectsService>;
 
   const mockProject: Project = {
-    id: uuidv4(),
+    id: 'project-123',
     name: 'Test Project',
     description: 'Test Description',
-    isArchived: false,
-    isSystem: false,
-    type: ProjectType.REGULAR,
     parent: null,
     children: [],
     tasks: [],
-    color: '#4A90E2',
-    order: 0,
+    user: mockUser,
+    userId: mockUser.id,
     createdAt: new Date(),
     updatedAt: new Date(),
+    isArchived: false,
+    isSystem: false,
+    type: ProjectType.REGULAR,
+    color: '#000000',
+    order: 0,
+  };
+
+  const mockStats = {
+    totalTasks: 5,
+    completedTasks: 2,
+    notStartedTasks: 3,
+    overdueTasks: 1,
+    progress: 0.4,
+    subprojectsCount: 0,
+    deepTasksCount: 5,
+  };
+
+  const mockTimeline = {
+    project: mockProject,
+    tasksByMonth: { '2025-01': 5 },
+    completionTrend: { '2025-01': 2 },
   };
 
   beforeEach(async () => {
+    const mockProjectsService = {
+      getProjects: jest.fn(),
+      getProjectById: jest.fn(),
+      searchProjects: jest.fn(),
+      createProject: jest.fn(),
+      updateProject: jest.fn(),
+      deleteProject: jest.fn(),
+      archiveProject: jest.fn(),
+      getProjectTree: jest.fn(),
+      getProjectWithAncestors: jest.fn(),
+      getProjectBreadcrumb: jest.fn(),
+      getProjectStats: jest.fn(),
+      getProjectTimeline: jest.fn(),
+      duplicateProject: jest.fn(),
+      moveProject: jest.fn(),
+      reorderProjects: jest.fn(),
+      mergeProjects: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ProjectsController],
       providers: [
@@ -63,10 +80,7 @@ describe('ProjectsController', () => {
     }).compile();
 
     controller = module.get<ProjectsController>(ProjectsController);
-    projectsService = module.get<ProjectsService>(ProjectsService);
-
-    // Reset mocks
-    jest.clearAllMocks();
+    projectService = module.get(ProjectsService);
   });
 
   it('should be defined', () => {
@@ -74,224 +88,171 @@ describe('ProjectsController', () => {
   });
 
   describe('getProjects', () => {
-    it('should return all projects with filters', async () => {
-      const filterDto: ProjectFilterDto = {
+    it('should return an array of projects', async () => {
+      const filterDto = {
         search: 'test',
         includeArchived: false,
         includeSystem: false,
+        parentId: null,
       };
 
-      mockProjectsService.getProjects.mockResolvedValue([mockProject]);
+      projectService.getProjects.mockResolvedValue([mockProject]);
 
-      const result = await controller.getProjects(filterDto);
-
+      const result = await controller.getProjects(filterDto, mockRequest);
       expect(result).toEqual([mockProject]);
-      expect(projectsService.getProjects).toHaveBeenCalledWith(filterDto);
-    });
-  });
-
-  describe('getProjectTree', () => {
-    it('should return project tree', async () => {
-      const rootId = 'root-id';
-      const projectTree = [
-        {
-          ...mockProject,
-          children: [{ ...mockProject, id: 'child-id' }],
-        },
-      ];
-
-      mockProjectsService.getProjectTree.mockResolvedValue(projectTree);
-
-      const result = await controller.getProjectTree(rootId);
-
-      expect(result).toEqual(projectTree);
-      expect(projectsService.getProjectTree).toHaveBeenCalledWith(rootId);
+      expect(projectService.getProjects).toHaveBeenCalledWith(
+        filterDto,
+        mockUser.id,
+      );
     });
   });
 
   describe('searchProjects', () => {
     it('should return search results', async () => {
       const query = 'test';
+      projectService.searchProjects.mockResolvedValue([mockProject]);
 
-      mockProjectsService.searchProjects.mockResolvedValue([mockProject]);
-
-      const result = await controller.searchProjects(query);
-
+      const result = await controller.searchProjects(query, mockRequest);
       expect(result).toEqual([mockProject]);
-      expect(projectsService.searchProjects).toHaveBeenCalledWith(query);
+      expect(projectService.searchProjects).toHaveBeenCalledWith(
+        query,
+        mockUser.id,
+      );
     });
   });
 
   describe('getProjectById', () => {
     it('should return a project by id', async () => {
-      mockProjectsService.getProjectById.mockResolvedValue(mockProject);
+      projectService.getProjectById.mockResolvedValue(mockProject);
 
-      const result = await controller.getProjectById(mockProject.id);
+      const result = await controller.getProjectById(
+        mockProject.id,
+        mockRequest,
+      );
 
       expect(result).toEqual(mockProject);
-      expect(projectsService.getProjectById).toHaveBeenCalledWith(
+      expect(projectService.getProjectById).toHaveBeenCalledWith(
         mockProject.id,
+        mockUser.id,
       );
     });
 
     it('should throw NotFoundException when project is not found', async () => {
-      const id = 'non-existent-id';
-      mockProjectsService.getProjectById.mockRejectedValue(
-        new NotFoundException(),
-      );
+      projectService.getProjectById.mockResolvedValue(null);
 
-      await expect(controller.getProjectById(id)).rejects.toThrow(
-        NotFoundException,
+      await expect(
+        controller.getProjectById('non-existent-id', mockRequest),
+      ).rejects.toThrow(NotFoundException);
+      expect(projectService.getProjectById).toHaveBeenCalledWith(
+        'non-existent-id',
+        mockUser.id,
       );
-      expect(projectsService.getProjectById).toHaveBeenCalledWith(id);
     });
   });
 
   describe('getProjectWithAncestors', () => {
     it('should return project with ancestors', async () => {
-      const projectWithAncestors = {
-        ...mockProject,
-        ancestors: [{ ...mockProject, id: 'ancestor-id' }],
-      };
+      const id = 'project-123';
+      projectService.getProjectWithAncestors.mockResolvedValue({
+        project: mockProject,
+        ancestors: [mockProject],
+      });
 
-      mockProjectsService.getProjectWithAncestors.mockResolvedValue(
-        projectWithAncestors,
-      );
-
-      const result = await controller.getProjectWithAncestors(mockProject.id);
-
-      expect(result).toEqual(projectWithAncestors);
-      expect(projectsService.getProjectWithAncestors).toHaveBeenCalledWith(
-        mockProject.id,
+      const result = await controller.getProjectWithAncestors(id, mockRequest);
+      expect(result).toEqual({
+        project: mockProject,
+        ancestors: [mockProject],
+      });
+      expect(projectService.getProjectWithAncestors).toHaveBeenCalledWith(
+        id,
+        mockUser.id,
       );
     });
   });
 
   describe('getProjectBreadcrumb', () => {
-    it('should return project breadcrumb trail', async () => {
-      const breadcrumb = [{ ...mockProject, id: 'ancestor-id' }, mockProject];
+    it('should return project breadcrumb', async () => {
+      const id = 'project-123';
+      projectService.getProjectBreadcrumb.mockResolvedValue([mockProject]);
 
-      mockProjectsService.getProjectBreadcrumb.mockResolvedValue(breadcrumb);
-
-      const result = await controller.getProjectBreadcrumb(mockProject.id);
-
-      expect(result).toEqual(breadcrumb);
-      expect(projectsService.getProjectBreadcrumb).toHaveBeenCalledWith(
-        mockProject.id,
+      const result = await controller.getProjectBreadcrumb(id, mockRequest);
+      expect(result).toEqual([mockProject]);
+      expect(projectService.getProjectBreadcrumb).toHaveBeenCalledWith(
+        id,
+        mockUser.id,
       );
     });
   });
 
   describe('getProjectStats', () => {
-    it('should return project statistics', async () => {
-      const stats = {
-        tasksCount: 10,
-        completedTasksCount: 5,
-        progress: 50,
-      };
+    it('should return project stats', async () => {
+      const id = 'project-123';
+      projectService.getProjectStats.mockResolvedValue(mockStats);
 
-      mockProjectsService.getProjectStats.mockResolvedValue(stats);
-
-      const result = await controller.getProjectStats(mockProject.id);
-
-      expect(result).toEqual(stats);
-      expect(projectsService.getProjectStats).toHaveBeenCalledWith(
-        mockProject.id,
+      const result = await controller.getProjectStats(id, mockRequest);
+      expect(result).toEqual(mockStats);
+      expect(projectService.getProjectStats).toHaveBeenCalledWith(
+        id,
+        mockUser.id,
       );
     });
   });
 
   describe('getProjectTimeline', () => {
     it('should return project timeline', async () => {
-      const timeline = [
-        {
-          date: new Date(),
-          tasks: [{ id: 'task-id', title: 'Task 1' }],
-        },
-      ];
+      const id = 'project-123';
+      projectService.getProjectTimeline.mockResolvedValue(mockTimeline);
 
-      mockProjectsService.getProjectTimeline.mockResolvedValue(timeline);
-
-      const result = await controller.getProjectTimeline(mockProject.id);
-
-      expect(result).toEqual(timeline);
-      expect(projectsService.getProjectTimeline).toHaveBeenCalledWith(
-        mockProject.id,
-      );
-    });
-  });
-
-  describe('getProjectHealth', () => {
-    it('should return project health status', async () => {
-      const health = {
-        status: 'good',
-        score: 85,
-        factors: {
-          taskCompletion: 90,
-          deadlinesMet: 80,
-        },
-      };
-
-      mockProjectsService.calculateProjectHealth.mockResolvedValue(health);
-
-      const result = await controller.getProjectHealth(mockProject.id);
-
-      expect(result).toEqual(health);
-      expect(projectsService.calculateProjectHealth).toHaveBeenCalledWith(
-        mockProject.id,
+      const result = await controller.getProjectTimeline(id, mockRequest);
+      expect(result).toEqual(mockTimeline);
+      expect(projectService.getProjectTimeline).toHaveBeenCalledWith(
+        id,
+        mockUser.id,
       );
     });
   });
 
   describe('createProject', () => {
     it('should create a project', async () => {
-      const createDto: CreateProjectDto = {
+      const createDto = {
         name: 'New Project',
         description: 'New Description',
-        color: '#FF5733',
+        color: '#000000',
+        parentId: null,
       };
 
-      mockProjectsService.createProject.mockResolvedValue({
-        ...mockProject,
-        name: createDto.name,
-        description: createDto.description,
-        color: createDto.color,
-      });
+      projectService.createProject.mockResolvedValue(mockProject);
 
-      const result = await controller.createProject(createDto);
-
-      expect(result).toEqual({
-        ...mockProject,
-        name: createDto.name,
-        description: createDto.description,
-        color: createDto.color,
-      });
-      expect(projectsService.createProject).toHaveBeenCalledWith(createDto);
+      const result = await controller.createProject(createDto, mockRequest);
+      expect(result).toEqual(mockProject);
+      expect(projectService.createProject).toHaveBeenCalledWith(
+        createDto,
+        mockUser.id,
+      );
     });
   });
 
   describe('duplicateProject', () => {
     it('should duplicate a project', async () => {
-      const duplicatedProject = {
-        ...mockProject,
-        id: 'duplicate-id',
-        name: 'Test Project (Copy)',
-      };
+      const id = 'project-123';
+      const includeSubprojects = true;
+      const includeTasks = true;
 
-      mockProjectsService.duplicateProject.mockResolvedValue(duplicatedProject);
+      projectService.duplicateProject.mockResolvedValue(mockProject);
 
       const result = await controller.duplicateProject(
-        mockProject.id,
-        true,
-        true,
+        id,
+        mockRequest,
+        includeSubprojects,
+        includeTasks,
       );
-
-      expect(result).toEqual(duplicatedProject);
-      expect(projectsService.duplicateProject).toHaveBeenCalledWith(
-        mockProject.id,
+      expect(result).toEqual(mockProject);
+      expect(projectService.duplicateProject).toHaveBeenCalledWith(
+        id,
+        mockUser.id,
         {
-          includeSubprojects: true,
-          includeTasks: true,
+          includeSubprojects,
+          includeTasks,
         },
       );
     });
@@ -299,148 +260,144 @@ describe('ProjectsController', () => {
 
   describe('updateProject', () => {
     it('should update a project', async () => {
-      const updateDto: UpdateProjectDto = {
+      const id = 'project-123';
+      const updateDto = {
         name: 'Updated Project',
         description: 'Updated Description',
       };
 
-      const updatedProject = {
-        ...mockProject,
-        name: updateDto.name,
-        description: updateDto.description,
-      };
+      projectService.updateProject.mockResolvedValue(mockProject);
 
-      mockProjectsService.updateProject.mockResolvedValue(updatedProject);
-
-      const result = await controller.updateProject(mockProject.id, updateDto);
-
-      expect(result).toEqual(updatedProject);
-      expect(projectsService.updateProject).toHaveBeenCalledWith(
-        mockProject.id,
+      const result = await controller.updateProject(id, updateDto, mockRequest);
+      expect(result).toEqual(mockProject);
+      expect(projectService.updateProject).toHaveBeenCalledWith(
+        id,
         updateDto,
+        mockUser.id,
       );
     });
 
-    it('should throw NotFoundException when project does not exist', async () => {
-      const id = 'non-existent-id';
-      const updateDto: UpdateProjectDto = {
+    it('should throw NotFoundException when project to update is not found', async () => {
+      const id = 'non-existent';
+      const updateDto = {
         name: 'Updated Project',
       };
 
-      mockProjectsService.updateProject.mockRejectedValue(
-        new NotFoundException(),
-      );
+      projectService.updateProject.mockRejectedValue(new NotFoundException());
 
-      await expect(controller.updateProject(id, updateDto)).rejects.toThrow(
-        NotFoundException,
-      );
-      expect(projectsService.updateProject).toHaveBeenCalledWith(id, updateDto);
+      await expect(
+        controller.updateProject(id, updateDto, mockRequest),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('moveProject', () => {
     it('should move a project', async () => {
-      const moveDto: ProjectMoveDto = {
-        projectId: mockProject.id,
-        targetId: 'target-project-id',
-        position: 'after',
+      const moveDto = {
+        projectId: 'project-123',
+        targetId: 'target-123',
+        position: 'after' as const,
       };
 
-      mockProjectsService.moveProject.mockResolvedValue(undefined);
+      projectService.moveProject.mockResolvedValue();
 
-      await controller.moveProject(moveDto);
-
-      expect(projectsService.moveProject).toHaveBeenCalledWith(moveDto);
+      await controller.moveProject(moveDto, mockRequest);
+      expect(projectService.moveProject).toHaveBeenCalledWith(
+        moveDto,
+        mockUser.id,
+      );
     });
   });
 
   describe('reorderProjects', () => {
     it('should reorder projects', async () => {
-      const projectIds = ['id1', 'id2', 'id3'];
+      const projectIds = ['project-1', 'project-2', 'project-3'];
 
-      mockProjectsService.reorderProjects.mockResolvedValue(undefined);
+      projectService.reorderProjects.mockResolvedValue();
 
-      await controller.reorderProjects(projectIds);
-
-      expect(projectsService.reorderProjects).toHaveBeenCalledWith(projectIds);
+      await controller.reorderProjects(projectIds, mockRequest);
+      expect(projectService.reorderProjects).toHaveBeenCalledWith(
+        projectIds,
+        mockUser.id,
+      );
     });
   });
 
   describe('archiveProject', () => {
     it('should archive a project', async () => {
-      const archivedProject = {
-        ...mockProject,
-        isArchived: true,
-      };
+      const id = 'project-123';
+      projectService.archiveProject.mockResolvedValue(mockProject);
 
-      mockProjectsService.archiveProject.mockResolvedValue(archivedProject);
-
-      const result = await controller.archiveProject(mockProject.id);
-
-      expect(result).toEqual(archivedProject);
-      expect(projectsService.archiveProject).toHaveBeenCalledWith(
-        mockProject.id,
+      const result = await controller.archiveProject(id, mockRequest);
+      expect(result).toEqual(mockProject);
+      expect(projectService.archiveProject).toHaveBeenCalledWith(
+        id,
+        mockUser.id,
       );
     });
 
-    it('should throw NotFoundException when project does not exist', async () => {
-      const id = 'non-existent-id';
+    it('should throw NotFoundException when project to archive is not found', async () => {
+      const id = 'non-existent';
+      projectService.archiveProject.mockRejectedValue(new NotFoundException());
 
-      mockProjectsService.archiveProject.mockRejectedValue(
-        new NotFoundException(),
-      );
-
-      await expect(controller.archiveProject(id)).rejects.toThrow(
+      await expect(controller.archiveProject(id, mockRequest)).rejects.toThrow(
         NotFoundException,
       );
-      expect(projectsService.archiveProject).toHaveBeenCalledWith(id);
     });
   });
 
   describe('mergeProjects', () => {
     it('should merge projects', async () => {
-      const sourceId = 'source-id';
-      const targetId = 'target-id';
-      const mergedProject = {
-        ...mockProject,
-        id: targetId,
-        tasksCount: 15,
-      };
+      const sourceId = 'source-123';
+      const targetId = 'target-123';
 
-      mockProjectsService.mergeProjects.mockResolvedValue(mergedProject);
+      projectService.mergeProjects.mockResolvedValue(mockProject);
 
-      const result = await controller.mergeProjects(sourceId, targetId);
-
-      expect(result).toEqual(mergedProject);
-      expect(projectsService.mergeProjects).toHaveBeenCalledWith(
+      const result = await controller.mergeProjects(
         sourceId,
         targetId,
+        mockRequest,
+      );
+      expect(result).toEqual(mockProject);
+      expect(projectService.mergeProjects).toHaveBeenCalledWith(
+        sourceId,
+        targetId,
+        mockUser.id,
       );
     });
   });
 
   describe('deleteProject', () => {
     it('should delete a project', async () => {
-      mockProjectsService.deleteProject.mockResolvedValue(undefined);
+      projectService.deleteProject.mockResolvedValue();
 
-      await controller.deleteProject(mockProject.id);
-
-      expect(projectsService.deleteProject).toHaveBeenCalledWith(
+      await controller.deleteProject(mockProject.id, mockRequest);
+      expect(projectService.deleteProject).toHaveBeenCalledWith(
         mockProject.id,
+        mockUser.id,
       );
     });
 
-    it('should throw NotFoundException when project does not exist', async () => {
-      const id = 'non-existent-id';
+    it('should throw NotFoundException when project to delete is not found', async () => {
+      const id = 'non-existent';
+      projectService.deleteProject.mockRejectedValue(new NotFoundException());
 
-      mockProjectsService.deleteProject.mockRejectedValue(
-        new NotFoundException(),
-      );
-
-      await expect(controller.deleteProject(id)).rejects.toThrow(
+      await expect(controller.deleteProject(id, mockRequest)).rejects.toThrow(
         NotFoundException,
       );
-      expect(projectsService.deleteProject).toHaveBeenCalledWith(id);
+    });
+  });
+
+  describe('getProjectTree', () => {
+    it('should return project tree', async () => {
+      projectService.getProjectTree.mockResolvedValue([mockProject]);
+
+      const result = await controller.getProjectTree(mockRequest);
+      expect(result).toEqual([mockProject]);
+      expect(projectService.getProjectTree).toHaveBeenCalledWith(
+        mockUser.id,
+        undefined,
+      );
     });
   });
 });

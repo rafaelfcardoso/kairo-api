@@ -12,6 +12,9 @@ async function bootstrap() {
     logger: ['error', 'warn', 'log', 'debug', 'verbose'],
   });
 
+  // Enable shutdown hooks for graceful termination
+  app.enableShutdownHooks();
+
   // Set global prefix for API versioning
   app.setGlobalPrefix('api/v1', {
     exclude: ['/health', '/system-health', '/api'], // Exclude health check and Swagger endpoints

@@ -55,7 +55,7 @@ export class TaskController {
   constructor(private taskService: TaskService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get all tasks' })
+  @ApiOperation({ summary: 'Get all tasks for the authenticated user' })
   @ApiQuery({
     name: 'status',
     required: false,
@@ -111,12 +111,14 @@ export class TaskController {
       }),
     )
     filterDto: TaskFilterDto,
+    @Req() request: Request,
   ): Promise<Task[]> {
-    return this.taskService.getTasks(filterDto);
+    const userId = (request.user as User).id;
+    return this.taskService.getTasks(filterDto, userId);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get a task by ID' })
+  @ApiOperation({ summary: 'Get a specific task by ID (owned by user)' })
   @ApiParam({ name: 'id', description: 'Task ID' })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -127,8 +129,12 @@ export class TaskController {
     status: HttpStatus.NOT_FOUND,
     description: 'Task not found',
   })
-  async getTaskById(@Param('id', ParseUUIDPipe) id: string): Promise<Task> {
-    return this.taskService.getTaskById(id);
+  async getTaskById(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: Request,
+  ): Promise<Task> {
+    const userId = (request.user as User).id;
+    return this.taskService.getTaskById(id, userId);
   }
 
   @Post()
@@ -182,7 +188,8 @@ export class TaskController {
     updateTaskDto: UpdateTaskDto,
     @Req() request: Request,
   ): Promise<Task> {
-    return this.taskService.updateTask(id, updateTaskDto, request.ip);
+    const userId = (request.user as User).id;
+    return this.taskService.updateTask(id, updateTaskDto, userId);
   }
 
   @Delete(':id')
@@ -193,8 +200,12 @@ export class TaskController {
     status: HttpStatus.NO_CONTENT,
     description: 'Task deleted successfully',
   })
-  async deleteTask(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
-    await this.taskService.deleteTask(id);
+  async deleteTask(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: Request,
+  ): Promise<void> {
+    const userId = (request.user as User).id;
+    await this.taskService.deleteTask(id, userId);
   }
 
   @Put(':id/archive')
@@ -205,8 +216,12 @@ export class TaskController {
     description: 'Task archived successfully',
     type: Task,
   })
-  async archiveTask(@Param('id', ParseUUIDPipe) id: string): Promise<Task> {
-    return this.taskService.archiveTask(id);
+  async archiveTask(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: Request,
+  ): Promise<Task> {
+    const userId = (request.user as User).id;
+    return this.taskService.archiveTask(id, userId);
   }
 
   @Post(':id/tags')
@@ -220,8 +235,10 @@ export class TaskController {
   async addTags(
     @Param('id', ParseUUIDPipe) id: string,
     @Body('tagIds', ParseUUIDArrayPipe) tagIds: string[],
+    @Req() request: Request,
   ): Promise<Task> {
-    return this.taskService.addTags(id, tagIds);
+    const userId = (request.user as User).id;
+    return this.taskService.addTags(id, tagIds, userId);
   }
 
   @Delete(':id/tags')
@@ -235,34 +252,38 @@ export class TaskController {
   async removeTags(
     @Param('id', ParseUUIDPipe) id: string,
     @Body('tagIds', ParseUUIDArrayPipe) tagIds: string[],
+    @Req() request: Request,
   ): Promise<Task> {
-    return this.taskService.removeTags(id, tagIds);
+    const userId = (request.user as User).id;
+    return this.taskService.removeTags(id, tagIds, userId);
   }
 
   @Get('views/today')
-  @ApiOperation({ summary: "Get today's tasks" })
+  @ApiOperation({ summary: "Get today's tasks for the user" })
   @ApiResponse({
     status: HttpStatus.OK,
     description: "Retrieved today's tasks successfully",
     type: [Task],
   })
-  async getTodayTasks(): Promise<Task[]> {
-    return this.taskService.getTodayTasks();
+  async getTodayTasks(@Req() request: Request): Promise<Task[]> {
+    const userId = (request.user as User).id;
+    return this.taskService.getTodayTasks(userId);
   }
 
   @Get('views/overdue')
-  @ApiOperation({ summary: 'Get overdue tasks' })
+  @ApiOperation({ summary: 'Get overdue tasks for the user' })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Retrieved overdue tasks successfully',
     type: [Task],
   })
-  async getOverdueTasks(): Promise<Task[]> {
-    return this.taskService.getOverdueTasks();
+  async getOverdueTasks(@Req() request: Request): Promise<Task[]> {
+    const userId = (request.user as User).id;
+    return this.taskService.getOverdueTasks(userId);
   }
 
   @Get('views/upcoming')
-  @ApiOperation({ summary: 'Get upcoming tasks' })
+  @ApiOperation({ summary: 'Get upcoming tasks for the user' })
   @ApiQuery({
     name: 'days',
     type: 'number',
@@ -274,36 +295,35 @@ export class TaskController {
     description: 'Retrieved upcoming tasks successfully',
     type: [Task],
   })
-  async getUpcomingTasks(@Query('days') days: number): Promise<Task[]> {
-    return this.taskService.getUpcomingTasks(days);
+  async getUpcomingTasks(
+    @Query('days') days: number,
+    @Req() request: Request,
+  ): Promise<Task[]> {
+    const userId = (request.user as User).id;
+    return this.taskService.getUpcomingTasks(days, userId);
   }
 
   @Get('stats/overview')
-  @ApiOperation({ summary: 'Get task statistics' })
+  @ApiOperation({ summary: 'Get task statistics for the user' })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Retrieved task statistics successfully',
   })
-  async getTaskStats() {
-    return this.taskService.getTaskStats();
+  async getTaskStats(@Req() request: Request) {
+    const userId = (request.user as User).id;
+    return this.taskService.getTaskStats(userId);
   }
 
   @Get('by-priority')
-  @ApiOperation({ summary: 'Get tasks grouped by priority' })
+  @ApiOperation({ summary: 'Get user tasks grouped by priority' })
   @ApiResponse({
     status: 200,
     description: 'Tasks grouped by priority',
     type: Object,
   })
-  async getTasksByPriority() {
-    const tasksByPriority = await this.taskService.getTasksByPriority();
-    const taskCountByPriority: Record<TaskPriority, number> = {
-      [TaskPriority.NONE]: tasksByPriority[TaskPriority.NONE]?.length || 0,
-      [TaskPriority.LOW]: tasksByPriority[TaskPriority.LOW]?.length || 0,
-      [TaskPriority.MEDIUM]: tasksByPriority[TaskPriority.MEDIUM]?.length || 0,
-      [TaskPriority.HIGH]: tasksByPriority[TaskPriority.HIGH]?.length || 0,
-    };
-    return taskCountByPriority;
+  async getTasksByPriority(@Req() request: Request) {
+    const userId = (request.user as User).id;
+    return this.taskService.getTasksByPriority(userId);
   }
 
   @Post('complete-overdue')
@@ -367,18 +387,6 @@ export class TaskController {
     };
   }
 
-  @Post(':id/duplicate')
-  @ApiOperation({ summary: 'Duplicate a task' })
-  @ApiParam({ name: 'id', type: 'string', description: 'Task ID to duplicate' })
-  @ApiResponse({
-    status: HttpStatus.CREATED,
-    description: 'Task duplicated successfully',
-    type: Task,
-  })
-  async duplicateTask(@Param('id', ParseUUIDPipe) id: string): Promise<Task> {
-    return this.taskService.duplicateTask(id);
-  }
-
   @Post('assign-orphaned')
   @ApiOperation({ summary: 'Assign orphaned tasks to inbox' })
   @ApiResponse({
@@ -391,78 +399,16 @@ export class TaskController {
   }
 
   @Get('recurring')
-  @ApiOperation({ summary: 'Get recurring tasks' })
+  @ApiOperation({ summary: 'Get recurring tasks for the user' })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Retrieved recurring tasks successfully',
     type: [Task],
   })
-  async getRecurringTasks(): Promise<Task[]> {
+  async getRecurringTasks(@Req() request: Request): Promise<Task[]> {
+    const userId = (request.user as User).id;
     const filterDto = new TaskFilterDto();
     filterDto.isRecurring = true;
-    return this.taskService.getTasks(filterDto);
-  }
-}
-
-@ApiTags('Development')
-@Controller('dev-ops')
-export class DevOpsController {
-  private readonly logger = new Logger(DevOpsController.name);
-
-  constructor(private taskService: TaskService) {}
-
-  @Delete('purge-all-tasks')
-  @ApiOperation({
-    summary: 'Delete all tasks (Development Only)',
-    description:
-      'WARNING: This endpoint deletes ALL tasks and is only available in development or local environment',
-  })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'All tasks deleted successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        success: { type: 'boolean', example: true },
-        tasksDeleted: { type: 'number', example: 42 },
-        message: { type: 'string', example: 'Deleted 42 tasks' },
-      },
-    },
-  })
-  @ApiResponse({
-    status: HttpStatus.FORBIDDEN,
-    description: 'Operation not allowed in production environment',
-  })
-  async purgeAllTasks(
-    @Req() request: Request,
-  ): Promise<{ success: boolean; tasksDeleted: number; message: string }> {
-    this.logger.log(
-      `Received purge-all request with headers: ${JSON.stringify(request.headers)}`,
-    );
-    this.logger.log(`Request URL: ${request.url}`);
-    this.logger.log(`Request method: ${request.method}`);
-
-    // Check if we're in development or local environment
-    const allowedEnvironments = ['development', 'local'];
-    if (!allowedEnvironments.includes(process.env.NODE_ENV)) {
-      this.logger.warn(
-        `Attempted to purge all tasks in ${process.env.NODE_ENV} environment`,
-      );
-      throw new HttpException(
-        'This operation is only available in development or local environment',
-        HttpStatus.FORBIDDEN,
-      );
-    }
-
-    this.logger.warn(
-      `Purging all tasks in ${process.env.NODE_ENV} environment`,
-    );
-    const deletedCount = await this.taskService.purgeAllTasks();
-
-    return {
-      success: true,
-      tasksDeleted: deletedCount,
-      message: `Deleted ${deletedCount} tasks`,
-    };
+    return this.taskService.getTasks(filterDto, userId);
   }
 }
