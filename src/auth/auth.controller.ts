@@ -29,6 +29,7 @@ import {
 } from '@nestjs/swagger';
 import { IsString, IsNotEmpty } from 'class-validator';
 import { User } from '../entities/user.entity';
+import { ConfigService } from '@nestjs/config';
 
 export class TokenResponseDto {
   @ApiProperty({
@@ -62,7 +63,10 @@ export class GenerateApiTokenDto {
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @Post('register')
   @ApiOperation({ summary: 'Register a new user' })
@@ -149,10 +153,21 @@ export class AuthController {
     status: 302,
     description: 'Redirects to Apple for authentication',
   })
+  @ApiResponse({
+    status: 501,
+    description: 'Apple authentication not configured',
+  })
   @UseGuards(AppleAuthGuard)
-  async appleAuth() {
-    // This is handled by AppleAuthGuard, which initiates the Apple auth flow
-    // The function body is not executed
+  async appleAuth(@Req() req, @Res() res) {
+    // Check if Apple authentication is properly configured
+    const clientID = this.configService.get<string>('apple.clientID');
+    if (!clientID) {
+      return res.status(HttpStatus.NOT_IMPLEMENTED).json({
+        statusCode: HttpStatus.NOT_IMPLEMENTED,
+        message: 'Apple authentication is not configured',
+      });
+    }
+    // The rest is handled by AppleAuthGuard
   }
 
   // Apple Login Callback - Handle the callback from Apple
@@ -160,14 +175,30 @@ export class AuthController {
   @ApiOperation({ summary: 'Handle Apple authentication callback' })
   @ApiResponse({ status: 200, description: 'Apple authentication successful' })
   @ApiResponse({ status: 401, description: 'Apple authentication failed' })
+  @ApiResponse({
+    status: 501,
+    description: 'Apple authentication not configured',
+  })
   @UseGuards(AppleAuthGuard)
   async appleAuthCallback(@Req() req, @Res() res) {
+    // Check if Apple authentication is properly configured
+    const clientID = this.configService.get<string>('apple.clientID');
+    if (!clientID) {
+      return res.status(HttpStatus.NOT_IMPLEMENTED).json({
+        statusCode: HttpStatus.NOT_IMPLEMENTED,
+        message: 'Apple authentication is not configured',
+      });
+    }
+
     // After successful Apple authentication, generate a JWT token
     const token = await this.authService.login(req.user);
 
-    // Redirect to frontend with token (adjust URL as needed)
+    // Get frontend URL from config
+    const frontendUrl = this.configService.get<string>('frontend.url');
+
+    // Redirect to frontend with token
     return res.redirect(
-      `${process.env.FRONTEND_URL}/auth/callback?token=${token.access_token}`,
+      `${frontendUrl}/auth/callback?token=${token.access_token}`,
     );
   }
 }

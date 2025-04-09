@@ -48,6 +48,37 @@ APPLE_CALLBACK_URL=https://yourapp.com/auth/apple/callback
 FRONTEND_URL=https://yourapp.com
 ```
 
+### 5. Railway Deployment Configuration
+
+For Railway deployment, the preferred approach is to use Base64 encoding for the private key:
+
+#### Setup Instructions for Base64 Encoded Key
+
+1. Convert your private key file to a Base64 string:
+
+   ```bash
+   cat AuthKey_KEYID.p8 | base64
+   ```
+
+2. Add these environment variables to your Railway project:
+
+   ```
+   APPLE_CLIENT_ID=your.services.id
+   APPLE_TEAM_ID=your_team_id
+   APPLE_KEY_ID=your_key_id
+   APPLE_PRIVATE_KEY_BASE64=<your-base64-encoded-key>
+   APPLE_CALLBACK_URL=https://your-railway-app.up.railway.app/auth/apple/callback
+   FRONTEND_URL=https://your-frontend-url.com
+   ```
+
+3. The application will automatically:
+   - Detect the Base64-encoded key
+   - Decode it
+   - Store it as a temporary file for the Apple authentication library
+   - Clean up after process termination
+
+> **Note**: The Base64 method is preferred for Railway and other cloud deployments as it doesn't require file system persistence between deployments.
+
 ## Usage
 
 ### Backend Endpoints
@@ -95,6 +126,8 @@ AppleID.auth.init({
 - **Invalid Key**: Ensure the private key file is accessible and has the correct permissions
 - **Authentication Failed**: Verify that your Services ID, callback URL, and domain settings match
 - **Missing User Info**: Apple only sends user information on the first login, handle this case appropriately
+- **OAuth2Strategy requires a clientID option**: This error occurs when the required Apple authentication environment variables are not set. Check your environment configuration.
+- **Invalid Private Key**: If you get key validation errors, verify that your Base64-encoded key does not have any extra whitespace or line breaks
 
 ## Additional Resources
 
