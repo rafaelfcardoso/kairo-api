@@ -36,6 +36,9 @@ import { AddIsSystemToTag1712592000000 } from '../migrations/1712592000000-AddIs
 import { AddUserEntityAndRelations1744054661856 } from '../migrations/1744054661856-AddUserEntityAndRelations';
 import { AssignExistingDataToDefaultUser1744054769246 } from '../migrations/1744054769246-AssignExistingDataToDefaultUser';
 import { MakeUserIdNonNullable1744054883888 } from '../migrations/1744054883888-MakeUserIdNonNullable';
+import { RemoveIsSystemFromTag1744198367443 } from '../migrations/1744198367443-RemoveIsSystemFromTag';
+import { AddIsArchivedToTag1744198558505 } from '../migrations/1744198558505-AddIsArchivedToTag';
+import { FixMigrationIssues1744204141138 } from '../migrations/1744204141138-FixMigrationIssues';
 
 // Import the actual entities
 import { Task } from '../tasks/tasks.entity';
@@ -104,6 +107,9 @@ export const databaseProviders = [
           AddUserEntityAndRelations1744054661856,
           AssignExistingDataToDefaultUser1744054769246,
           MakeUserIdNonNullable1744054883888,
+          RemoveIsSystemFromTag1744198367443,
+          AddIsArchivedToTag1744198558505,
+          FixMigrationIssues1744204141138,
         ],
         synchronize: false,
         logging: configService.get<string>('NODE_ENV') !== 'production',

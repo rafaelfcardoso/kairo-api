@@ -8,6 +8,7 @@ import { FocusSession } from '../focus-sessions/focus-sessions.entity';
 import { BlockRule } from '../entities/block-rule.entity';
 import { SystemHealth } from '../entities/system-health.entity';
 import { ApiRequestLog, ApiMetrics } from '../entities/api-metrics.entity';
+import { User } from '../entities/user.entity';
 import { InitialSchema1705759726000 } from '../migrations/1705759726000-InitialSchema';
 import { FixProjectColors1738362321118 } from '../migrations/1738362321118-FixProjectColors';
 import { EnsureInboxProject1738362321119 } from '../migrations/1738362321119-EnsureInboxProject';
@@ -41,6 +42,9 @@ import { AddIsSystemToTag1712592000000 } from '../migrations/1712592000000-AddIs
 import { AddUserEntityAndRelations1744054661856 } from '../migrations/1744054661856-AddUserEntityAndRelations';
 import { AssignExistingDataToDefaultUser1744054769246 } from '../migrations/1744054769246-AssignExistingDataToDefaultUser';
 import { MakeUserIdNonNullable1744054883888 } from '../migrations/1744054883888-MakeUserIdNonNullable';
+import { RemoveIsSystemFromTag1744198367443 } from '../migrations/1744198367443-RemoveIsSystemFromTag';
+import { AddIsArchivedToTag1744198558505 } from '../migrations/1744198558505-AddIsArchivedToTag';
+import { FixMigrationIssues1744204141138 } from '../migrations/1744204141138-FixMigrationIssues';
 
 // Load environment variables from .env.test
 config({ path: path.resolve(process.cwd(), '.env.test') });
@@ -79,6 +83,9 @@ const migrations = [
   AddUserEntityAndRelations1744054661856,
   AssignExistingDataToDefaultUser1744054769246,
   MakeUserIdNonNullable1744054883888,
+  RemoveIsSystemFromTag1744198367443,
+  AddIsArchivedToTag1744198558505,
+  FixMigrationIssues1744204141138,
 ];
 
 // Define all entities in one place for better maintenance
@@ -91,6 +98,7 @@ const entities = [
   SystemHealth,
   ApiRequestLog,
   ApiMetrics,
+  User,
 ];
 
 async function runTestDbMigration() {
