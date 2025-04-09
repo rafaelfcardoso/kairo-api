@@ -4,5 +4,11 @@
     "types": ["jest", "node"],
     "allowJs": true
   },
-  "include": ["**/*.ts", "**/*.js", "../jest.config.js"]
+  "include": ["**/*.ts", "**/*.js"],
+  "exclude": [
+    "../node_modules",
+    "../dist",
+    "../**/*.spec.ts",
+    "../**/*.test.ts"
+  ]
 }

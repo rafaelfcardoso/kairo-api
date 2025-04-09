@@ -13,6 +13,7 @@ export default () => {
     RAILWAY_STATIC_URL: railwayUrl,
     JWT_SECRET: process.env.JWT_SECRET ? '[REDACTED]' : 'undefined',
     DB_SSL: process.env.DB_SSL,
+    APPLE_CLIENT_ID: process.env.APPLE_CLIENT_ID ? '[CONFIGURED]' : 'undefined',
   });
 
   // Validate required environment variables
@@ -45,6 +46,17 @@ export default () => {
       origin: process.env.CORS_ORIGIN || '*',
     },
 
+    // Apple Authentication
+    apple: {
+      clientID: process.env.APPLE_CLIENT_ID || '',
+      teamID: process.env.APPLE_TEAM_ID || '',
+      keyID: process.env.APPLE_KEY_ID || '',
+      privateKeyPath: process.env.APPLE_PRIVATE_KEY_PATH || '',
+      callbackURL:
+        process.env.APPLE_CALLBACK_URL ||
+        'http://localhost:3001/auth/apple/callback',
+    },
+
     // Logging
     logging: {
       level: process.env.LOG_LEVEL || 'info',
@@ -59,6 +71,7 @@ export default () => {
     jwtConfigured: !!baseConfig.jwt.secret,
     corsOrigin: baseConfig.cors.origin,
     logLevel: baseConfig.logging.level,
+    appleAuthConfigured: !!baseConfig.apple.clientID,
   });
 
   // Check if SSL should be disabled via environment variable

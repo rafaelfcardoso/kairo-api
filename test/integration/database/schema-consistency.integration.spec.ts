@@ -1,44 +1,69 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ExecutionContext } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { getDataSourceToken } from '@nestjs/typeorm';
 import { AppModule } from '../../../src/app.module';
 import { DataSource } from 'typeorm';
 import { Task } from '../../../src/tasks/tasks.entity';
-import * as request from 'supertest';
-import { AuthGuard } from '@nestjs/passport';
-
-// Mock JWT auth guard to bypass authentication
-class MockAuthGuard {
-  canActivate(context: ExecutionContext) {
-    const req = context.switchToHttp().getRequest();
-    req.user = {
-      id: 'test-user-id',
-      username: 'test-user',
-      email: 'test@example.com',
-    };
-    return true;
-  }
-}
+import request from 'supertest';
+import { User } from '../../../src/entities/user.entity';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 
 describe('Database Schema Consistency', () => {
   let app: INestApplication;
   let dataSource: DataSource;
+  let userRepository: Repository<User>;
+  let authToken: string;
+  let testUserId: string;
+
+  // Test user credentials
+  const testUserEmail = `test-schema-${Date.now()}@e2e.com`;
+  const testUserPassword = 'TestPassword123!';
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    })
-      .overrideGuard(AuthGuard('jwt'))
-      .useClass(MockAuthGuard)
-      .compile();
+    }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.useGlobalPipes(new ValidationPipe());
     await app.init();
 
     dataSource = moduleFixture.get(getDataSourceToken());
+    userRepository = moduleFixture.get<Repository<User>>(
+      getRepositoryToken(User),
+    );
+
+    // Register test user
+    const registerResponse = await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({
+        email: testUserEmail,
+        password: testUserPassword,
+        name: 'Schema Test User',
+      })
+      .expect(201);
+
+    // Login to get token
+    const loginResponse = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: testUserEmail, password: testUserPassword })
+      .expect(200);
+
+    authToken = loginResponse.body.access_token;
+    testUserId = loginResponse.body.user.id;
+    expect(authToken).toBeDefined();
   });
 
   afterAll(async () => {
+    // Clean up test user
+    if (testUserId) {
+      try {
+        await userRepository.delete(testUserId);
+      } catch (error) {
+        console.error('Error deleting test user:', error);
+      }
+    }
     await app.close();
   });
 
@@ -91,6 +116,7 @@ describe('Database Schema Consistency', () => {
       // Create a task
       const createResponse = await request(app.getHttpServer())
         .post('/tasks')
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           title: 'Test completedAt column',
           description: 'Task to verify completedAt column',
@@ -103,6 +129,7 @@ describe('Database Schema Consistency', () => {
       // Complete the task
       const completeResponse = await request(app.getHttpServer())
         .put(`/tasks/${taskId}`)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           status: 'completed',
         })
@@ -127,6 +154,7 @@ describe('Database Schema Consistency', () => {
     it('should successfully retrieve tasks without 500 error', async () => {
       const response = await request(app.getHttpServer())
         .get('/tasks')
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
       expect(response.body).toBeDefined();

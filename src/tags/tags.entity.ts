@@ -45,12 +45,6 @@ export class Tag {
   @Column({ nullable: true })
   description: string;
 
-  @ApiPropertyOptional({ description: 'Is this a system tag?' })
-  @Column({ default: false })
-  @IsBoolean()
-  @IsOptional()
-  isSystem: boolean;
-
   @Column({ default: false })
   isArchived: boolean;
 
@@ -73,11 +67,11 @@ export class Tag {
   order: number;
 
   @ManyToOne(() => User, (user) => user.tags, {
-    nullable: false,
+    nullable: true,
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'userId' })
-  user: User;
+  user?: User;
 
   @Index()
   @Column({ type: 'uuid', nullable: false })

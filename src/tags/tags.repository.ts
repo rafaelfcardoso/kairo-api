@@ -13,7 +13,7 @@ export class TagsRepository {
 
   async getTags(userId: string): Promise<Tag[]> {
     return this.repository.find({
-      where: [{ userId: userId }, { isSystem: true }],
+      where: { userId: userId },
       relations: ['tasks'],
       order: { name: 'ASC' },
     });
@@ -66,9 +66,7 @@ export class TagsRepository {
       where: { id: In(ids) },
     });
 
-    const accessibleTags = potentialTags.filter(
-      (tag) => tag.userId === userId || tag.isSystem === true,
-    );
+    const accessibleTags = potentialTags.filter((tag) => tag.userId === userId);
 
     return accessibleTags;
   }
@@ -77,7 +75,7 @@ export class TagsRepository {
     userId: string,
   ): Promise<Array<{ tag: Tag; taskCount: number }>> {
     const tags = await this.repository.find({
-      where: [{ userId: userId }, { isSystem: true }],
+      where: { userId: userId },
       relations: ['tasks'],
     });
 
@@ -89,10 +87,7 @@ export class TagsRepository {
 
   async findSimilarTags(name: string, userId: string): Promise<Tag[]> {
     return this.repository.find({
-      where: [
-        { name: ILike(`%${name}%`), userId: userId },
-        { name: ILike(`%${name}%`), isSystem: true },
-      ],
+      where: { name: ILike(`%${name}%`), userId: userId },
       relations: ['tasks'],
     });
   }

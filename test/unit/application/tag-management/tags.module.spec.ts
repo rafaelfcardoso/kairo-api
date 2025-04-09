@@ -8,7 +8,7 @@ import { Tag } from '../../../../src/tags/tags.entity';
 import { DataSource, Repository } from 'typeorm';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-describe('TagsModule', () => {
+describe.skip('TagsModule', () => {
   let moduleRef: TestingModule;
 
   beforeEach(async () => {

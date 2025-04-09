@@ -8,10 +8,13 @@ import {
   HttpStatus,
   Get,
   UnauthorizedException,
+  Req,
+  Res,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { AppleAuthGuard } from './guards/apple-auth.guard';
 import { RegisterUserDto, LoginUserDto } from './dto/auth.dto';
 import {
   ApiTags,
@@ -137,5 +140,34 @@ export class AuthController {
       generateApiTokenDto.serviceName,
     );
     return { token };
+  }
+
+  // Apple Login - Start the Apple Auth flow
+  @Get('apple')
+  @ApiOperation({ summary: 'Authenticate with Apple' })
+  @ApiResponse({
+    status: 302,
+    description: 'Redirects to Apple for authentication',
+  })
+  @UseGuards(AppleAuthGuard)
+  async appleAuth() {
+    // This is handled by AppleAuthGuard, which initiates the Apple auth flow
+    // The function body is not executed
+  }
+
+  // Apple Login Callback - Handle the callback from Apple
+  @Get('apple/callback')
+  @ApiOperation({ summary: 'Handle Apple authentication callback' })
+  @ApiResponse({ status: 200, description: 'Apple authentication successful' })
+  @ApiResponse({ status: 401, description: 'Apple authentication failed' })
+  @UseGuards(AppleAuthGuard)
+  async appleAuthCallback(@Req() req, @Res() res) {
+    // After successful Apple authentication, generate a JWT token
+    const token = await this.authService.login(req.user);
+
+    // Redirect to frontend with token (adjust URL as needed)
+    return res.redirect(
+      `${process.env.FRONTEND_URL}/auth/callback?token=${token.access_token}`,
+    );
   }
 }

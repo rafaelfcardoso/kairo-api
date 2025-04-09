@@ -41,6 +41,8 @@ import { AddCompletedAtToTasks1743458631759 } from '../migrations/1743458631759-
 import { AddUserEntityAndRelations1744054661856 } from '../migrations/1744054661856-AddUserEntityAndRelations';
 import { AssignExistingDataToDefaultUser1744054769246 } from '../migrations/1744054769246-AssignExistingDataToDefaultUser';
 import { MakeUserIdNonNullable1744054883888 } from '../migrations/1744054883888-MakeUserIdNonNullable';
+import { RemoveIsSystemFromTag1744198367443 } from '../migrations/1744198367443-RemoveIsSystemFromTag';
+import { AddIsArchivedToTag1744198558505 } from '../migrations/1744198558505-AddIsArchivedToTag';
 import { DATABASE_CONFIG } from './constants';
 
 // Define interface for database configuration
@@ -90,6 +92,8 @@ const migrations = [
   AddUserEntityAndRelations1744054661856,
   AssignExistingDataToDefaultUser1744054769246,
   MakeUserIdNonNullable1744054883888,
+  RemoveIsSystemFromTag1744198367443,
+  AddIsArchivedToTag1744198558505,
 ];
 
 // Define all entities in one place for better maintenance
@@ -156,7 +160,9 @@ export const typeOrmConfig: DatabaseConfig = process.env.DATABASE_URL
       password: process.env.PGPASSWORD || process.env.DB_PASS || 'postgres',
       database:
         process.env.NODE_ENV === 'test'
-          ? process.env.PGDATABASE || process.env.DB_NAME || 'zenith_test'
+          ? process.env.PGDATABASE_TEST ||
+            process.env.DB_NAME_TEST ||
+            'zenith_test'
           : process.env.PGDATABASE || process.env.DB_NAME || 'zenith_db',
     };
 

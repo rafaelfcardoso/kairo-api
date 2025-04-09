@@ -12,9 +12,14 @@ The documentation is organized into the following directories:
 
 ## Available Documentation
 
+### Authentication
+
+- [Apple Authentication Setup](active/apple-authentication.md): Guide for setting up Sign in with Apple
+
 ### Test Documentation
 
 - [Test Coverage Plan](active/test-coverage-plan.md): Overview of test coverage goals and current progress
+- [Test Database Setup](active/test-database-setup.md): Configuration and management of the test database
 - [Application Layer Test Plan](active/application-layer-test-plan.md): Details on application service testing
 - [Domain Layer Test Plan](active/domain-layer-test-plan.md): Details on domain entity and value object testing
 - [Project Management Tests Summary](active/project-management-tests-summary.md): Summary of Project domain tests

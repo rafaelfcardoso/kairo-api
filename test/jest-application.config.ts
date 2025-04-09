@@ -19,6 +19,7 @@ const config: Config.InitialOptions = {
   globals: {
     'ts-jest': {
       tsconfig: 'tsconfig.json',
+      isolatedModules: true,
     },
   },
 };

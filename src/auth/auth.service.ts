@@ -66,6 +66,51 @@ export class AuthService {
     return null;
   }
 
+  async validateAppleUser(
+    appleId: string,
+    email: string,
+    name: string,
+  ): Promise<any> {
+    // First, try to find by appleId
+    let user = await this.userRepository.findOne({ where: { appleId } });
+
+    // If user exists with this Apple ID, return it
+    if (user) {
+      const { passwordHash, ...result } = user;
+      return result;
+    }
+
+    // If user doesn't exist but we have an email, try to find by email
+    if (email) {
+      user = await this.userRepository.findOne({ where: { email } });
+
+      // If user exists with this email, update the Apple ID and return
+      if (user) {
+        user.appleId = appleId;
+        await this.userRepository.save(user);
+
+        const { passwordHash, ...result } = user;
+        return result;
+      }
+    }
+
+    // If user doesn't exist at all, create a new one
+    if (email) {
+      const newUser = this.userRepository.create({
+        email,
+        appleId,
+        name: name || email.split('@')[0], // Use name if provided or create from email
+        avatarUrl: null,
+      });
+
+      await this.userRepository.save(newUser);
+      return newUser;
+    }
+
+    // If we don't have an email, we can't create a user
+    return null;
+  }
+
   async login(user: User) {
     // User object comes from LocalAuthGuard after validateUser succeeds
     const payload = { email: user.email, sub: user.id };

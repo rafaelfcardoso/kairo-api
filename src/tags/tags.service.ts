@@ -21,7 +21,7 @@ export class TagsService {
     if (!tag) {
       throw new NotFoundException(`Tag with ID "${tagId}" not found`);
     }
-    if (tag.userId !== userId && !tag.isSystem) {
+    if (tag.userId !== userId) {
       throw new ForbiddenException('You do not own this tag');
     }
     return tag;
