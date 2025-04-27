@@ -44,6 +44,7 @@ import { MakeUserIdNonNullable1744054883888 } from '../migrations/1744054883888-
 import { RemoveIsSystemFromTag1744198367443 } from '../migrations/1744198367443-RemoveIsSystemFromTag';
 import { AddIsArchivedToTag1744198558505 } from '../migrations/1744198558505-AddIsArchivedToTag';
 import { FixMigrationIssues1744204141138 } from '../migrations/1744204141138-FixMigrationIssues';
+import { AddOrderColumnToTag1745440543000 } from '../migrations/1745440543000-AddOrderColumnToTag';
 import { DATABASE_CONFIG } from './constants';
 
 // Define interface for database configuration
@@ -96,6 +97,7 @@ const migrations = [
   RemoveIsSystemFromTag1744198367443,
   AddIsArchivedToTag1744198558505,
   FixMigrationIssues1744204141138,
+  AddOrderColumnToTag1745440543000,
 ];
 
 // Define all entities in one place for better maintenance
