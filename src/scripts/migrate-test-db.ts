@@ -56,7 +56,6 @@ const migrations = [
   AddIsSystemToTag1712592000000,
   AddNonePriorityEnum1738178127099,
   FixProjectColors1738362321118,
-  EnsureInboxProject1738362321119,
   AddHasTimeToTasks1738934197033,
   UpdateTaskStatusEnum1739279174960,
   EnsureValidTaskStatuses1739279174961,
