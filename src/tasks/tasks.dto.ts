@@ -98,7 +98,7 @@ export class CreateTaskDto {
   tagIds?: string[];
 
   @ApiPropertyOptional({
-    example: '569c363f-1934-4e69-b324-6c2fad28bc59',
+    example: '00000000-0000-0000-0000-000000000000',
     description:
       'Project ID to associate the task with (defaults to Inbox project)',
   })

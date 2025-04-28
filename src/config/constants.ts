@@ -1,5 +1,4 @@
 export const SYSTEM_IDS = {
-  INBOX_PROJECT: '569c363f-1934-4e69-b324-6c2fad28bc59',
 } as const;
 
 export const DATABASE_CONFIG = {

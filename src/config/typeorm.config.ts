@@ -14,7 +14,6 @@ import { UpdateTaskEntityWithMetadata1705759726001 } from '../migrations/1705759
 import { SimplifyTaskEntity1705759726002 } from '../migrations/1705759726002-SimplifyTaskEntity';
 import { CleanupUnusedTaskTypes1705759726003 } from '../migrations/1705759726003-CleanupUnusedTaskTypes';
 import { FixProjectColors1738362321118 } from '../migrations/1738362321118-FixProjectColors';
-import { EnsureInboxProject1738362321119 } from '../migrations/1738362321119-EnsureInboxProject';
 import { AddHasTimeToTasks1738934197033 } from '../migrations/1738934197033-AddHasTimeToTasks';
 import { UpdateTaskStatusEnum1739279174960 } from '../migrations/1739279174960-UpdateTaskStatusEnum';
 import { EnsureValidTaskStatuses1739279174961 } from '../migrations/1739279174961-EnsureValidTaskStatuses';
@@ -24,7 +23,6 @@ import { AddNonePriorityEnum1738178127099 } from '../migrations/1738178127099-Ad
 import { CreateFocusSessionTables1740494148045 } from '../migrations/1740494148045-CreateFocusSessionTables';
 import { AddProjectIdToFocusSession1740589432291 } from '../migrations/1740589432291-AddProjectIdToFocusSession';
 import { AddRecurringTaskFields1740916550124 } from '../migrations/1740916550124-AddRecurringTaskFields';
-import { AddSystemProjectAndInbox1738360717263 } from '../migrations/1738360717263-AddSystemProjectAndInbox';
 import { AddFocusSessionEnergyLevelEnum1739279174963 } from '../migrations/1739279174963-AddFocusSessionEnergyLevelEnum';
 import { AddTaskTagsTable1739279174963 } from '../migrations/1739279174963-AddTaskTagsTable';
 import { AddBlockRuleTypeEnum1739279174964 } from '../migrations/1739279174964-AddBlockRuleTypeEnum';
@@ -68,9 +66,7 @@ const migrations = [
   CleanupUnusedTaskTypes1705759726003,
   AddNonePriorityEnum1710000000000,
   AddNonePriorityEnum1738178127099,
-  AddSystemProjectAndInbox1738360717263,
   FixProjectColors1738362321118,
-  EnsureInboxProject1738362321119,
   AddHasTimeToTasks1738934197033,
   UpdateTaskStatusEnum1739279174960,
   EnsureValidTaskStatuses1739279174961,
