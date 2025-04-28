@@ -43,6 +43,11 @@ import { RemoveIsSystemFromTag1744198367443 } from '../migrations/1744198367443-
 import { AddIsArchivedToTag1744198558505 } from '../migrations/1744198558505-AddIsArchivedToTag';
 import { FixMigrationIssues1744204141138 } from '../migrations/1744204141138-FixMigrationIssues';
 import { AddOrderColumnToTag1745440543000 } from '../migrations/1745440543000-AddOrderColumnToTag';
+import { BackfillUserInboxes1745000000000 } from '../migrations/1745000000000-BackfillUserInboxes';
+import { RenameTaskTagsTagToTaskTag1745469200000 } from '../migrations/1745469200000-RenameTaskTagsTagToTaskTag';
+import { AddUniqueConstraintToTagUserIdName1745847916000 } from '../migrations/1745847916000-AddUniqueConstraintToTagUserIdName';
+import { AddIndexesToJoinTables1745849293000 } from '../migrations/1745849293000-AddIndexesToJoinTables';
+import { DropLegacyNlpTables1745850942000 } from '../migrations/1745850942000-DropLegacyNlpTables';
 import { DATABASE_CONFIG } from './constants';
 
 // Define interface for database configuration
@@ -94,6 +99,11 @@ const migrations = [
   AddIsArchivedToTag1744198558505,
   FixMigrationIssues1744204141138,
   AddOrderColumnToTag1745440543000,
+  BackfillUserInboxes1745000000000,
+  RenameTaskTagsTagToTaskTag1745469200000,
+  AddUniqueConstraintToTagUserIdName1745847916000,
+  AddIndexesToJoinTables1745849293000,
+  DropLegacyNlpTables1745850942000,
 ];
 
 // Define all entities in one place for better maintenance
