@@ -11,6 +11,11 @@
 - [x] Drop legacy NLP tables (`nlp_feedback`, `nlp_model_performance`) if no code references remain.
 - [x] Clarify if a duplicate `user` table exists; otherwise, mark the consolidation step as outdated.
 - [x] Rename `task_tags_tag` join table to `task_tag` for clarity and consistency.
+- [ ] Update code references from `task_tags_tag` to `task_tag` (e.g., SchedulerService queries, raw SQL, repository methods).
+  - [ ] Search codebase for all occurrences of `"task_tags_tag"`.
+  - [ ] Update raw SQL in `SchedulerService` fallback query.
+  - [ ] Update any TypeORM repository or QueryBuilder references to the join table.
+  - [ ] Run the Scheduler to confirm no relation errors remain.
 - [x] Audit and add missing foreign key constraints (with `ON DELETE CASCADE`) for all core relationships (`task`, `project`, `tag`, join tables).
 - [x] Audit and add uniqueness constraints (e.g., `(user_id, name)` on `tag`).
 - [x] Audit and add indexes on all foreign key columns and join tables for performance.

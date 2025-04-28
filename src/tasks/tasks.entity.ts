@@ -213,7 +213,7 @@ export class Task {
 
   @ApiProperty({ type: () => [Tag] })
   @ManyToMany(() => Tag, (tag) => tag.tasks)
-  @JoinTable()
+  @JoinTable({ name: 'task_tag' })
   tags: Tag[];
 
   @ManyToMany(() => FocusSession)
