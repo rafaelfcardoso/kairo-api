@@ -7,9 +7,7 @@ import { CleanupUnusedTaskTypes1705759726003 } from '../migrations/1705759726003
 import { AddNonePriorityEnum1710000000000 } from '../migrations/1710000000000-AddNonePriorityEnum';
 import { AddIsSystemToTag1712592000000 } from '../migrations/1712592000000-AddIsSystemToTag';
 import { AddNonePriorityEnum1738178127099 } from '../migrations/1738178127099-AddNonePriorityEnum';
-import { AddSystemProjectAndInbox1738360717263 } from '../migrations/1738360717263-AddSystemProjectAndInbox';
 import { FixProjectColors1738362321118 } from '../migrations/1738362321118-FixProjectColors';
-import { EnsureInboxProject1738362321119 } from '../migrations/1738362321119-EnsureInboxProject';
 import { AddHasTimeToTasks1738934197033 } from '../migrations/1738934197033-AddHasTimeToTasks';
 import { UpdateTaskStatusEnum1739279174960 } from '../migrations/1739279174960-UpdateTaskStatusEnum';
 import { EnsureValidTaskStatuses1739279174961 } from '../migrations/1739279174961-EnsureValidTaskStatuses';
@@ -212,9 +210,7 @@ async function verifyMigrations() {
       new AddNonePriorityEnum1710000000000(),
       new AddIsSystemToTag1712592000000(),
       new AddNonePriorityEnum1738178127099(),
-      new AddSystemProjectAndInbox1738360717263(),
       new FixProjectColors1738362321118(),
-      new EnsureInboxProject1738362321119(),
       new AddHasTimeToTasks1738934197033(),
       new UpdateTaskStatusEnum1739279174960(),
       new EnsureValidTaskStatuses1739279174961(),

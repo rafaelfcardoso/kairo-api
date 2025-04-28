@@ -6,9 +6,7 @@ import { config } from 'dotenv';
 import { InitialSchema1705759726000 } from '../migrations/1705759726000-InitialSchema';
 import { AddNonePriorityEnum1710000000000 } from '../migrations/1710000000000-AddNonePriorityEnum';
 import { AddNonePriorityEnum1738178127099 } from '../migrations/1738178127099-AddNonePriorityEnum';
-import { AddSystemProjectAndInbox1738360717263 } from '../migrations/1738360717263-AddSystemProjectAndInbox';
 import { FixProjectColors1738362321118 } from '../migrations/1738362321118-FixProjectColors';
-import { EnsureInboxProject1738362321119 } from '../migrations/1738362321119-EnsureInboxProject';
 import { AddHasTimeToTasks1738934197033 } from '../migrations/1738934197033-AddHasTimeToTasks';
 import { UpdateTaskStatusEnum1739279174960 } from '../migrations/1739279174960-UpdateTaskStatusEnum';
 import { EnsureValidTaskStatuses1739279174961 } from '../migrations/1739279174961-EnsureValidTaskStatuses';
@@ -82,8 +80,6 @@ export const databaseProviders = [
           AddIsSystemToTag1712592000000,
           AddNonePriorityEnum1738178127099,
           FixProjectColors1738362321118,
-          AddSystemProjectAndInbox1738360717263,
-          EnsureInboxProject1738362321119,
           AddHasTimeToTasks1738934197033,
           UpdateTaskStatusEnum1739279174960,
           EnsureValidTaskStatuses1739279174961,
