@@ -1,7 +1,10 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { QueryRunner } from 'typeorm';
+import { BaseMigration } from './base/BaseMigration';
 
-export class SimplifyTaskEntity1686501245678 implements MigrationInterface {
-  public async up(queryRunner: QueryRunner): Promise<void> {
+export class SimplifyTaskEntity1705759726002 extends BaseMigration {
+  name = 'SimplifyTaskEntity1705759726002';
+
+  protected async executeUp(queryRunner: QueryRunner): Promise<void> {
     // Add the needs_reminder column
     await queryRunner.query(
       `ALTER TABLE "task" ADD COLUMN IF NOT EXISTS "needsReminder" boolean DEFAULT false`,
@@ -19,7 +22,7 @@ export class SimplifyTaskEntity1686501245678 implements MigrationInterface {
       WHERE metadata->>'reminderMessage' IS NOT NULL
     `);
 
-    // Check if taskType column exists
+    // Check if taskType column exists using base helper
     const taskTypeExists = await this.columnExists(
       queryRunner,
       'task',
@@ -32,7 +35,7 @@ export class SimplifyTaskEntity1686501245678 implements MigrationInterface {
     }
   }
 
-  public async down(queryRunner: QueryRunner): Promise<void> {
+  protected async executeDown(queryRunner: QueryRunner): Promise<void> {
     // Add back the metadata column if it was deleted
     await queryRunner.query(
       `ALTER TABLE "task" ADD COLUMN IF NOT EXISTS "metadata" jsonb DEFAULT '{}'`,
@@ -54,20 +57,5 @@ export class SimplifyTaskEntity1686501245678 implements MigrationInterface {
     );
   }
 
-  // Helper method to check if a column exists
-  private async columnExists(
-    queryRunner: QueryRunner,
-    table: string,
-    column: string,
-  ): Promise<boolean> {
-    const result = await queryRunner.query(`
-      SELECT EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_name = '${table}'
-        AND column_name = '${column}'
-      );
-    `);
-    return result[0].exists;
-  }
+  // Remove local helper
 }

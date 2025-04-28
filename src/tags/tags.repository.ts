@@ -11,8 +11,9 @@ export class TagsRepository {
     this.repository = this.dataSource.getRepository(Tag);
   }
 
-  async getTags(): Promise<Tag[]> {
+  async getTags(userId: string): Promise<Tag[]> {
     return this.repository.find({
+      where: { userId: userId },
       relations: ['tasks'],
       order: { name: 'ASC' },
     });
@@ -31,8 +32,11 @@ export class TagsRepository {
     return tag;
   }
 
-  async createTag(createTagDto: CreateTagDto): Promise<Tag> {
-    const tag = this.repository.create(createTagDto);
+  async createTag(createTagDto: CreateTagDto, userId: string): Promise<Tag> {
+    const tag = this.repository.create({
+      ...createTagDto,
+      userId: userId,
+    });
     await this.repository.save(tag);
     return this.getTagById(tag.id);
   }
@@ -45,25 +49,33 @@ export class TagsRepository {
   }
 
   async deleteTag(id: string): Promise<void> {
-    const tag = await this.getTagById(id);
-    await this.repository.delete(id);
+    await this.getTagById(id);
+    const result = await this.repository.delete(id);
+    if (result.affected === 0) {
+      throw new NotFoundException(
+        `Tag with ID "${id}" not found during delete`,
+      );
+    }
   }
 
-  async getTagsByIds(ids: string[]): Promise<Tag[]> {
-    const tags = await this.repository.find({
+  async getTagsByIds(ids: string[], userId: string): Promise<Tag[]> {
+    if (!ids || ids.length === 0) {
+      return [];
+    }
+    const potentialTags = await this.repository.find({
       where: { id: In(ids) },
-      relations: ['tasks'],
     });
 
-    if (tags.length !== ids.length) {
-      throw new NotFoundException('One or more tags not found');
-    }
+    const accessibleTags = potentialTags.filter((tag) => tag.userId === userId);
 
-    return tags;
+    return accessibleTags;
   }
 
-  async getTagStats(): Promise<Array<{ tag: Tag; taskCount: number }>> {
+  async getTagStats(
+    userId: string,
+  ): Promise<Array<{ tag: Tag; taskCount: number }>> {
     const tags = await this.repository.find({
+      where: { userId: userId },
       relations: ['tasks'],
     });
 
@@ -73,9 +85,9 @@ export class TagsRepository {
     }));
   }
 
-  async findSimilarTags(name: string): Promise<Tag[]> {
+  async findSimilarTags(name: string, userId: string): Promise<Tag[]> {
     return this.repository.find({
-      where: { name: ILike(`%${name}%`) },
+      where: { name: ILike(`%${name}%`), userId: userId },
       relations: ['tasks'],
     });
   }

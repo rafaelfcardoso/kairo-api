@@ -5,10 +5,14 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToMany,
+  ManyToOne,
+  JoinColumn,
+  Index,
 } from 'typeorm';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Task } from '../tasks/tasks.entity';
-import { IsHexColor } from 'class-validator';
+import { IsHexColor, IsOptional, IsBoolean } from 'class-validator';
+import { User } from '../entities/user.entity';
 
 @Entity()
 export class Tag {
@@ -41,6 +45,9 @@ export class Tag {
   @Column({ nullable: true })
   description: string;
 
+  @Column({ default: false })
+  isArchived: boolean;
+
   @ApiProperty()
   @CreateDateColumn()
   createdAt: Date;
@@ -55,4 +62,18 @@ export class Tag {
   })
   @ManyToMany(() => Task, (task) => task.tags)
   tasks: Task[];
+
+  @Column({ default: 0 })
+  order: number;
+
+  @ManyToOne(() => User, (user) => user.tags, {
+    nullable: true,
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'userId' })
+  user?: User;
+
+  @Index()
+  @Column({ type: 'uuid', nullable: false })
+  userId: string;
 }

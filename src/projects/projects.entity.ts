@@ -9,9 +9,13 @@ import {
   Tree,
   TreeParent,
   TreeChildren,
+  ManyToOne,
+  JoinColumn,
+  Index,
 } from 'typeorm';
 import { Task } from '../tasks/tasks.entity';
 import { IsEnum } from 'class-validator';
+import { User } from '../entities/user.entity';
 
 export enum ProjectType {
   INBOX = 'inbox',
@@ -60,10 +64,21 @@ export class Project {
   @Column({ default: 0 })
   order: number;
 
-  @CreateDateColumn()
+  @ManyToOne(() => User, (user) => user.projects, {
+    nullable: false,
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'userId' })
+  user: User;
+
+  @Index()
+  @Column({ type: 'uuid', nullable: false })
+  userId: string;
+
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 
   // Computed properties

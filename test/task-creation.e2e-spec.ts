@@ -1,32 +1,34 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import * as request from 'supertest';
+import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { Task, TaskStatus, TaskPriority } from '../src/tasks/tasks.entity';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Tag } from '../src/tags/tags.entity';
 import { Project, ProjectType } from '../src/projects/projects.entity';
+import { User } from '../src/entities/user.entity';
 
 describe('Task Creation Workflow (E2E)', () => {
   let app: INestApplication;
   let taskRepository: Repository<Task>;
   let tagRepository: Repository<Tag>;
   let projectRepository: Repository<Project>;
+  let userRepository: Repository<User>;
+  let authToken: string;
+  let testUserId: string;
+
   // Track created entities for cleanup
   const createdTaskIds: string[] = [];
   const createdTagIds: string[] = [];
   const createdProjectIds: string[] = [];
 
+  // Test user credentials
+  const testUserEmail = `test-creation-${Date.now()}@e2e.com`;
+  const testUserPassword = 'TestPassword123!';
+
   beforeAll(async () => {
-    // Increase timeout for database connection
-    jest.setTimeout(60000);
-
-    // Log environment variables for debugging
-    console.log('Running E2E tests with:');
-    console.log('NODE_ENV:', process.env.NODE_ENV);
-    console.log('Database:', process.env.PGDATABASE);
-
+    jest.setTimeout(120000);
     try {
       const moduleFixture: TestingModule = await Test.createTestingModule({
         imports: [AppModule],
@@ -38,49 +40,76 @@ describe('Task Creation Workflow (E2E)', () => {
       taskRepository = moduleFixture.get<Repository<Task>>(
         getRepositoryToken(Task),
       );
-
       tagRepository = moduleFixture.get<Repository<Tag>>(
         getRepositoryToken(Tag),
       );
-
       projectRepository = moduleFixture.get<Repository<Project>>(
         getRepositoryToken(Project),
+      );
+      userRepository = moduleFixture.get<Repository<User>>(
+        getRepositoryToken(User),
       );
 
       await app.init();
 
-      // Clean up any existing test data (defensive cleanup)
-      try {
-        await taskRepository.delete({ title: 'E2E Test Task' });
-        await tagRepository.delete({ name: 'E2E Test Tag' });
-        await projectRepository.delete({ name: 'E2E Test Project' });
-      } catch (error) {
-        console.error('Error cleaning up existing test data:', error);
-      }
+      // Use standard auth setup
+      // Register test user
+      await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({
+          email: testUserEmail,
+          password: testUserPassword,
+          name: 'E2E Creation User',
+        })
+        .expect(201);
+
+      // Login to get token
+      const loginResponse = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email: testUserEmail, password: testUserPassword })
+        .expect(200);
+
+      authToken = loginResponse.body.access_token;
+      testUserId = loginResponse.body.user.id;
+      expect(authToken).toBeDefined();
+
+      // REMOVED TRUNCATE LOGIC
+      // console.log('Truncating initial schema tables before test suite...');
+      // try {
+      //   await taskRepository.query(`TRUNCATE TABLE "tag" CASCADE`);
+      //   await taskRepository.query(`TRUNCATE TABLE "task" CASCADE`);
+      //   await projectRepository.query(
+      //     `TRUNCATE TABLE "project_closure" CASCADE`,
+      //   );
+      //   await projectRepository.query(`TRUNCATE TABLE "project" CASCADE`);
+      //   console.log('Tables truncated.');
+      // } catch (error) {
+      //   console.error('Error truncating tables:', error);
+      // }
     } catch (error) {
       console.error('Error setting up test module:', error);
       throw error;
     }
-  }, 60000); // Increase timeout for beforeAll
+  }, 120000);
 
   afterAll(async () => {
-    // Clean up test data
+    // Clean up test data created by this suite
     try {
       if (createdTaskIds.length > 0) {
         await taskRepository.delete(createdTaskIds);
       }
-
       if (createdTagIds.length > 0) {
         await tagRepository.delete(createdTagIds);
       }
-
       if (createdProjectIds.length > 0) {
         await projectRepository.delete(createdProjectIds);
+      }
+      if (testUserId) {
+        await userRepository.delete(testUserId);
       }
     } catch (error) {
       console.error('Error cleaning up test data:', error);
     }
-
     await app.close();
   });
 
@@ -95,6 +124,7 @@ describe('Task Creation Workflow (E2E)', () => {
 
       const response = await request(app.getHttpServer())
         .post('/projects')
+        .set('Authorization', `Bearer ${authToken}`)
         .send(createProjectDto)
         .expect(201);
 
@@ -111,6 +141,7 @@ describe('Task Creation Workflow (E2E)', () => {
       });
 
       expect(savedProject).toBeDefined();
+      if (!savedProject) throw new Error('Project not found');
       expect(savedProject.name).toBe(createProjectDto.name);
     });
 
@@ -123,6 +154,7 @@ describe('Task Creation Workflow (E2E)', () => {
 
       const response = await request(app.getHttpServer())
         .post('/tags')
+        .set('Authorization', `Bearer ${authToken}`)
         .send(createTagDto)
         .expect(201);
 
@@ -139,6 +171,7 @@ describe('Task Creation Workflow (E2E)', () => {
       });
 
       expect(savedTag).toBeDefined();
+      if (!savedTag) throw new Error('Tag not found');
       expect(savedTag.name).toBe(createTagDto.name);
     });
 
@@ -166,6 +199,7 @@ describe('Task Creation Workflow (E2E)', () => {
 
       const response = await request(app.getHttpServer())
         .post('/tasks')
+        .set('Authorization', `Bearer ${authToken}`)
         .send(createTaskDto)
         .expect(201);
 
@@ -183,6 +217,7 @@ describe('Task Creation Workflow (E2E)', () => {
       });
 
       expect(savedTask).toBeDefined();
+      if (!savedTask) throw new Error('Task not found');
       expect(savedTask.title).toBe(createTaskDto.title);
       expect(savedTask.project).toBeDefined();
       expect(savedTask.project.id).toBe(projectId);
@@ -198,6 +233,7 @@ describe('Task Creation Workflow (E2E)', () => {
 
       const response = await request(app.getHttpServer())
         .get(`/tasks/${taskId}`)
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
       expect(response.body).toBeDefined();
@@ -223,6 +259,7 @@ describe('Task Creation Workflow (E2E)', () => {
 
       const response = await request(app.getHttpServer())
         .put(`/tasks/${taskId}`)
+        .set('Authorization', `Bearer ${authToken}`)
         .send(updateTaskDto)
         .expect(200);
 
@@ -238,6 +275,7 @@ describe('Task Creation Workflow (E2E)', () => {
       });
 
       expect(updatedTask).toBeDefined();
+      if (!updatedTask) throw new Error('Task not found');
       expect(updatedTask.title).toBe(updateTaskDto.title);
       expect(updatedTask.description).toBe(updateTaskDto.description);
       expect(updatedTask.priority).toBe(updateTaskDto.priority);
@@ -250,6 +288,7 @@ describe('Task Creation Workflow (E2E)', () => {
 
       const response = await request(app.getHttpServer())
         .get(`/tasks?projectId=${projectId}`)
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
       expect(response.body).toBeDefined();
@@ -266,8 +305,11 @@ describe('Task Creation Workflow (E2E)', () => {
       expect(createdTagIds.length).toBeGreaterThan(0);
       const tagId = createdTagIds[0];
 
+      // Send tagId as a query parameter (check API for array format if needed)
       const response = await request(app.getHttpServer())
-        .get(`/tasks?tagIds=${tagId}`)
+        .get(`/tasks`)
+        .query({ tagIds: [tagId] }) // Send as object for supertest to format
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
       expect(response.body).toBeDefined();

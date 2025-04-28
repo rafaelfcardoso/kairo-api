@@ -1,7 +1,14 @@
 // src/repositories/task.repository.ts
 import { Injectable } from '@nestjs/common';
-import { DataSource, Repository, SelectQueryBuilder } from 'typeorm';
-import { Task, TaskStatus } from './tasks.entity';
+import {
+  DataSource,
+  Repository,
+  SelectQueryBuilder,
+  LessThan,
+  Not,
+  Between,
+} from 'typeorm';
+import { Task, TaskStatus, TaskPriority } from './tasks.entity';
 import { CreateTaskDto, UpdateTaskDto, TaskFilterDto } from './tasks.dto';
 import { NotFoundException } from '@nestjs/common';
 import { Project, ProjectType } from '../projects/projects.entity';
@@ -18,11 +25,13 @@ export class TasksRepository extends Repository<Task> {
   }
 
   private getTasksQueryBuilder(): SelectQueryBuilder<Task> {
-    return this.createQueryBuilder('task')
-      .leftJoinAndSelect('task.project', 'project')
-      .leftJoinAndSelect('task.tags', 'tags')
-      .leftJoinAndSelect('task.focusSessions', 'focusSessions')
-      .orderBy('task.createdAt', 'DESC');
+    return (
+      this.createQueryBuilder('task')
+        .leftJoinAndSelect('task.project', 'project')
+        .leftJoinAndSelect('task.tags', 'tags')
+        // .leftJoinAndSelect('task.focusSessions', 'focusSessions') // Keep this commented out
+        .orderBy('task.createdAt', 'DESC')
+    );
   }
 
   async getTasks(filterDto: TaskFilterDto): Promise<Task[]> {
@@ -35,9 +44,12 @@ export class TasksRepository extends Repository<Task> {
       dueDate,
       includeArchived,
       isRecurring,
+      userId,
     } = filterDto;
 
     const query = this.getTasksQueryBuilder();
+
+    query.andWhere('task.userId = :userId', { userId });
 
     if (status) {
       query.andWhere('task.status = :status', { status });
@@ -97,11 +109,17 @@ export class TasksRepository extends Repository<Task> {
     return task;
   }
 
-  async createTask(createTaskDto: CreateTaskDto): Promise<Task> {
+  async createTask(
+    createTaskDto: CreateTaskDto,
+    userId: string,
+  ): Promise<Task> {
     const { projectId, tagIds, ...taskData } = createTaskDto;
 
-    // Create the base task
-    const task = this.create(taskData);
+    // Create the base task, including the userId
+    const task = this.create({
+      ...taskData,
+      userId: userId,
+    });
 
     // Handle project assignment
     if (projectId) {
@@ -140,12 +158,20 @@ export class TasksRepository extends Repository<Task> {
       task.tags = [];
     }
 
+    // Log before saving
+    this.logger.debug(
+      `Saving task with recurrenceRule: '${task.recurrenceRule}'`,
+      task,
+    );
     await this.save(task);
     return this.getTaskById(task.id);
   }
 
-  async updateTask(id: string, updateTaskDto: UpdateTaskDto): Promise<Task> {
-    const { projectId, tagIds, ...taskData } = updateTaskDto;
+  async updateTask(
+    id: string,
+    updateTaskDto: UpdateTaskDto & { completedAt?: Date | null },
+  ): Promise<Task> {
+    const { projectId, tagIds, completedAt, ...taskData } = updateTaskDto;
 
     // Get existing task with relations
     const task = await this.getTaskById(id);
@@ -195,37 +221,52 @@ export class TasksRepository extends Repository<Task> {
       } else {
         task.tags = [];
       }
-      await this.save(task);
     }
 
     // Update other task data if any
     if (Object.keys(taskData).length > 0) {
       Object.assign(task, taskData);
-      await this.save(task);
     }
+
+    // Explicitly handle completedAt if passed (especially for nullifying)
+    if (completedAt !== undefined) {
+      task.completedAt = completedAt;
+    }
+
+    // Save all changes at once
+    await this.save(task);
 
     // Get fresh task with all relations
     return this.getTaskById(id);
   }
 
-  async deleteTask(id: string): Promise<void> {
-    const result = await this.delete(id);
+  async deleteTask(id: string, userId: string): Promise<void> {
+    const result = await this.delete({ id, userId });
 
     if (result.affected === 0) {
-      throw new NotFoundException(`Task with ID "${id}" not found`);
+      throw new NotFoundException(
+        `Task with ID "${id}" not found or not owned by user.`,
+      );
     }
   }
 
-  async archiveTask(id: string): Promise<Task> {
-    const task = await this.getTaskById(id);
-    task.isArchived = true;
-    await this.save(task);
-    return task;
+  async archiveTask(id: string, userId: string): Promise<Task> {
+    const updateResult = await this.update(
+      { id, userId },
+      { isArchived: true },
+    );
+    if (updateResult.affected === 0) {
+      throw new NotFoundException(
+        `Task with ID "${id}" not found or not owned by user.`,
+      );
+    }
+    return this.getTaskById(id);
   }
 
-  async getTodayTasks(): Promise<Task[]> {
+  async getTodayTasks(userId: string): Promise<Task[]> {
     const query = this.getTasksQueryBuilder()
-      .where('task.isArchived = :isArchived', { isArchived: false })
+      .where('task.userId = :userId', { userId })
+      .andWhere('task.isArchived = :isArchived', { isArchived: false })
       .andWhere(
         '(DATE(task.dueDate) = CURRENT_DATE OR task.status = :inProgress)',
         { inProgress: TaskStatus.IN_PROGRESS },
@@ -234,9 +275,10 @@ export class TasksRepository extends Repository<Task> {
     return await query.getMany();
   }
 
-  async getOverdueTasks(): Promise<Task[]> {
+  async getOverdueTasks(userId: string): Promise<Task[]> {
     const query = this.getTasksQueryBuilder()
-      .where('task.isArchived = :isArchived', { isArchived: false })
+      .where('task.userId = :userId', { userId })
+      .andWhere('task.isArchived = :isArchived', { isArchived: false })
       .andWhere('task.status != :completed', {
         completed: TaskStatus.COMPLETED,
       })
@@ -245,9 +287,10 @@ export class TasksRepository extends Repository<Task> {
     return await query.getMany();
   }
 
-  async getUpcomingTasks(days: number = 7): Promise<Task[]> {
+  async getUpcomingTasks(days: number = 7, userId: string): Promise<Task[]> {
     const query = this.getTasksQueryBuilder()
-      .where('task.isArchived = :isArchived', { isArchived: false })
+      .where('task.userId = :userId', { userId })
+      .andWhere('task.isArchived = :isArchived', { isArchived: false })
       .andWhere('task.status != :completed', {
         completed: TaskStatus.COMPLETED,
       })
@@ -259,10 +302,20 @@ export class TasksRepository extends Repository<Task> {
     return await query.getMany();
   }
 
-  async assignToProject(taskId: string, projectId: string): Promise<Task> {
-    const task = await this.getTaskById(taskId);
-    task.project = { id: projectId } as any; // Type assertion for brevity
-    await this.save(task);
+  async assignToProject(
+    taskId: string,
+    projectId: string,
+    userId: string,
+  ): Promise<Task> {
+    const updateResult = await this.update(
+      { id: taskId, userId: userId },
+      { project: { id: projectId } },
+    );
+    if (updateResult.affected === 0) {
+      throw new NotFoundException(
+        `Task with ID "${taskId}" not found or not owned by user.`,
+      );
+    }
     return this.getTaskById(taskId);
   }
 
@@ -304,9 +357,12 @@ export class TasksRepository extends Repository<Task> {
       dueDate,
       includeArchived,
       isRecurring,
+      userId,
     } = filterDto;
 
     const query = this.getTasksQueryBuilder();
+
+    query.andWhere('task.userId = :userId', { userId });
 
     if (status) {
       query.andWhere('task.status = :status', { status });
@@ -352,5 +408,72 @@ export class TasksRepository extends Repository<Task> {
     }
 
     return query.getCount();
+  }
+
+  async countOverdueTasks(userId: string): Promise<number> {
+    const now = new Date();
+    return this.count({
+      where: {
+        userId,
+        dueDate: LessThan(now),
+        status: Not(TaskStatus.COMPLETED),
+        isArchived: false,
+      },
+    });
+  }
+
+  async countTodayTasks(userId: string): Promise<number> {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    return this.count({
+      where: {
+        userId,
+        dueDate: Between(startOfDay, endOfDay),
+        status: Not(TaskStatus.COMPLETED),
+        isArchived: false,
+      },
+    });
+  }
+
+  async countTasksByPriority(
+    userId: string,
+  ): Promise<Record<TaskPriority, number>> {
+    const tasks = await this.find({
+      where: {
+        userId,
+        isArchived: false,
+      },
+      select: ['priority'],
+    });
+
+    const counts: Record<TaskPriority, number> = {
+      [TaskPriority.NONE]: 0,
+      [TaskPriority.LOW]: 0,
+      [TaskPriority.MEDIUM]: 0,
+      [TaskPriority.HIGH]: 0,
+    };
+
+    tasks.forEach((task) => {
+      counts[task.priority]++;
+    });
+
+    return counts;
+  }
+
+  async getTasksByPriority(userId: string): Promise<Task[]> {
+    return this.find({
+      where: {
+        userId,
+        isArchived: false,
+      },
+      order: {
+        priority: 'DESC',
+        dueDate: 'ASC',
+      },
+      relations: ['project', 'tags'],
+    });
   }
 }

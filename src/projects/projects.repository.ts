@@ -16,7 +16,8 @@ export class ProjectsRepository extends TreeRepository<Project> {
   }
 
   async getProjects(filterDto: ProjectFilterDto): Promise<Project[]> {
-    const { search, includeArchived, includeSystem, parentId } = filterDto;
+    const { search, includeArchived, includeSystem, parentId, userId } =
+      filterDto;
 
     let query = this.createQueryBuilder('project')
       .leftJoinAndSelect('project.parent', 'parent')
@@ -25,58 +26,32 @@ export class ProjectsRepository extends TreeRepository<Project> {
       .orderBy('project.order', 'ASC')
       .addOrderBy('project.createdAt', 'DESC');
 
-    // Start with base conditions
-    let hasWhereClause = false;
+    // Apply mandatory user filter FIRST
+    query = query.where('project.userId = :userId', { userId });
 
+    // Apply other filters using AND
     if (!includeArchived) {
-      query = query.where('project.isArchived = :isArchived', {
+      query = query.andWhere('project.isArchived = :isArchived', {
         isArchived: false,
       });
-      hasWhereClause = true;
     }
-
-    // Handle system projects filter
     if (includeSystem === false) {
-      if (hasWhereClause) {
-        query = query.andWhere('project.isSystem = :isSystem', {
-          isSystem: false,
-        });
-      } else {
-        query = query.where('project.isSystem = :isSystem', {
-          isSystem: false,
-        });
-        hasWhereClause = true;
-      }
+      query = query.andWhere('project.isSystem = :isSystem', {
+        isSystem: false,
+      });
     }
 
     if (parentId) {
-      if (hasWhereClause) {
-        query = query.andWhere('parent.id = :parentId', { parentId });
-      } else {
-        query = query.where('parent.id = :parentId', { parentId });
-        hasWhereClause = true;
-      }
+      query = query.andWhere('parent.id = :parentId', { parentId });
     } else if (parentId === null) {
-      if (hasWhereClause) {
-        query = query.andWhere('project.parent IS NULL');
-      } else {
-        query = query.where('project.parent IS NULL');
-        hasWhereClause = true;
-      }
+      query = query.andWhere('project.parent IS NULL');
     }
 
     if (search) {
-      if (hasWhereClause) {
-        query = query.andWhere(
-          '(LOWER(project.name) LIKE LOWER(:search) OR LOWER(project.description) LIKE LOWER(:search))',
-          { search: `%${search}%` },
-        );
-      } else {
-        query = query.where(
-          '(LOWER(project.name) LIKE LOWER(:search) OR LOWER(project.description) LIKE LOWER(:search))',
-          { search: `%${search}%` },
-        );
-      }
+      query = query.andWhere(
+        '(LOWER(project.name) LIKE LOWER(:search) OR LOWER(project.description) LIKE LOWER(:search))',
+        { search: `%${search}%` },
+      );
     }
 
     const projects = await query.getMany();
@@ -97,16 +72,25 @@ export class ProjectsRepository extends TreeRepository<Project> {
     }));
   }
 
-  async getProjectById(id: string): Promise<Project> {
-    const project = await this.createQueryBuilder('project')
+  async getProjectById(id: string, userId?: string): Promise<Project> {
+    const query = this.createQueryBuilder('project')
       .leftJoinAndSelect('project.parent', 'parent')
       .leftJoinAndSelect('project.children', 'children')
       .leftJoinAndSelect('project.tasks', 'tasks')
-      .where('project.id = :id', { id })
-      .getOne();
+      .where('project.id = :id', { id });
+
+    // Add userId check if provided
+    if (userId) {
+      query.andWhere('project.userId = :userId', { userId });
+    }
+
+    const project = await query.getOne();
 
     if (!project) {
-      throw new NotFoundException(`Project with ID "${id}" not found`);
+      // Be careful not to reveal existence if userId was provided but didn't match
+      throw new NotFoundException(
+        `Project with ID "${id}" not found${userId ? ' or not owned by user' : ''}.`,
+      );
     }
 
     // Calculate statistics
@@ -161,10 +145,17 @@ export class ProjectsRepository extends TreeRepository<Project> {
   async updateProject(
     id: string,
     updateProjectDto: UpdateProjectDto,
+    userId: string,
   ): Promise<Project> {
     const { parentId, ...projectData } = updateProjectDto;
 
-    const project = await this.getProjectById(id);
+    // Fetch with ownership check first
+    const project = await this.findOne({ where: { id, userId } });
+    if (!project) {
+      throw new NotFoundException(
+        `Project with ID "${id}" not found or not owned by user.`,
+      );
+    }
 
     if (parentId) {
       // Prevent circular references
@@ -187,47 +178,29 @@ export class ProjectsRepository extends TreeRepository<Project> {
 
     Object.assign(project, projectData);
     await this.save(project);
-    return this.getProjectById(id);
+    return this.getProjectById(id, userId);
   }
 
-  async deleteProject(id: string): Promise<void> {
-    const project = await this.getProjectById(id);
-
-    // Prevent deletion of system projects
-    if (project.isSystem) {
-      throw new BadRequestException(
-        `Cannot delete system project "${project.name}"`,
+  async deleteProject(id: string, userId: string): Promise<void> {
+    const result = await this.delete({ id, userId });
+    if (result.affected === 0) {
+      throw new NotFoundException(
+        `Project with ID "${id}" not found or not owned by user.`,
       );
     }
-
-    // Check if project has children
-    if (project.children?.length > 0) {
-      throw new BadRequestException('Cannot delete project with sub-projects');
-    }
-
-    // Check if project has tasks
-    if (project.tasks?.length > 0) {
-      throw new BadRequestException('Cannot delete project with tasks');
-    }
-
-    const result = await this.delete(id);
-    if (result.affected === 0) {
-      throw new NotFoundException(`Project with ID "${id}" not found`);
-    }
   }
 
-  async archiveProject(id: string): Promise<Project> {
-    const project = await this.getProjectById(id);
-
-    // Archive project and all sub-projects
-    await this.createQueryBuilder()
-      .update(Project)
-      .set({ isArchived: true })
-      .where('id = :id', { id })
-      .orWhere('parent = :id', { id })
-      .execute();
-
-    return this.getProjectById(id);
+  async archiveProject(id: string, userId: string): Promise<Project> {
+    const updateResult = await this.update(
+      { id, userId },
+      { isArchived: true },
+    );
+    if (updateResult.affected === 0) {
+      throw new NotFoundException(
+        `Project with ID "${id}" not found or not owned by user.`,
+      );
+    }
+    return this.getProjectById(id, userId);
   }
 
   async reorderProjects(projectIds: string[]): Promise<void> {
@@ -264,33 +237,33 @@ export class ProjectsRepository extends TreeRepository<Project> {
     return false;
   }
 
-  async getProjectTree(rootId?: string): Promise<Project[]> {
-    const trees = await this.findTrees({
-      relations: ['tasks'],
-    });
-    return rootId ? trees.filter((tree) => tree.id === rootId) : trees;
+  async getProjectTree(userId: string, rootId?: string): Promise<Project[]> {
+    const userProjects = await this.find({ where: { userId } });
+    return rootId
+      ? userProjects.filter((project) => project.id === rootId)
+      : userProjects;
   }
 
-  async getProjectAncestors(id: string): Promise<Project[]> {
-    const project = await this.findOne({ where: { id } });
+  async getProjectAncestors(id: string, userId: string): Promise<Project[]> {
+    const project = await this.findOne({ where: { id, userId } });
     if (!project)
-      throw new NotFoundException(`Project with ID "${id}" not found`);
-    return this.createAncestorsQueryBuilder(
-      'project',
-      'projectClosure',
-      project,
-    ).getMany();
+      throw new NotFoundException(
+        `Project with ID "${id}" not found or not owned by user.`,
+      );
+
+    const allAncestors = await super.findAncestors(project);
+    return allAncestors.filter((p) => p.userId === userId || p.isSystem);
   }
 
-  async getProjectDescendants(id: string): Promise<Project[]> {
-    const project = await this.findOne({ where: { id } });
+  async getProjectDescendants(id: string, userId: string): Promise<Project[]> {
+    const project = await this.findOne({ where: { id, userId } });
     if (!project)
-      throw new NotFoundException(`Project with ID "${id}" not found`);
-    return this.createDescendantsQueryBuilder(
-      'project',
-      'projectClosure',
-      project,
-    ).getMany();
+      throw new NotFoundException(
+        `Project with ID "${id}" not found or not owned by user.`,
+      );
+
+    const allDescendants = await super.findDescendants(project);
+    return allDescendants.filter((p) => p.userId === userId || p.isSystem);
   }
 
   async moveProject(
@@ -351,5 +324,17 @@ export class ProjectsRepository extends TreeRepository<Project> {
     }
 
     await this.save(project);
+  }
+
+  async searchProjects(query: string, userId: string): Promise<Project[]> {
+    return this.createQueryBuilder('project')
+      .leftJoinAndSelect('project.parent', 'parent')
+      .leftJoinAndSelect('project.children', 'children')
+      .where('project.userId = :userId', { userId })
+      .andWhere(
+        '(LOWER(project.name) LIKE LOWER(:query) OR LOWER(project.description) LIKE LOWER(:query))',
+        { query: `%${query}%` },
+      )
+      .getMany();
   }
 }

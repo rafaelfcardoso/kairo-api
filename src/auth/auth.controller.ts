@@ -1,5 +1,21 @@
-import { Controller, Post, Body, UnauthorizedException } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  UseGuards,
+  Request,
+  HttpCode,
+  HttpStatus,
+  Get,
+  UnauthorizedException,
+  Req,
+  Res,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { LocalAuthGuard } from './guards/local-auth.guard';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { AppleAuthGuard } from './guards/apple-auth.guard';
+import { RegisterUserDto, LoginUserDto } from './dto/auth.dto';
 import {
   ApiTags,
   ApiOperation,
@@ -8,8 +24,12 @@ import {
   ApiPropertyOptions,
   ApiBadRequestResponse,
   ApiUnauthorizedResponse,
+  ApiBody,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { IsString, IsNotEmpty } from 'class-validator';
+import { User } from '../entities/user.entity';
+import { ConfigService } from '@nestjs/config';
 
 export class TokenResponseDto {
   @ApiProperty({
@@ -40,10 +60,55 @@ export class GenerateApiTokenDto {
   serviceKey: string;
 }
 
-@ApiTags('Auth')
+@ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  @Post('register')
+  @ApiOperation({ summary: 'Register a new user' })
+  @ApiResponse({ status: 201, description: 'User created successfully.' })
+  @ApiResponse({ status: 409, description: 'Email already registered.' })
+  @ApiResponse({ status: 400, description: 'Bad Request (validation failed).' })
+  async register(@Body() registerUserDto: RegisterUserDto) {
+    const user = await this.authService.register(registerUserDto);
+    // Avoid returning sensitive info like password hash if AuthService didn't already remove it
+    const { passwordHash, ...result } = user;
+    return result;
+  }
+
+  @UseGuards(LocalAuthGuard)
+  @Post('login')
+  @HttpCode(HttpStatus.OK) // Return 200 OK on successful login
+  @ApiOperation({ summary: 'Log in a user' })
+  @ApiBody({ type: LoginUserDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Login successful, returns access token and user info',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized (invalid credentials).',
+  })
+  async login(@Request() req) {
+    // req.user is populated by LocalAuthGuard/LocalStrategy
+    return this.authService.login(req.user);
+  }
+
+  // Example protected route using JwtAuthGuard
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @Get('profile')
+  @ApiOperation({ summary: 'Get current user profile' })
+  @ApiResponse({ status: 200, description: 'User profile data.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  getProfile(@Request() req) {
+    // req.user is populated by JwtAuthGuard/JwtStrategy
+    return req.user;
+  }
 
   @Post('token')
   @ApiOperation({
@@ -79,5 +144,61 @@ export class AuthController {
       generateApiTokenDto.serviceName,
     );
     return { token };
+  }
+
+  // Apple Login - Start the Apple Auth flow
+  @Get('apple')
+  @ApiOperation({ summary: 'Authenticate with Apple' })
+  @ApiResponse({
+    status: 302,
+    description: 'Redirects to Apple for authentication',
+  })
+  @ApiResponse({
+    status: 501,
+    description: 'Apple authentication not configured',
+  })
+  @UseGuards(AppleAuthGuard)
+  async appleAuth(@Req() req, @Res() res) {
+    // Check if Apple authentication is properly configured
+    const clientID = this.configService.get<string>('apple.clientID');
+    if (!clientID) {
+      return res.status(HttpStatus.NOT_IMPLEMENTED).json({
+        statusCode: HttpStatus.NOT_IMPLEMENTED,
+        message: 'Apple authentication is not configured',
+      });
+    }
+    // The rest is handled by AppleAuthGuard
+  }
+
+  // Apple Login Callback - Handle the callback from Apple
+  @Get('apple/callback')
+  @ApiOperation({ summary: 'Handle Apple authentication callback' })
+  @ApiResponse({ status: 200, description: 'Apple authentication successful' })
+  @ApiResponse({ status: 401, description: 'Apple authentication failed' })
+  @ApiResponse({
+    status: 501,
+    description: 'Apple authentication not configured',
+  })
+  @UseGuards(AppleAuthGuard)
+  async appleAuthCallback(@Req() req, @Res() res) {
+    // Check if Apple authentication is properly configured
+    const clientID = this.configService.get<string>('apple.clientID');
+    if (!clientID) {
+      return res.status(HttpStatus.NOT_IMPLEMENTED).json({
+        statusCode: HttpStatus.NOT_IMPLEMENTED,
+        message: 'Apple authentication is not configured',
+      });
+    }
+
+    // After successful Apple authentication, generate a JWT token
+    const token = await this.authService.login(req.user);
+
+    // Get frontend URL from config
+    const frontendUrl = this.configService.get<string>('frontend.url');
+
+    // Redirect to frontend with token
+    return res.redirect(
+      `${frontendUrl}/auth/callback?token=${token.access_token}`,
+    );
   }
 }

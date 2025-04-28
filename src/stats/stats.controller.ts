@@ -1,11 +1,11 @@
 import {
   Controller,
   Get,
-  Param,
   Query,
-  ParseUUIDPipe,
   UsePipes,
   ValidationPipe,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
 import { StatsService } from './stats.service';
 import { TimeFilterDto, UserStatsResponseDto } from './stats.dto';
@@ -13,27 +13,28 @@ import {
   ApiTags,
   ApiOperation,
   ApiResponse,
-  ApiParam,
   ApiQuery,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Request } from 'express';
+import { User } from '../entities/user.entity';
 
 @ApiTags('Statistics')
 @Controller('stats')
 export class StatsController {
   constructor(private readonly statsService: StatsService) {}
 
-  @Get('users/:userId')
-  @ApiOperation({ summary: 'Get user productivity statistics' })
+  @Get('user')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: "Get authenticated user's productivity statistics" })
   @ApiResponse({
     status: 200,
     description: 'User productivity statistics',
     type: UserStatsResponseDto,
   })
-  @ApiParam({
-    name: 'userId',
-    description: 'The UUID of the user',
-    type: 'string',
-  })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiQuery({
     name: 'filter',
     description: 'Time filter type',
@@ -69,9 +70,10 @@ export class StatsController {
   })
   @UsePipes(new ValidationPipe({ transform: true }))
   async getUserStats(
-    @Param('userId', ParseUUIDPipe) userId: string,
     @Query() filterDto: TimeFilterDto,
+    @Req() request: Request,
   ): Promise<UserStatsResponseDto> {
+    const userId = (request.user as User).id;
     return this.statsService.getUserStats(userId, filterDto);
   }
 }

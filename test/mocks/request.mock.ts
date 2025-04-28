@@ -1,0 +1,51 @@
+import { Request } from 'express';
+import { User } from '../../src/entities/user.entity';
+
+export const mockUser: User = {
+  id: '123e4567-e89b-12d3-a456-426614174000',
+  email: 'test@example.com',
+  name: 'Test User',
+  passwordHash: 'hashed_password',
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  projects: [],
+  tasks: [],
+  tags: [],
+  focusSessions: [],
+  avatarUrl: null,
+  googleId: null,
+  appleId: null,
+};
+
+// Create a partial mock of Express Request
+export const mockRequest = {
+  user: mockUser,
+  get: jest.fn(),
+  header: jest.fn(),
+  accepts: jest.fn(),
+  acceptsCharsets: jest.fn(),
+  acceptsEncodings: jest.fn(),
+  acceptsLanguages: jest.fn(),
+  param: jest.fn(),
+  is: jest.fn(),
+  app: {},
+  baseUrl: '',
+  body: {},
+  cookies: {},
+  fresh: false,
+  hostname: 'localhost',
+  ip: '127.0.0.1',
+  ips: [],
+  method: 'GET',
+  originalUrl: '',
+  params: {},
+  path: '',
+  protocol: 'http',
+  query: {},
+  route: {},
+  secure: false,
+  signedCookies: {},
+  stale: true,
+  subdomains: [],
+  xhr: false,
+} as unknown as Request;

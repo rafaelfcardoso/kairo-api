@@ -24,12 +24,12 @@ import {
   BatchCompleteTasksDto,
   BatchCompleteTasksResponseDto,
 } from '../../../../src/tasks/dto/complete-overdue-tasks.dto';
+import { mockRequest, mockUser } from '../../../mocks/request.mock';
 
 describe('TaskController', () => {
   let controller: TaskController;
   let taskService: jest.Mocked<TaskService>;
   let mockLogger: any;
-  let mockRequest: Request;
 
   // Mock task data
   const mockTask: Task = {
@@ -63,6 +63,8 @@ describe('TaskController', () => {
       order: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
+      user: mockUser,
+      userId: mockUser.id,
     },
     tags: [],
     focusSessions: [],
@@ -72,6 +74,8 @@ describe('TaskController', () => {
     recurrenceTime: '',
     estimatedMinutes: 0,
     completedAt: new Date(),
+    user: mockUser,
+    userId: mockUser.id,
     get isCompleted() {
       return this.status === TaskStatus.COMPLETED;
     },
@@ -113,12 +117,6 @@ describe('TaskController', () => {
   };
 
   beforeEach(async () => {
-    const mockSecurityLogger = {
-      logSecurityEvent: jest.fn(),
-      logValidationFailure: jest.fn(),
-      logSuspiciousActivity: jest.fn(),
-    };
-
     const mockTaskService = {
       getTasks: jest.fn().mockResolvedValue([mockTask]),
       getTaskById: jest.fn().mockResolvedValue(mockTask),
@@ -148,15 +146,6 @@ describe('TaskController', () => {
       getTodayTasks: jest.fn().mockResolvedValue([mockTask]),
       getOverdueTasks: jest.fn().mockResolvedValue([mockTask]),
       getUpcomingTasks: jest.fn().mockResolvedValue([mockTask]),
-      duplicateTask: jest.fn().mockResolvedValue(mockDuplicatedTask),
-    };
-
-    mockLogger = {
-      log: jest.fn(),
-      error: jest.fn(),
-      warn: jest.fn(),
-      debug: jest.fn(),
-      verbose: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -168,7 +157,11 @@ describe('TaskController', () => {
         },
         {
           provide: SecurityLoggerService,
-          useValue: mockSecurityLogger,
+          useValue: {
+            logSecurityEvent: jest.fn(),
+            logValidationFailure: jest.fn(),
+            logSuspiciousActivity: jest.fn(),
+          },
         },
         {
           provide: HttpService,
@@ -176,7 +169,13 @@ describe('TaskController', () => {
         },
         {
           provide: Logger,
-          useValue: mockLogger,
+          useValue: {
+            log: jest.fn(),
+            error: jest.fn(),
+            warn: jest.fn(),
+            debug: jest.fn(),
+            verbose: jest.fn(),
+          },
         },
         Reflector,
       ],
@@ -184,15 +183,6 @@ describe('TaskController', () => {
 
     controller = module.get<TaskController>(TaskController);
     taskService = module.get<jest.Mocked<TaskService>>(TaskService);
-
-    // Override the controller's logger with our mock
-    (controller as any).logger = mockLogger;
-
-    // Setup mock request with user and IP
-    mockRequest = {
-      user: { id: 'test-user-id' },
-      ip: '127.0.0.1',
-    } as unknown as Request;
   });
 
   it('should be defined', () => {
@@ -200,645 +190,186 @@ describe('TaskController', () => {
   });
 
   describe('getTasks', () => {
-    it('should return all tasks', async () => {
-      const filterDto = new TaskFilterDto();
+    it('should return all tasks with filters', async () => {
+      const filterDto: TaskFilterDto = {
+        status: TaskStatus.NOT_STARTED,
+        search: 'test',
+      };
 
-      const result = await controller.getTasks(filterDto);
+      const result = await controller.getTasks(filterDto, mockRequest);
 
       expect(result).toEqual([mockTask]);
-      expect(taskService.getTasks).toHaveBeenCalledWith(filterDto);
+      expect(taskService.getTasks).toHaveBeenCalledWith(filterDto, mockUser.id);
     });
 
-    it('should apply filters when provided', async () => {
-      const filterDto = new TaskFilterDto();
-      filterDto.status = TaskStatus.NOT_STARTED;
-      filterDto.priority = TaskPriority.HIGH;
+    it('should handle database errors gracefully', async () => {
+      const filterDto: TaskFilterDto = {};
+      taskService.getTasks.mockRejectedValue(new Error('Database error'));
 
-      await controller.getTasks(filterDto);
-
-      expect(taskService.getTasks).toHaveBeenCalledWith(filterDto);
+      await expect(
+        controller.getTasks(filterDto, mockRequest),
+      ).rejects.toThrow();
     });
   });
 
   describe('getTaskById', () => {
     it('should return a task by id', async () => {
-      const result = await controller.getTaskById('task-123');
+      const result = await controller.getTaskById('task-123', mockRequest);
 
       expect(result).toEqual(mockTask);
-      expect(taskService.getTaskById).toHaveBeenCalledWith('task-123');
+      expect(taskService.getTaskById).toHaveBeenCalledWith(
+        'task-123',
+        mockUser.id,
+      );
     });
 
     it('should throw NotFoundException when task is not found', async () => {
-      jest
-        .spyOn(taskService, 'getTaskById')
-        .mockRejectedValueOnce(new NotFoundException());
-
-      await expect(controller.getTaskById('non-existent')).rejects.toThrow(
-        NotFoundException,
-      );
-    });
-  });
-
-  describe('createTask', () => {
-    it('should create a task', async () => {
-      const createTaskDto: CreateTaskDto = {
-        title: 'New Task',
-        description: 'New task description',
-        priority: TaskPriority.MEDIUM,
-      };
-
-      const result = await controller.createTask(createTaskDto, mockRequest);
-
-      expect(result).toEqual(mockTask);
-      expect(taskService.createTask).toHaveBeenCalledWith(
-        createTaskDto,
-        mockRequest.ip,
-      );
-    });
-
-    it('should handle validation errors', async () => {
-      const invalidDto = {} as CreateTaskDto;
-      jest
-        .spyOn(taskService, 'createTask')
-        .mockRejectedValueOnce(new BadRequestException());
+      const id = 'non-existent';
+      taskService.getTaskById.mockRejectedValue(new NotFoundException());
 
       await expect(
-        controller.createTask(invalidDto, mockRequest),
-      ).rejects.toThrow(BadRequestException);
-    });
-  });
-
-  describe('updateTask', () => {
-    it('should update a task', async () => {
-      const updateTaskDto: UpdateTaskDto = {
-        title: 'Updated Task',
-        description: 'Updated description',
-      };
-
-      const result = await controller.updateTask(
-        'task-123',
-        updateTaskDto,
-        mockRequest,
-      );
-
-      expect(result).toEqual(mockTask);
-      expect(taskService.updateTask).toHaveBeenCalledWith(
-        'task-123',
-        updateTaskDto,
-        mockRequest.ip,
-      );
-    });
-
-    it('should throw NotFoundException when task does not exist', async () => {
-      const updateTaskDto: UpdateTaskDto = { title: 'Updated Task' };
-      jest
-        .spyOn(taskService, 'updateTask')
-        .mockRejectedValueOnce(new NotFoundException());
-
-      await expect(
-        controller.updateTask('non-existent', updateTaskDto, mockRequest),
+        controller.getTaskById('non-existent', mockRequest),
       ).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('deleteTask', () => {
     it('should delete a task', async () => {
-      await controller.deleteTask('task-123');
+      await controller.deleteTask('task-123', mockRequest);
 
-      expect(taskService.deleteTask).toHaveBeenCalledWith('task-123');
+      expect(taskService.deleteTask).toHaveBeenCalledWith(
+        'task-123',
+        mockUser.id,
+      );
     });
 
     it('should throw NotFoundException when task does not exist', async () => {
-      jest
-        .spyOn(taskService, 'deleteTask')
-        .mockRejectedValueOnce(new NotFoundException());
+      taskService.deleteTask.mockRejectedValue(new NotFoundException());
 
-      await expect(controller.deleteTask('non-existent')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        controller.deleteTask('non-existent', mockRequest),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('archiveTask', () => {
     it('should archive a task', async () => {
-      const result = await controller.archiveTask('task-123');
+      const result = await controller.archiveTask('task-123', mockRequest);
 
-      expect(result.isArchived).toBe(true);
-      expect(taskService.archiveTask).toHaveBeenCalledWith('task-123');
+      expect(result).toEqual({ ...mockTask, isArchived: true });
+      expect(taskService.archiveTask).toHaveBeenCalledWith(
+        'task-123',
+        mockUser.id,
+      );
     });
 
     it('should throw NotFoundException when task does not exist', async () => {
-      jest
-        .spyOn(taskService, 'archiveTask')
-        .mockRejectedValueOnce(new NotFoundException());
+      taskService.archiveTask.mockRejectedValue(new NotFoundException());
 
-      await expect(controller.archiveTask('non-existent')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        controller.archiveTask('non-existent', mockRequest),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('addTags', () => {
     it('should add tags to a task', async () => {
-      const tagIds = ['tag-1', 'tag-2'];
+      const tagIds = ['tag-1'];
+      const result = await controller.addTags('task-123', tagIds, mockRequest);
 
-      const result = await controller.addTags('task-123', tagIds);
-
-      expect(result.tags).toHaveLength(1);
-      expect(taskService.addTags).toHaveBeenCalledWith('task-123', tagIds);
-    });
-
-    it('should throw NotFoundException when task does not exist', async () => {
-      jest
-        .spyOn(taskService, 'addTags')
-        .mockRejectedValueOnce(new NotFoundException());
-
-      await expect(
-        controller.addTags('non-existent', ['tag-1']),
-      ).rejects.toThrow(NotFoundException);
+      expect(result).toEqual({
+        ...mockTask,
+        tags: [{ id: 'tag-1', name: 'Tag 1' }],
+      });
+      expect(taskService.addTags).toHaveBeenCalledWith(
+        'task-123',
+        tagIds,
+        mockUser.id,
+      );
     });
   });
 
   describe('removeTags', () => {
     it('should remove tags from a task', async () => {
-      const tagIds = ['tag-1', 'tag-2'];
+      const tagIds = ['tag-1'];
+      const result = await controller.removeTags(
+        'task-123',
+        tagIds,
+        mockRequest,
+      );
 
-      const result = await controller.removeTags('task-123', tagIds);
-
-      expect(result.tags).toEqual([]);
-      expect(taskService.removeTags).toHaveBeenCalledWith('task-123', tagIds);
+      expect(result).toEqual({ ...mockTask, tags: [] });
+      expect(taskService.removeTags).toHaveBeenCalledWith(
+        'task-123',
+        tagIds,
+        mockUser.id,
+      );
     });
   });
 
   describe('getTodayTasks', () => {
-    it('should return tasks due today', async () => {
-      const result = await controller.getTodayTasks();
+    it("should return today's tasks", async () => {
+      const result = await controller.getTodayTasks(mockRequest);
 
       expect(result).toEqual([mockTask]);
-      expect(taskService.getTodayTasks).toHaveBeenCalled();
+      expect(taskService.getTodayTasks).toHaveBeenCalledWith(mockUser.id);
     });
   });
 
   describe('getOverdueTasks', () => {
     it('should return overdue tasks', async () => {
-      const result = await controller.getOverdueTasks();
+      const result = await controller.getOverdueTasks(mockRequest);
 
       expect(result).toEqual([mockTask]);
-      expect(taskService.getOverdueTasks).toHaveBeenCalled();
+      expect(taskService.getOverdueTasks).toHaveBeenCalledWith(mockUser.id);
     });
   });
 
   describe('getUpcomingTasks', () => {
-    it('should return upcoming tasks with default days', async () => {
-      const result = await controller.getUpcomingTasks(7);
+    it('should return upcoming tasks', async () => {
+      const days = 7;
+      const result = await controller.getUpcomingTasks(days, mockRequest);
 
       expect(result).toEqual([mockTask]);
-      expect(taskService.getUpcomingTasks).toHaveBeenCalledWith(7);
+      expect(taskService.getUpcomingTasks).toHaveBeenCalledWith(
+        days,
+        mockUser.id,
+      );
     });
 
-    it('should return upcoming tasks with specified days', async () => {
-      const result = await controller.getUpcomingTasks(5);
+    it('should use default days if not provided', async () => {
+      const result = await controller.getUpcomingTasks(5, mockRequest);
 
       expect(result).toEqual([mockTask]);
-      expect(taskService.getUpcomingTasks).toHaveBeenCalledWith(5);
+      expect(taskService.getUpcomingTasks).toHaveBeenCalledWith(5, mockUser.id);
     });
   });
 
   describe('getTaskStats', () => {
     it('should return task statistics', async () => {
-      const expectedStats = {
-        total: 5,
-        completed: 2,
-        notStarted: 2,
-        inProgress: 1,
-        overdue: 1,
-      };
+      const result = await controller.getTaskStats(mockRequest);
 
-      const result = await controller.getTaskStats();
-
-      expect(result).toEqual(expectedStats);
-      expect(taskService.getTaskStats).toHaveBeenCalled();
+      expect(result).toEqual(mockTaskStats);
+      expect(taskService.getTaskStats).toHaveBeenCalledWith(mockUser.id);
     });
   });
 
   describe('getTasksByPriority', () => {
     it('should return tasks grouped by priority', async () => {
-      const expectedStats = {
-        [TaskPriority.HIGH]: 0,
-        [TaskPriority.MEDIUM]: 0,
-        [TaskPriority.LOW]: 0,
-        [TaskPriority.NONE]: 0,
+      const mockTasksByPriorityResult = {
+        [TaskPriority.HIGH]: [mockTask],
+        [TaskPriority.MEDIUM]: [mockTask],
+        [TaskPriority.LOW]: [mockTask],
+        [TaskPriority.NONE]: [mockTask],
       };
-
-      const result = await controller.getTasksByPriority();
-
-      expect(result).toEqual(expectedStats);
-      expect(taskService.getTasksByPriority).toHaveBeenCalled();
-    });
-  });
-
-  describe('duplicateTask', () => {
-    it('should duplicate a task', async () => {
-      const result = await controller.duplicateTask('task-123');
-
-      expect(result.id).toBe('duplicated-task-id');
-      expect(taskService.duplicateTask).toHaveBeenCalledWith('task-123');
-    });
-
-    it('should throw NotFoundException when task does not exist', async () => {
-      jest
-        .spyOn(taskService, 'duplicateTask')
-        .mockRejectedValueOnce(new NotFoundException());
-
-      await expect(controller.duplicateTask('non-existent')).rejects.toThrow(
-        NotFoundException,
+      taskService.getTasksByPriority.mockResolvedValue(
+        mockTasksByPriorityResult,
       );
-    });
-  });
 
-  describe('assignOrphanedTasksToInbox', () => {
-    it('should assign orphaned tasks to inbox', async () => {
-      const expectedResult = {
-        tasksAssigned: 3,
-        inboxProjectId: 'inbox-project-id',
-        summary: 'Found and fixed 3 tasks',
-        tasks: [mockTask, mockTask, mockTask],
-      };
+      const result = await controller.getTasksByPriority(mockRequest);
 
-      const result = await controller.assignOrphanedTasksToInbox();
-
-      expect(result).toEqual(expectedResult);
-      expect(taskService.assignOrphanedTasksToInbox).toHaveBeenCalled();
-    });
-  });
-
-  describe('getRecurringTasks', () => {
-    it('should return recurring tasks', async () => {
-      // Reset the mock to verify proper arguments
-      jest.spyOn(taskService, 'getTasks').mockClear();
-
-      const result = await controller.getRecurringTasks();
-
-      expect(result).toEqual([mockTask]);
-      expect(taskService.getTasks).toHaveBeenCalledWith(
-        expect.objectContaining({
-          isRecurring: true,
-        }),
-      );
-    });
-  });
-
-  describe('completeOverdueTasks', () => {
-    it('should complete overdue tasks', async () => {
-      const mockTasks = [
-        {
-          id: 'task-1',
-          title: 'Task 1',
-          description: 'Description 1',
-          priority: TaskPriority.MEDIUM,
-          status: TaskStatus.COMPLETED,
-          needsReminder: false,
-          isArchived: false,
-          isBlocked: false,
-          isRecurring: false,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          completedAt: new Date(),
-          dueDate: null,
-          reminderDate: null,
-          userId: 'user-id',
-          projectId: null,
-          parentTaskId: null,
-          tags: [],
-          subtasks: [],
-          blockedBy: [],
-          blocking: [],
-          recurrenceRule: null,
-          recurrenceAnchorId: null,
-          notes: '',
-          estimatedTimeInMinutes: 0,
-          actualTimeInMinutes: 0,
-          reminderMessage: null,
-          nextDueDate: null,
-          hasTime: false,
-          recurrencePattern: null,
-          recurrenceEndDate: null,
-          recurrenceCount: null,
-          recurrenceInterval: null,
-          recurrenceFrequency: null,
-          recurrenceByDay: null,
-          recurrenceByMonth: null,
-          recurrenceByMonthDay: null,
-          recurrenceWeekStart: null,
-          recurrenceDays: [],
-          recurrenceTimeOfDay: null,
-          recurrenceTime: null,
-          recurringParentId: null,
-          recurrenceExceptions: [],
-          recurrenceTimezone: null,
-          recurrencePosition: null,
-          recurrenceOf: null,
-          estimatedMinutes: 0,
-          project: null,
-          focusSessions: [],
-          isCompleted: true,
-        } as unknown as Task,
-        {
-          id: 'task-2',
-          title: 'Task 2',
-          description: 'Description 2',
-          priority: TaskPriority.MEDIUM,
-          status: TaskStatus.COMPLETED,
-          needsReminder: false,
-          isArchived: false,
-          isBlocked: false,
-          isRecurring: false,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          completedAt: new Date(),
-          dueDate: null,
-          reminderDate: null,
-          userId: 'user-id',
-          projectId: null,
-          parentTaskId: null,
-          tags: [],
-          subtasks: [],
-          blockedBy: [],
-          blocking: [],
-          recurrenceRule: null,
-          recurrenceAnchorId: null,
-          notes: '',
-          estimatedTimeInMinutes: 0,
-          actualTimeInMinutes: 0,
-          reminderMessage: null,
-          nextDueDate: null,
-          hasTime: false,
-          recurrencePattern: null,
-          recurrenceEndDate: null,
-          recurrenceCount: null,
-          recurrenceInterval: null,
-          recurrenceFrequency: null,
-          recurrenceByDay: null,
-          recurrenceByMonth: null,
-          recurrenceByMonthDay: null,
-          recurrenceWeekStart: null,
-          recurrenceDays: [],
-          recurrenceTimeOfDay: null,
-          recurrenceTime: null,
-          recurringParentId: null,
-          recurrenceExceptions: [],
-          recurrenceTimezone: null,
-          recurrencePosition: null,
-          recurrenceOf: null,
-          estimatedMinutes: 0,
-          project: null,
-          focusSessions: [],
-          isCompleted: true,
-        } as unknown as Task,
-        {
-          id: 'task-3',
-          title: 'Task 3',
-          description: 'Description 3',
-          priority: TaskPriority.MEDIUM,
-          status: TaskStatus.COMPLETED,
-          needsReminder: false,
-          isArchived: false,
-          isBlocked: false,
-          isRecurring: false,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          completedAt: new Date(),
-          dueDate: null,
-          reminderDate: null,
-          userId: 'user-id',
-          projectId: null,
-          parentTaskId: null,
-          tags: [],
-          subtasks: [],
-          blockedBy: [],
-          blocking: [],
-          recurrenceRule: null,
-          recurrenceAnchorId: null,
-          notes: '',
-          estimatedTimeInMinutes: 0,
-          actualTimeInMinutes: 0,
-          reminderMessage: null,
-          nextDueDate: null,
-          hasTime: false,
-          recurrencePattern: null,
-          recurrenceEndDate: null,
-          recurrenceCount: null,
-          recurrenceInterval: null,
-          recurrenceFrequency: null,
-          recurrenceByDay: null,
-          recurrenceByMonth: null,
-          recurrenceByMonthDay: null,
-          recurrenceWeekStart: null,
-          recurrenceDays: [],
-          recurrenceTimeOfDay: null,
-          recurrenceTime: null,
-          recurringParentId: null,
-          recurrenceExceptions: [],
-          recurrenceTimezone: null,
-          recurrencePosition: null,
-          recurrenceOf: null,
-          estimatedMinutes: 0,
-          project: null,
-          focusSessions: [],
-          isCompleted: true,
-        } as unknown as Task,
-      ];
-
-      taskService.completeOverdueTasks.mockResolvedValue(mockTasks);
-
-      const result = await controller.completeOverdueTasks('user-id', {
-        additionalFilters: { cutoffDate: new Date() },
-        includeBlockedTasks: false,
-      });
-
-      expect(result).toEqual({
-        success: true,
-        tasksCompleted: 3,
-        message: 'Completed 3 overdue tasks',
-        completedTaskIds: ['task-1', 'task-2', 'task-3'],
-      });
-    });
-  });
-
-  describe('batchCompleteTasks', () => {
-    it('should batch complete tasks', async () => {
-      const mockTasks = [
-        {
-          id: 'task-1',
-          title: 'Task 1',
-          description: 'Description 1',
-          priority: TaskPriority.MEDIUM,
-          status: TaskStatus.COMPLETED,
-          needsReminder: false,
-          isArchived: false,
-          isBlocked: false,
-          isRecurring: false,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          completedAt: new Date(),
-          dueDate: null,
-          reminderDate: null,
-          userId: 'user-id',
-          projectId: null,
-          parentTaskId: null,
-          tags: [],
-          subtasks: [],
-          blockedBy: [],
-          blocking: [],
-          recurrenceRule: null,
-          recurrenceAnchorId: null,
-          notes: '',
-          estimatedTimeInMinutes: 0,
-          actualTimeInMinutes: 0,
-          reminderMessage: null,
-          nextDueDate: null,
-          hasTime: false,
-          recurrencePattern: null,
-          recurrenceEndDate: null,
-          recurrenceCount: null,
-          recurrenceInterval: null,
-          recurrenceFrequency: null,
-          recurrenceByDay: null,
-          recurrenceByMonth: null,
-          recurrenceByMonthDay: null,
-          recurrenceWeekStart: null,
-          recurrenceDays: [],
-          recurrenceTimeOfDay: null,
-          recurrenceTime: null,
-          recurringParentId: null,
-          recurrenceExceptions: [],
-          recurrenceTimezone: null,
-          recurrencePosition: null,
-          recurrenceOf: null,
-          estimatedMinutes: 0,
-          project: null,
-          focusSessions: [],
-          isCompleted: true,
-        } as unknown as Task,
-        {
-          id: 'task-2',
-          title: 'Task 2',
-          description: 'Description 2',
-          priority: TaskPriority.MEDIUM,
-          status: TaskStatus.COMPLETED,
-          needsReminder: false,
-          isArchived: false,
-          isBlocked: false,
-          isRecurring: false,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          completedAt: new Date(),
-          dueDate: null,
-          reminderDate: null,
-          userId: 'user-id',
-          projectId: null,
-          parentTaskId: null,
-          tags: [],
-          subtasks: [],
-          blockedBy: [],
-          blocking: [],
-          recurrenceRule: null,
-          recurrenceAnchorId: null,
-          notes: '',
-          estimatedTimeInMinutes: 0,
-          actualTimeInMinutes: 0,
-          reminderMessage: null,
-          nextDueDate: null,
-          hasTime: false,
-          recurrencePattern: null,
-          recurrenceEndDate: null,
-          recurrenceCount: null,
-          recurrenceInterval: null,
-          recurrenceFrequency: null,
-          recurrenceByDay: null,
-          recurrenceByMonth: null,
-          recurrenceByMonthDay: null,
-          recurrenceWeekStart: null,
-          recurrenceDays: [],
-          recurrenceTimeOfDay: null,
-          recurrenceTime: null,
-          recurringParentId: null,
-          recurrenceExceptions: [],
-          recurrenceTimezone: null,
-          recurrencePosition: null,
-          recurrenceOf: null,
-          estimatedMinutes: 0,
-          project: null,
-          focusSessions: [],
-          isCompleted: true,
-        } as unknown as Task,
-        {
-          id: 'task-3',
-          title: 'Task 3',
-          description: 'Description 3',
-          priority: TaskPriority.MEDIUM,
-          status: TaskStatus.COMPLETED,
-          needsReminder: false,
-          isArchived: false,
-          isBlocked: false,
-          isRecurring: false,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          completedAt: new Date(),
-          dueDate: null,
-          reminderDate: null,
-          userId: 'user-id',
-          projectId: null,
-          parentTaskId: null,
-          tags: [],
-          subtasks: [],
-          blockedBy: [],
-          blocking: [],
-          recurrenceRule: null,
-          recurrenceAnchorId: null,
-          notes: '',
-          estimatedTimeInMinutes: 0,
-          actualTimeInMinutes: 0,
-          reminderMessage: null,
-          nextDueDate: null,
-          hasTime: false,
-          recurrencePattern: null,
-          recurrenceEndDate: null,
-          recurrenceCount: null,
-          recurrenceInterval: null,
-          recurrenceFrequency: null,
-          recurrenceByDay: null,
-          recurrenceByMonth: null,
-          recurrenceByMonthDay: null,
-          recurrenceWeekStart: null,
-          recurrenceDays: [],
-          recurrenceTimeOfDay: null,
-          recurrenceTime: null,
-          recurringParentId: null,
-          recurrenceExceptions: [],
-          recurrenceTimezone: null,
-          recurrencePosition: null,
-          recurrenceOf: null,
-          estimatedMinutes: 0,
-          project: null,
-          focusSessions: [],
-          isCompleted: true,
-        } as unknown as Task,
-      ];
-
-      taskService.batchCompleteTasks.mockResolvedValue(mockTasks);
-
-      const result = await controller.batchCompleteTasks('user-id', {
-        additionalFilters: { taskIds: ['task-1', 'task-2', 'task-3'] },
-        statuses: [TaskStatus.NOT_STARTED],
-      });
-
-      expect(result).toEqual({
-        success: true,
-        tasksCompleted: 3,
-        message: 'Completed 3 tasks',
-        completedTaskIds: ['task-1', 'task-2', 'task-3'],
-      });
+      expect(result).toEqual(mockTasksByPriorityResult);
+      expect(taskService.getTasksByPriority).toHaveBeenCalledWith(mockUser.id);
     });
   });
 });

@@ -13,6 +13,10 @@ export default () => {
     RAILWAY_STATIC_URL: railwayUrl,
     JWT_SECRET: process.env.JWT_SECRET ? '[REDACTED]' : 'undefined',
     DB_SSL: process.env.DB_SSL,
+    APPLE_CLIENT_ID: process.env.APPLE_CLIENT_ID ? '[CONFIGURED]' : 'undefined',
+    APPLE_PRIVATE_KEY_BASE64: process.env.APPLE_PRIVATE_KEY_BASE64
+      ? '[CONFIGURED]'
+      : 'undefined',
   });
 
   // Validate required environment variables
@@ -45,11 +49,35 @@ export default () => {
       origin: process.env.CORS_ORIGIN || '*',
     },
 
+    // Apple Authentication - Only set values if all required config is present
+    apple: {
+      clientID: process.env.APPLE_CLIENT_ID || '',
+      teamID: process.env.APPLE_TEAM_ID || '',
+      keyID: process.env.APPLE_KEY_ID || '',
+      privateKeyPath: process.env.APPLE_PRIVATE_KEY_PATH || '',
+      callbackURL:
+        process.env.APPLE_CALLBACK_URL ||
+        `${railwayUrl ? `https://${railwayUrl}` : process.env.API_URL || `http://localhost:${process.env.PORT || 3001}`}/auth/apple/callback`,
+    },
+
+    // Frontend URL for redirects
+    frontend: {
+      url: process.env.FRONTEND_URL || 'http://localhost:3000',
+    },
+
     // Logging
     logging: {
       level: process.env.LOG_LEVEL || 'info',
     },
   };
+
+  // Check if Apple auth is fully configured
+  const isAppleConfigured =
+    !!baseConfig.apple.clientID &&
+    !!baseConfig.apple.teamID &&
+    !!baseConfig.apple.keyID &&
+    (!!baseConfig.apple.privateKeyPath ||
+      !!process.env.APPLE_PRIVATE_KEY_BASE64);
 
   // Log configuration (excluding sensitive data)
   console.log('Loaded configuration:', {
@@ -59,6 +87,8 @@ export default () => {
     jwtConfigured: !!baseConfig.jwt.secret,
     corsOrigin: baseConfig.cors.origin,
     logLevel: baseConfig.logging.level,
+    appleAuthConfigured: isAppleConfigured,
+    frontendUrl: baseConfig.frontend.url,
   });
 
   // Check if SSL should be disabled via environment variable

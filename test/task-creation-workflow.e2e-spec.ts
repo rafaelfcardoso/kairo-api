@@ -1,18 +1,27 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import * as request from 'supertest';
+import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { Task, TaskStatus, TaskPriority } from '../src/tasks/tasks.entity';
 import { Project } from '../src/projects/projects.entity';
 import { Tag } from '../src/tags/tags.entity';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { User } from '../src/entities/user.entity';
+import { getRepositoryToken, getDataSourceToken } from '@nestjs/typeorm';
+import { Repository, DataSource } from 'typeorm';
 
 describe('Task Creation Workflow (E2E)', () => {
   let app: INestApplication;
   let taskRepository: Repository<Task>;
   let projectRepository: Repository<Project>;
   let tagRepository: Repository<Tag>;
+  let userRepository: Repository<User>;
+  let dataSource: DataSource;
+
+  // Test user credentials and token
+  const testUserEmail = `test-user-${Date.now()}@e2e.com`;
+  const testUserPassword = 'TestPassword123!';
+  let testUserId: string;
+  let authToken: string;
 
   // Track created entities for cleanup
   const createdTaskIds: string[] = [];
@@ -34,30 +43,62 @@ describe('Task Creation Workflow (E2E)', () => {
       taskRepository = moduleFixture.get<Repository<Task>>(
         getRepositoryToken(Task),
       );
-
       projectRepository = moduleFixture.get<Repository<Project>>(
         getRepositoryToken(Project),
       );
-
       tagRepository = moduleFixture.get<Repository<Tag>>(
         getRepositoryToken(Tag),
       );
+      userRepository = moduleFixture.get<Repository<User>>(
+        getRepositoryToken(User),
+      );
+      dataSource = moduleFixture.get<DataSource>(getDataSourceToken());
 
       await app.init();
 
-      // Clean up any existing test data (defensive cleanup)
+      // Register test user
+      await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({
+          email: testUserEmail,
+          password: testUserPassword,
+          name: 'E2E Test User',
+        })
+        .expect(201);
+
+      // Login to get token
+      const loginResponse = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email: testUserEmail, password: testUserPassword })
+        .expect(200);
+
+      authToken = loginResponse.body.access_token;
+      testUserId = loginResponse.body.user.id;
+      expect(authToken).toBeDefined();
+
+      // Force cleanup using TRUNCATE before tests for tables created in InitialSchema
+      console.log('Truncating initial schema tables before test suite...');
       try {
-        await taskRepository.delete({ title: 'E2E Workflow Test Task' });
-        await projectRepository.delete({ name: 'E2E Test Project' });
-        await tagRepository.delete({ name: 'e2e-test' });
+        // await taskRepository.query(`TRUNCATE TABLE "task_tags_tag" CASCADE`); // Created later
+        // await taskRepository.query(
+        //   `TRUNCATE TABLE "task_focus_sessions_focus_session" CASCADE`,
+        // ); // Created later
+        // await taskRepository.query(`TRUNCATE TABLE "focus_session" CASCADE`); // Created later
+        await taskRepository.query(`TRUNCATE TABLE "tag" CASCADE`);
+        await taskRepository.query(`TRUNCATE TABLE "task" CASCADE`);
+        await projectRepository.query(
+          `TRUNCATE TABLE "project_closure" CASCADE`,
+        );
+        await projectRepository.query(`TRUNCATE TABLE "project" CASCADE`);
+        console.log('Tables truncated.');
       } catch (error) {
-        console.error('Error cleaning up existing test data:', error);
+        console.error('Error truncating tables:', error);
       }
     } catch (error) {
       console.error('Error setting up test module:', error);
       throw error;
     }
-  }, 120000); // Increase timeout for beforeAll
+  }, 120000);
 
   afterAll(async () => {
     // Clean up test data
@@ -65,18 +106,25 @@ describe('Task Creation Workflow (E2E)', () => {
       if (createdTaskIds.length > 0) {
         await taskRepository.delete(createdTaskIds);
       }
-
       if (createdTagIds.length > 0) {
         await tagRepository.delete(createdTagIds);
       }
-
       if (createdProjectIds.length > 0) {
         await projectRepository.delete(createdProjectIds);
+      }
+      // Delete the test user
+      if (testUserId) {
+        await userRepository.delete(testUserId);
       }
     } catch (error) {
       console.error('Error cleaning up test data:', error);
     }
 
+    // Explicitly destroy DataSource before closing app
+    if (dataSource && dataSource.isInitialized) {
+      await dataSource.destroy();
+      console.log('[afterAll] DataSource destroyed.');
+    }
     await app.close();
   });
 
@@ -92,6 +140,7 @@ describe('Task Creation Workflow (E2E)', () => {
 
       const response = await request(app.getHttpServer())
         .post('/projects')
+        .set('Authorization', `Bearer ${authToken}`)
         .send(project)
         .expect(201);
 
@@ -113,6 +162,7 @@ describe('Task Creation Workflow (E2E)', () => {
       for (const tagData of tags) {
         const response = await request(app.getHttpServer())
           .post('/tags')
+          .set('Authorization', `Bearer ${authToken}`)
           .send(tagData)
           .expect(201);
 
@@ -130,17 +180,25 @@ describe('Task Creation Workflow (E2E)', () => {
     });
 
     it('should create a task with project and tags', async () => {
+      // Ensure we have a project and tag to associate
+      expect(createdProjectIds.length).toBeGreaterThan(0);
+      expect(createdTagIds.length).toBeGreaterThan(0);
+
+      const currentProjectId = createdProjectIds[0]; // Use local var for clarity
+      const currentTagIds = [createdTagIds[0]]; // Task created with only the first tag
+
       const taskData = {
         title: 'E2E Workflow Test Task',
         description: 'Task for testing the entire creation workflow',
         status: TaskStatus.NOT_STARTED,
         priority: TaskPriority.HIGH,
-        projectId: projectId,
-        tagIds: tagIds,
+        projectId: currentProjectId,
+        tagIds: currentTagIds,
       };
 
       const response = await request(app.getHttpServer())
         .post('/tasks')
+        .set('Authorization', `Bearer ${authToken}`)
         .send(taskData)
         .expect(201);
 
@@ -148,13 +206,13 @@ describe('Task Creation Workflow (E2E)', () => {
       expect(response.body.id).toBeDefined();
       expect(response.body.title).toBe(taskData.title);
       expect(response.body.project).toBeDefined();
-      expect(response.body.project.id).toBe(projectId);
+      expect(response.body.project.id).toBe(currentProjectId);
       expect(response.body.tags).toBeDefined();
-      expect(response.body.tags.length).toBe(tagIds.length);
+      expect(response.body.tags.length).toBe(currentTagIds.length); // Expect 1 tag
 
       // Verify tags match
       const returnedTagIds = response.body.tags.map((tag) => tag.id);
-      for (const tagId of tagIds) {
+      for (const tagId of currentTagIds) {
         expect(returnedTagIds).toContain(tagId);
       }
 
@@ -162,23 +220,33 @@ describe('Task Creation Workflow (E2E)', () => {
     });
 
     it('should get the task with project and tags', async () => {
+      // Ensure we have a task to retrieve
+      expect(createdTaskIds.length).toBeGreaterThan(0);
       const taskId = createdTaskIds[0];
+      const expectedTagCount = 1; // Task was created with 1 tag
+      const expectedProjectId = createdProjectIds[0]; // Project it was created with
 
       const response = await request(app.getHttpServer())
         .get(`/tasks/${taskId}`)
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
       expect(response.body).toBeDefined();
       expect(response.body.id).toBe(taskId);
       expect(response.body.project).toBeDefined();
-      expect(response.body.project.id).toBe(projectId);
+      expect(response.body.project.id).toBe(expectedProjectId);
       expect(response.body.tags).toBeDefined();
-      expect(response.body.tags.length).toBe(tagIds.length);
+      expect(response.body.tags.length).toBe(expectedTagCount); // Assert correct tag count
     });
 
     it('should filter tasks by project', async () => {
+      // Ensure we have a project to filter by
+      expect(createdProjectIds.length).toBeGreaterThan(0);
+      const projectId = createdProjectIds[0];
+
       const response = await request(app.getHttpServer())
         .get(`/tasks?projectId=${projectId}`)
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
       expect(response.body).toBeDefined();
@@ -191,10 +259,13 @@ describe('Task Creation Workflow (E2E)', () => {
     });
 
     it('should filter tasks by tag', async () => {
-      const tagId = tagIds[0];
+      // Ensure we have a tag to filter by
+      expect(createdTagIds.length).toBeGreaterThan(0);
+      const tagId = createdTagIds[0];
 
       const response = await request(app.getHttpServer())
         .get(`/tasks?tagId=${tagId}`)
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
       expect(response.body).toBeDefined();
@@ -208,6 +279,8 @@ describe('Task Creation Workflow (E2E)', () => {
     });
 
     it('should remove a tag from a task', async () => {
+      expect(createdTaskIds.length).toBeGreaterThan(0);
+      expect(createdTagIds.length).toBeGreaterThan(0);
       const taskId = createdTaskIds[0];
       const tagToRemove = tagIds[0];
       const remainingTags = tagIds.slice(1);
@@ -218,6 +291,7 @@ describe('Task Creation Workflow (E2E)', () => {
 
       const response = await request(app.getHttpServer())
         .put(`/tasks/${taskId}`)
+        .set('Authorization', `Bearer ${authToken}`)
         .send(updateData)
         .expect(200);
 
@@ -244,6 +318,7 @@ describe('Task Creation Workflow (E2E)', () => {
 
       const projectResponse = await request(app.getHttpServer())
         .post('/projects')
+        .set('Authorization', `Bearer ${authToken}`)
         .send(newProject)
         .expect(201);
 
@@ -251,6 +326,7 @@ describe('Task Creation Workflow (E2E)', () => {
       createdProjectIds.push(newProjectId);
 
       // Move the task to the new project
+      expect(createdTaskIds.length).toBeGreaterThan(0);
       const taskId = createdTaskIds[0];
 
       const updateData = {
@@ -259,6 +335,7 @@ describe('Task Creation Workflow (E2E)', () => {
 
       const response = await request(app.getHttpServer())
         .put(`/tasks/${taskId}`)
+        .set('Authorization', `Bearer ${authToken}`)
         .send(updateData)
         .expect(200);
 
@@ -286,6 +363,7 @@ describe('Task Creation Workflow (E2E)', () => {
 
       const response = await request(app.getHttpServer())
         .post('/tasks')
+        .set('Authorization', `Bearer ${authToken}`)
         .send(invalidTask)
         .expect(400);
 

@@ -8,11 +8,13 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { Project } from '../projects/projects.entity';
 import { Tag } from '../tags/tags.entity';
 import { FocusSession } from '../focus-sessions/focus-sessions.entity';
 import { ApiProperty } from '@nestjs/swagger';
+import { User } from '../entities/user.entity';
 
 export enum TaskPriority {
   NONE = 'none',
@@ -211,7 +213,7 @@ export class Task {
 
   @ApiProperty({ type: () => [Tag] })
   @ManyToMany(() => Tag, (tag) => tag.tasks)
-  @JoinTable()
+  @JoinTable({ name: 'task_tag' })
   tags: Tag[];
 
   @ManyToMany(() => FocusSession)
@@ -241,4 +243,15 @@ export class Task {
   })
   @Column({ nullable: true, type: 'timestamp' })
   completedAt: Date;
+
+  @ManyToOne(() => User, (user) => user.tasks, {
+    nullable: false,
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'userId' })
+  user: User;
+
+  @Index()
+  @Column({ type: 'uuid', nullable: false })
+  userId: string;
 }

@@ -3,6 +3,8 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 export class CreateFocusSessionTables1740494148045
   implements MigrationInterface
 {
+  name = 'CreateFocusSessionTables1740494148045';
+
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Create energy level enum type if it doesn't exist
     const energyLevelEnumExists = await queryRunner.query(`
@@ -41,35 +43,37 @@ export class CreateFocusSessionTables1740494148045
 
     // Check if junction table exists
     const junctionTableExists = await queryRunner.hasTable(
-      'focus_session_tasks_task',
+      'task_focus_sessions_focus_session',
     );
     if (!junctionTableExists) {
-      // Create junction table for many-to-many relationship between focus_session and task
+      // Create junction table with the correct name
       await queryRunner.query(`
-                CREATE TABLE "focus_session_tasks_task" (
-                    "focusSessionId" uuid NOT NULL,
-                    "taskId" uuid NOT NULL,
-                    CONSTRAINT "PK_focus_session_tasks_task" PRIMARY KEY ("focusSessionId", "taskId"),
-                    CONSTRAINT "FK_focus_session_tasks_task_focus_session" FOREIGN KEY ("focusSessionId") 
-                        REFERENCES "focus_session"("id") ON DELETE CASCADE ON UPDATE CASCADE,
-                    CONSTRAINT "FK_focus_session_tasks_task_task" FOREIGN KEY ("taskId") 
-                        REFERENCES "task"("id") ON DELETE CASCADE ON UPDATE CASCADE
-                )
-            `);
+        CREATE TABLE "task_focus_sessions_focus_session" (
+            "taskId" uuid NOT NULL,
+            "focusSessionId" uuid NOT NULL,
+            CONSTRAINT "PK_task_focus_sessions" PRIMARY KEY ("taskId", "focusSessionId"),
+            CONSTRAINT "FK_task_focus_sessions_task" FOREIGN KEY ("taskId") 
+                REFERENCES "task"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+            CONSTRAINT "FK_task_focus_sessions_focus_session" FOREIGN KEY ("focusSessionId") 
+                REFERENCES "focus_session"("id") ON DELETE CASCADE ON UPDATE CASCADE
+        )
+      `);
 
-      // Create indices for better performance
+      // Create indices with corrected table name
       await queryRunner.query(`
-                CREATE INDEX "IDX_focus_session_tasks_task_focus_session" ON "focus_session_tasks_task" ("focusSessionId")
-            `);
+        CREATE INDEX "IDX_task_focus_sessions_task" ON "task_focus_sessions_focus_session" ("taskId")
+      `);
       await queryRunner.query(`
-                CREATE INDEX "IDX_focus_session_tasks_task_task" ON "focus_session_tasks_task" ("taskId")
-            `);
+        CREATE INDEX "IDX_task_focus_sessions_focus_session" ON "task_focus_sessions_focus_session" ("focusSessionId")
+      `);
     }
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    // Drop tables in reverse order (junction table first, then main table)
-    await queryRunner.query(`DROP TABLE IF EXISTS "focus_session_tasks_task"`);
+    // Drop table with the correct name
+    await queryRunner.query(
+      `DROP TABLE IF EXISTS "task_focus_sessions_focus_session"`,
+    );
     await queryRunner.query(`DROP TABLE IF EXISTS "focus_session"`);
     await queryRunner.query(
       `DROP TYPE IF EXISTS "focus_session_energylevel_enum"`,

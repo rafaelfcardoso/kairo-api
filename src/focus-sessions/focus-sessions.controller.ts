@@ -11,6 +11,8 @@ import {
   ParseUUIDPipe,
   HttpStatus,
   HttpCode,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
 import { FocusSessionsService } from './focus-sessions.service';
 import {
@@ -27,9 +29,15 @@ import {
   ApiParam,
   ApiBody,
   ApiQuery,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
+import { Request } from 'express';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { User } from '../entities/user.entity';
 
 @ApiTags('Focus Sessions')
+@ApiBearerAuth('JWT-auth')
+@UseGuards(JwtAuthGuard)
 @Controller('focus-sessions')
 export class FocusSessionsController {
   constructor(private readonly focusSessionsService: FocusSessionsService) {}
@@ -41,11 +49,14 @@ export class FocusSessionsController {
     description: 'The focus session has been successfully created.',
     type: FocusSessionResponseDto,
   })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiBody({ type: CreateFocusSessionDto })
   async create(
     @Body() createFocusSessionDto: CreateFocusSessionDto,
+    @Req() request: Request,
   ): Promise<FocusSessionResponseDto> {
-    return this.focusSessionsService.create(createFocusSessionDto);
+    const userId = (request.user as User).id;
+    return this.focusSessionsService.create(createFocusSessionDto, userId);
   }
 
   @Get()
@@ -59,8 +70,10 @@ export class FocusSessionsController {
   })
   async findAll(
     @Query() filters: GetFocusSessionsHistoryDto,
+    @Req() request: Request,
   ): Promise<FocusSessionResponseDto[]> {
-    return this.focusSessionsService.findAll(filters);
+    const userId = (request.user as User).id;
+    return this.focusSessionsService.findAll(filters, userId);
   }
 
   @Get('stats')
@@ -88,11 +101,14 @@ export class FocusSessionsController {
     description: 'Filter stats by project ID',
   })
   async getStats(
+    @Req() request: Request,
     @Query('startDate') startDate?: Date,
     @Query('endDate') endDate?: Date,
     @Query('projectId') projectId?: string,
   ) {
+    const userId = (request.user as User).id;
     return this.focusSessionsService.getSessionStats(
+      userId,
       startDate,
       endDate,
       projectId,
@@ -110,8 +126,10 @@ export class FocusSessionsController {
   @ApiParam({ name: 'id', description: 'Focus session ID', type: 'string' })
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: Request,
   ): Promise<FocusSessionResponseDto> {
-    return this.focusSessionsService.findOne(id);
+    const userId = (request.user as User).id;
+    return this.focusSessionsService.findOne(id, userId);
   }
 
   @Patch(':id')
@@ -127,8 +145,10 @@ export class FocusSessionsController {
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateFocusSessionDto: UpdateFocusSessionDto,
+    @Req() request: Request,
   ): Promise<FocusSessionResponseDto> {
-    return this.focusSessionsService.update(id, updateFocusSessionDto);
+    const userId = (request.user as User).id;
+    return this.focusSessionsService.update(id, updateFocusSessionDto, userId);
   }
 
   @Patch(':id/complete')
@@ -144,8 +164,14 @@ export class FocusSessionsController {
   async complete(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() completeFocusSessionDto: CompleteFocusSessionDto,
+    @Req() request: Request,
   ): Promise<FocusSessionResponseDto> {
-    return this.focusSessionsService.complete(id, completeFocusSessionDto);
+    const userId = (request.user as User).id;
+    return this.focusSessionsService.complete(
+      id,
+      completeFocusSessionDto,
+      userId,
+    );
   }
 
   @Delete(':id')
@@ -157,7 +183,11 @@ export class FocusSessionsController {
   })
   @ApiResponse({ status: 404, description: 'Focus session not found.' })
   @ApiParam({ name: 'id', description: 'Focus session ID', type: 'string' })
-  async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
-    return this.focusSessionsService.remove(id);
+  async remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: Request,
+  ): Promise<void> {
+    const userId = (request.user as User).id;
+    return this.focusSessionsService.remove(id, userId);
   }
 }

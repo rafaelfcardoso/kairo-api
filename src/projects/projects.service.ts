@@ -3,10 +3,13 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
+  InternalServerErrorException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ProjectsRepository } from './projects.repository';
 import { TasksRepository } from '../tasks/tasks.repository';
-import { Project } from './projects.entity';
+import { Project, ProjectType } from './projects.entity';
 import {
   CreateProjectDto,
   UpdateProjectDto,
@@ -15,76 +18,191 @@ import {
 } from './projects.dto';
 import { TaskStatus } from '../tasks/tasks.entity';
 import { Task } from '../tasks/tasks.entity';
+import { User } from '../entities/user.entity';
+import { SecurityLoggerService } from '../common/services/security-logger.service';
+import { In } from 'typeorm';
 
 @Injectable()
 export class ProjectsService {
   constructor(
     private projectsRepository: ProjectsRepository,
     private tasksRepository: TasksRepository,
+    private securityLogger: SecurityLoggerService,
   ) {}
 
-  async getProjects(filterDto: ProjectFilterDto): Promise<Project[]> {
-    return this.projectsRepository.getProjects(filterDto);
+  private async checkProjectOwnership(
+    projectId: string,
+    userId: string,
+  ): Promise<Project> {
+    const project = await this.projectsRepository.findOne({
+      where: { id: projectId },
+    });
+    if (!project) {
+      throw new NotFoundException(`Project with ID "${projectId}" not found`);
+    }
+    if (project.userId !== userId && !project.isSystem) {
+      this.securityLogger.logSuspiciousActivity(
+        'Project ownership check failed',
+        'HIGH',
+        { projectId, attemptedByUserId: userId, ownerUserId: project.userId },
+      );
+      throw new ForbiddenException('You do not own this project');
+    }
+    return project;
   }
 
-  async getProjectById(id: string): Promise<Project> {
-    return this.projectsRepository.getProjectById(id);
+  async getProjects(
+    filterDto: ProjectFilterDto,
+    userId: string,
+  ): Promise<Project[]> {
+    return this.projectsRepository.getProjects({ ...filterDto, userId });
   }
 
-  async createProject(createProjectDto: CreateProjectDto): Promise<Project> {
-    return this.projectsRepository.createProject(createProjectDto);
+  async getProjectById(id: string, userId: string): Promise<Project> {
+    return this.checkProjectOwnership(id, userId);
+  }
+
+  async createProject(
+    createProjectDto: CreateProjectDto,
+    userId: string,
+  ): Promise<Project> {
+    const result = await this.projectsRepository
+      .createQueryBuilder('project')
+      .select('MAX(project.order)', 'maxOrder')
+      .where('project."parentId" IS NULL')
+      .andWhere('project."userId" = :userId', { userId })
+      .getRawOne();
+
+    const nextOrder = (result?.maxOrder ?? -1) + 1;
+
+    const project = this.projectsRepository.create({
+      ...createProjectDto,
+      userId: userId,
+      order: nextOrder,
+    });
+
+    try {
+      await this.projectsRepository.save(project);
+      return project;
+    } catch (error) {
+      if (error.code === '23505') {
+        throw new ConflictException(
+          'Project name already exists for this user',
+        );
+      }
+      this.securityLogger.logSuspiciousActivity(
+        'Project creation failed',
+        'MEDIUM',
+        {
+          error: error.message,
+          userId: userId,
+          dto: createProjectDto,
+        },
+      );
+      throw new InternalServerErrorException();
+    }
   }
 
   async updateProject(
     id: string,
     updateProjectDto: UpdateProjectDto,
+    userId: string,
   ): Promise<Project> {
-    return this.projectsRepository.updateProject(id, updateProjectDto);
+    await this.checkProjectOwnership(id, userId);
+    return this.projectsRepository.updateProject(id, updateProjectDto, userId);
   }
 
-  async deleteProject(id: string): Promise<void> {
-    const project = await this.projectsRepository.findOne({ where: { id } });
-    if (!project) {
-      throw new NotFoundException(`Project with ID "${id}" not found`);
-    }
+  async deleteProject(id: string, userId: string): Promise<void> {
+    const project = await this.checkProjectOwnership(id, userId);
+
     if (project.isSystem) {
       throw new BadRequestException(
         `Cannot delete system project "${project.name}"`,
       );
     }
-    await this.projectsRepository.delete(id);
+
+    const projectWithRelations =
+      await this.projectsRepository.getProjectById(id);
+    if (projectWithRelations.children?.length > 0) {
+      throw new BadRequestException(
+        'Cannot delete project with sub-projects. Move or delete them first.',
+      );
+    }
+    if (projectWithRelations.tasks?.length > 0) {
+      throw new BadRequestException(
+        'Cannot delete project with tasks. Move or delete them first.',
+      );
+    }
+
+    await this.projectsRepository.deleteProject(id, userId);
   }
 
-  async archiveProject(id: string): Promise<Project> {
-    return this.projectsRepository.archiveProject(id);
+  async archiveProject(id: string, userId: string): Promise<Project> {
+    await this.checkProjectOwnership(id, userId);
+    return this.projectsRepository.archiveProject(id, userId);
   }
 
-  async moveProject(moveDto: ProjectMoveDto): Promise<void> {
-    const { projectId, targetId, position } = moveDto;
-    await this.projectsRepository.moveProject(projectId, targetId, position);
+  async moveProject(moveDto: ProjectMoveDto, userId: string): Promise<void> {
+    const { projectId, targetId } = moveDto;
+    await this.checkProjectOwnership(projectId, userId);
+    if (targetId) {
+      await this.checkProjectOwnership(targetId, userId);
+    }
+    await this.projectsRepository.moveProject(
+      projectId,
+      targetId,
+      moveDto.position,
+    );
   }
 
-  async reorderProjects(projectIds: string[]): Promise<void> {
+  async reorderProjects(projectIds: string[], userId: string): Promise<void> {
+    const projects = await this.projectsRepository.find({
+      where: { id: In(projectIds) },
+    });
+    if (projects.length !== projectIds.length) {
+      throw new NotFoundException('One or more projects not found.');
+    }
+    for (const project of projects) {
+      if (project.userId !== userId && !project.isSystem) {
+        throw new ForbiddenException(
+          `You do not own project with ID ${project.id}`,
+        );
+      }
+    }
     await this.projectsRepository.reorderProjects(projectIds);
   }
 
-  async getProjectTree(rootId?: string): Promise<Project[]> {
-    return this.projectsRepository.getProjectTree(rootId);
+  async getProjectTree(userId: string, rootId?: string): Promise<Project[]> {
+    return this.projectsRepository.getProjectTree(userId, rootId);
   }
 
-  async getProjectWithAncestors(id: string): Promise<{
+  async getProjectWithAncestors(
+    id: string,
+    userId: string,
+  ): Promise<{
     project: Project;
     ancestors: Project[];
   }> {
     const [project, ancestors] = await Promise.all([
-      this.getProjectById(id),
-      this.projectsRepository.getProjectAncestors(id),
+      this.getProjectById(id, userId),
+      this.projectsRepository.getProjectAncestors(id, userId),
     ]);
 
     return { project, ancestors };
   }
 
-  async getProjectStats(id: string): Promise<{
+  async getProjectDescendantsFromService(
+    id: string,
+    userId: string,
+  ): Promise<Project[]> {
+    const project = await this.checkProjectOwnership(id, userId);
+    return this.projectsRepository.getProjectDescendants(id, userId);
+  }
+
+  async getProjectStats(
+    id: string,
+    userId: string,
+  ): Promise<{
     totalTasks: number;
     completedTasks: number;
     notStartedTasks: number;
@@ -93,8 +211,11 @@ export class ProjectsService {
     subprojectsCount: number;
     deepTasksCount: number; // Including tasks from subprojects
   }> {
-    const project = await this.getProjectById(id);
-    const descendants = await this.projectsRepository.getProjectDescendants(id);
+    const project = await this.getProjectById(id, userId);
+    const descendants = await this.projectsRepository.getProjectDescendants(
+      id,
+      userId,
+    );
 
     // Get all tasks from this project and its subprojects
     const allProjectIds = [id, ...descendants.map((d) => d.id)];
@@ -132,13 +253,14 @@ export class ProjectsService {
 
   async duplicateProject(
     id: string,
+    userId: string,
     options: {
       includeSubprojects?: boolean;
       includeTasks?: boolean;
     } = {},
   ): Promise<Project> {
     const { includeSubprojects = true, includeTasks = true } = options;
-    const sourceProject = await this.getProjectById(id);
+    const sourceProject = await this.getProjectById(id, userId);
 
     // Create new project with same basic data
     const newProjectData = {
@@ -148,7 +270,7 @@ export class ProjectsService {
       parent: sourceProject.parent,
     };
 
-    const newProject = await this.createProject(newProjectData);
+    const newProject = await this.createProject(newProjectData, userId);
 
     if (includeTasks) {
       // Duplicate tasks
@@ -161,7 +283,7 @@ export class ProjectsService {
           status: task.status,
           projectId: newProject.id,
         };
-        return this.tasksRepository.createTask(newTaskData);
+        return this.tasksRepository.createTask(newTaskData, userId);
       });
       await Promise.all(taskPromises);
     }
@@ -169,18 +291,22 @@ export class ProjectsService {
     if (includeSubprojects) {
       // Recursively duplicate subprojects
       const subprojectPromises = sourceProject.children.map((child) =>
-        this.duplicateProject(child.id, options),
+        this.duplicateProject(child.id, userId, options),
       );
       await Promise.all(subprojectPromises);
     }
 
-    return this.getProjectById(newProject.id);
+    return this.getProjectById(newProject.id, userId);
   }
 
-  async mergeProjects(sourceId: string, targetId: string): Promise<Project> {
+  async mergeProjects(
+    sourceId: string,
+    targetId: string,
+    userId: string,
+  ): Promise<Project> {
     const [sourceProject, targetProject] = await Promise.all([
-      this.getProjectById(sourceId),
-      this.getProjectById(targetId),
+      this.checkProjectOwnership(sourceId, userId),
+      this.checkProjectOwnership(targetId, userId),
     ]);
 
     // Move all tasks from source to target
@@ -204,17 +330,20 @@ export class ProjectsService {
     }
 
     // Delete the source project
-    await this.deleteProject(sourceId);
+    await this.deleteProject(sourceId, userId);
 
-    return this.getProjectById(targetId);
+    return this.getProjectById(targetId, userId);
   }
 
-  async getProjectTimeline(id: string): Promise<{
+  async getProjectTimeline(
+    id: string,
+    userId: string,
+  ): Promise<{
     project: Project;
     tasksByMonth: Record<string, number>;
     completionTrend: Record<string, number>;
   }> {
-    const project = await this.getProjectById(id);
+    const project = await this.getProjectById(id, userId);
     const tasks = project.tasks;
 
     // Group tasks by month
@@ -236,29 +365,27 @@ export class ProjectsService {
     return { project, tasksByMonth, completionTrend };
   }
 
-  async searchProjects(query: string): Promise<Project[]> {
-    return this.projectsRepository
-      .createQueryBuilder('project')
-      .leftJoinAndSelect('project.parent', 'parent')
-      .leftJoinAndSelect('project.children', 'children')
-      .where('LOWER(project.name) LIKE LOWER(:query)', { query: `%${query}%` })
-      .orWhere('LOWER(project.description) LIKE LOWER(:query)', {
-        query: `%${query}%`,
-      })
-      .getMany();
+  async searchProjects(query: string, userId: string): Promise<Project[]> {
+    return this.projectsRepository.searchProjects(query, userId);
   }
 
-  async getProjectBreadcrumb(id: string): Promise<Project[]> {
-    const ancestors = await this.projectsRepository.getProjectAncestors(id);
-    const current = await this.getProjectById(id);
+  async getProjectBreadcrumb(id: string, userId: string): Promise<Project[]> {
+    const ancestors = await this.projectsRepository.getProjectAncestors(
+      id,
+      userId,
+    );
+    const current = await this.getProjectById(id, userId);
     return [...ancestors, current];
   }
 
-  async calculateProjectHealth(id: string): Promise<{
+  async calculateProjectHealth(
+    id: string,
+    userId: string,
+  ): Promise<{
     health: 'good' | 'warning' | 'critical';
     factors: string[];
   }> {
-    const stats = await this.getProjectStats(id);
+    const stats = await this.getProjectStats(id, userId);
     const factors: string[] = [];
 
     // Define health check criteria
@@ -288,6 +415,7 @@ export class ProjectsService {
   async duplicateTaskToProject(
     taskId: string,
     projectId: string,
+    userId: string,
   ): Promise<Task> {
     const task = await this.tasksRepository.getTaskById(taskId);
     const project = await this.projectsRepository.findOne({
@@ -308,10 +436,14 @@ export class ProjectsService {
       projectId,
     };
 
-    return this.tasksRepository.createTask(newTaskData);
+    return this.tasksRepository.createTask(newTaskData, userId);
   }
 
-  async createTaskWithProject(projectId: string, task: Task): Promise<Task> {
+  async createTaskWithProject(
+    projectId: string,
+    task: Task,
+    userId: string,
+  ): Promise<Task> {
     const project = await this.projectsRepository.findOne({
       where: { id: projectId },
     });
@@ -329,7 +461,7 @@ export class ProjectsService {
       projectId,
     };
 
-    return this.tasksRepository.createTask(newTaskData);
+    return this.tasksRepository.createTask(newTaskData, userId);
   }
 
   /**

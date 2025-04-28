@@ -19,27 +19,37 @@ export abstract class BaseMigration implements MigrationInterface {
 
   // Wrapper for up migration with transaction and error handling
   public async up(queryRunner: QueryRunner): Promise<void> {
-    console.log(`Starting migration: ${this.name}`);
+    console.log(`[BaseMigration] Starting migration: ${this.name}`);
 
     const shouldExecute = await this.shouldRun(queryRunner);
     if (!shouldExecute) {
-      console.log(`Migration ${this.name} has already been applied`);
+      console.log(
+        `[BaseMigration] Migration ${this.name} has already been applied or recorded.`,
+      );
       return;
     }
 
+    console.log(`[BaseMigration] Starting transaction for: ${this.name}`);
     await queryRunner.startTransaction();
 
     try {
-      console.log(`Executing up migration: ${this.name}`);
+      console.log(`[BaseMigration] >>> Executing executeUp for: ${this.name}`);
       await this.executeUp(queryRunner);
+      console.log(`[BaseMigration] <<< Completed executeUp for: ${this.name}`);
 
+      console.log(`[BaseMigration] Committing transaction for: ${this.name}`);
       await queryRunner.commitTransaction();
-      console.log(`Successfully completed migration: ${this.name}`);
+      console.log(
+        `[BaseMigration] Successfully completed migration: ${this.name}`,
+      );
     } catch (error) {
-      console.error(`Error in migration ${this.name}:`, {
+      console.error(`[BaseMigration] Error in migration ${this.name}:`, {
         message: error.message,
+        code: (error as any).code,
+        detail: (error as any).detail,
         stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       });
+      console.log(`[BaseMigration] Rolling back transaction for: ${this.name}`);
       await queryRunner.rollbackTransaction();
       throw error;
     }

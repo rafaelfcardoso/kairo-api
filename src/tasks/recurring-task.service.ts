@@ -128,7 +128,7 @@ export class RecurringTaskService {
    * @param recurrenceRule The recurrence rule string to fix
    * @returns The fixed recurrence rule string
    */
-  private fixRecurrenceRule(recurrenceRule: string): string {
+  public fixRecurrenceRule(recurrenceRule: string): string {
     if (!recurrenceRule) return recurrenceRule;
 
     // Fix missing semicolon between FREQ=DAILY and INTERVAL=
@@ -136,6 +136,27 @@ export class RecurringTaskService {
       return recurrenceRule.replace(
         'FREQ=DAILYINTERVAL=',
         'FREQ=DAILY;INTERVAL=',
+      );
+    }
+
+    // Fix missing semicolon between FREQ=WEEKLY and BYDAY=
+    if (recurrenceRule.includes('FREQ=WEEKLYBYDAY=')) {
+      return recurrenceRule.replace('FREQ=WEEKLYBYDAY=', 'FREQ=WEEKLY;BYDAY=');
+    }
+
+    // Fix missing semicolon between FREQ=MONTHLY and other parameters
+    if (recurrenceRule.includes('FREQ=MONTHLYINTERVAL=')) {
+      return recurrenceRule.replace(
+        'FREQ=MONTHLYINTERVAL=',
+        'FREQ=MONTHLY;INTERVAL=',
+      );
+    }
+
+    // Fix missing semicolon between FREQ=YEARLY and other parameters
+    if (recurrenceRule.includes('FREQ=YEARLYINTERVAL=')) {
+      return recurrenceRule.replace(
+        'FREQ=YEARLYINTERVAL=',
+        'FREQ=YEARLY;INTERVAL=',
       );
     }
 
@@ -153,10 +174,7 @@ export class RecurringTaskService {
     if (!recurrenceRule) return null;
 
     // Fix common formatting issue where semicolon is missing
-    if (recurrenceRule.includes('FREQ=DAILYINTERVAL=')) {
-      // This is a malformed rule, but we can still extract the pattern
-      return RecurrencePattern.DAILY;
-    }
+    recurrenceRule = this.fixRecurrenceRule(recurrenceRule);
 
     if (recurrenceRule.includes('FREQ=DAILY')) {
       return RecurrencePattern.DAILY;
@@ -168,6 +186,8 @@ export class RecurringTaskService {
       return RecurrencePattern.YEARLY;
     }
 
+    // If we reach here, it's not a valid pattern
+    this.logger.warn(`Invalid recurrence pattern: ${recurrenceRule}`);
     return null;
   }
 
@@ -290,26 +310,46 @@ export class RecurringTaskService {
    * @returns The newly created task for the next occurrence
    */
   async scheduleNextRecurrence(completedTask: Task): Promise<Task> {
+    if (!completedTask.recurrenceRule) {
+      throw new Error(
+        'Cannot schedule next recurrence: recurrence rule missing',
+      );
+    }
+
+    // Get the user ID from the completed task
+    const userId = completedTask.userId;
+    if (!userId) {
+      // This shouldn't happen if data integrity is maintained, but good to check
+      this.logger.error(
+        `Cannot schedule next recurrence for task ${completedTask.id}: userId is missing.`,
+      );
+      throw new Error('Completed task is missing userId.');
+    }
+
     try {
       const nextDate = this.calculateNextOccurrence(
         completedTask.dueDate,
         completedTask.recurrenceRule,
       );
 
-      // Create a DTO for the next task
+      if (!nextDate) {
+        this.logger.log(
+          `No further occurrences for recurring task ${completedTask.id}`,
+        );
+        return null; // No next occurrence
+      }
+
+      // Create DTO for the next task
       const nextTaskDto: CreateTaskDto = {
         title: completedTask.title,
         description: completedTask.description,
         priority: completedTask.priority,
         dueDate: nextDate.toISOString(),
-        hasTime: true, // Always set hasTime for recurring tasks
+        hasTime: true,
         needsReminder: completedTask.needsReminder,
         reminderMessage: completedTask.reminderMessage,
         isRecurring: true,
-        recurrencePattern: completedTask.recurrencePattern,
-        recurrenceDays: completedTask.recurrenceDays,
-        recurrenceTimeOfDay: completedTask.recurrenceTimeOfDay,
-        recurrenceTime: completedTask.recurrenceTime,
+        recurrenceRule: completedTask.recurrenceRule,
         recurringParentId: completedTask.recurringParentId || completedTask.id,
       };
 
@@ -318,8 +358,11 @@ export class RecurringTaskService {
         nextTaskDto.projectId = completedTask.project.id;
       }
 
-      // Create the next task
-      const nextTask = await this.tasksRepository.createTask(nextTaskDto);
+      // Create the next task, passing the userId
+      const nextTask = await this.tasksRepository.createTask(
+        nextTaskDto,
+        userId,
+      );
 
       this.logger.log(
         `Scheduled next occurrence of recurring task ${completedTask.id} for ${nextDate.toISOString()}`,
@@ -369,7 +412,7 @@ export class RecurringTaskService {
       throw new Error('Could not calculate next occurrence');
     }
 
-    // Create a new task for the next occurrence
+    // Create a new task entity for the next occurrence
     const nextTask = new Task();
     nextTask.title = completedTask.title;
     nextTask.description = completedTask.description;
@@ -379,12 +422,8 @@ export class RecurringTaskService {
     nextTask.hasTime = completedTask.hasTime;
     nextTask.needsReminder = completedTask.needsReminder;
     nextTask.reminderMessage = completedTask.reminderMessage;
-    nextTask.recurrenceRule = completedTask.recurrenceRule;
     nextTask.isRecurring = true;
-    nextTask.recurrencePattern = completedTask.recurrencePattern;
-    nextTask.recurrenceDays = completedTask.recurrenceDays;
-    nextTask.recurrenceTimeOfDay = completedTask.recurrenceTimeOfDay;
-    nextTask.recurrenceTime = completedTask.recurrenceTime;
+    nextTask.recurrenceRule = completedTask.recurrenceRule;
 
     // Copy project relationship
     if (completedTask.project) {

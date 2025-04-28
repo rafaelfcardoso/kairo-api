@@ -7,7 +7,9 @@ import {
   IsBoolean,
   Matches,
 } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
+
 export class CreateProjectDto {
   @ApiProperty({
     example: 'My Business', // Set the example for the name field
@@ -59,26 +61,30 @@ export class UpdateProjectDto extends CreateProjectDto {
 }
 
 export class ProjectFilterDto {
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   search?: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
-  includeArchived?: boolean = false;
+  includeArchived?: boolean;
 
-  @ApiProperty({
-    example: false,
-    description: 'Whether to include system projects in the results',
-    required: false,
-  })
+  @ApiPropertyOptional()
   @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
-  includeSystem?: boolean = false;
+  includeSystem?: boolean;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsUUID()
-  parentId?: string | null; // null means root projects only
+  parentId?: string | null; // Allow null for root projects
+
+  // Add userId for internal filtering
+  userId?: string;
 }
 
 export class ProjectMoveDto {

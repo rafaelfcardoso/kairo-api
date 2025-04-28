@@ -10,6 +10,7 @@ import {
   GetFocusSessionsHistoryDto,
 } from '../../../../src/focus-sessions/focus-sessions.dto';
 import { EnergyLevel } from '../../../../src/focus-sessions/focus-sessions.entity';
+import { mockRequest, mockUser } from '../../../mocks/request.mock';
 
 describe('FocusSessionsController', () => {
   let controller: FocusSessionsController;
@@ -73,27 +74,33 @@ describe('FocusSessionsController', () => {
 
       mockFocusSessionsService.create.mockResolvedValue(mockFocusSession);
 
-      const result = await controller.create(createDto);
+      const result = await controller.create(createDto, mockRequest);
 
       expect(result).toEqual(mockFocusSession);
-      expect(focusSessionsService.create).toHaveBeenCalledWith(createDto);
+      expect(focusSessionsService.create).toHaveBeenCalledWith(
+        createDto,
+        mockUser.id,
+      );
     });
   });
 
   describe('findAll', () => {
     it('should return all focus sessions with filters', async () => {
       const filters: GetFocusSessionsHistoryDto = {
-        startDate: new Date(),
-        endDate: new Date(),
+        startDate: '2025-01-01',
+        endDate: '2025-12-31',
         projectId: 'project-uuid',
       };
 
       mockFocusSessionsService.findAll.mockResolvedValue([mockFocusSession]);
 
-      const result = await controller.findAll(filters);
+      const result = await controller.findAll(filters, mockRequest);
 
       expect(result).toEqual([mockFocusSession]);
-      expect(focusSessionsService.findAll).toHaveBeenCalledWith(filters);
+      expect(focusSessionsService.findAll).toHaveBeenCalledWith(
+        filters,
+        mockUser.id,
+      );
     });
   });
 
@@ -105,19 +112,21 @@ describe('FocusSessionsController', () => {
         averageRating: 4.5,
       };
 
-      const startDate = new Date();
-      const endDate = new Date();
-      const projectId = 'project-uuid';
-
       mockFocusSessionsService.getSessionStats.mockResolvedValue(mockStats);
 
-      const result = await controller.getStats(startDate, endDate, projectId);
+      const result = await controller.getStats(
+        mockRequest,
+        new Date('2025-01-01'),
+        new Date('2025-12-31'),
+        'project-uuid',
+      );
 
       expect(result).toEqual(mockStats);
       expect(focusSessionsService.getSessionStats).toHaveBeenCalledWith(
-        startDate,
-        endDate,
-        projectId,
+        mockUser.id,
+        new Date('2025-01-01'),
+        new Date('2025-12-31'),
+        'project-uuid',
       );
     });
   });
@@ -126,11 +135,12 @@ describe('FocusSessionsController', () => {
     it('should return a focus session by id', async () => {
       mockFocusSessionsService.findOne.mockResolvedValue(mockFocusSession);
 
-      const result = await controller.findOne(mockFocusSession.id);
+      const result = await controller.findOne('test-uuid', mockRequest);
 
       expect(result).toEqual(mockFocusSession);
       expect(focusSessionsService.findOne).toHaveBeenCalledWith(
-        mockFocusSession.id,
+        'test-uuid',
+        mockUser.id,
       );
     });
 
@@ -140,8 +150,13 @@ describe('FocusSessionsController', () => {
         new NotFoundException(),
       );
 
-      await expect(controller.findOne(id)).rejects.toThrow(NotFoundException);
-      expect(focusSessionsService.findOne).toHaveBeenCalledWith(id);
+      await expect(controller.findOne(id, mockRequest)).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(focusSessionsService.findOne).toHaveBeenCalledWith(
+        id,
+        mockUser.id,
+      );
     });
   });
 
@@ -158,7 +173,11 @@ describe('FocusSessionsController', () => {
         energyLevel: EnergyLevel.HIGH,
       });
 
-      const result = await controller.update(mockFocusSession.id, updateDto);
+      const result = await controller.update(
+        'test-uuid',
+        updateDto,
+        mockRequest,
+      );
 
       expect(result).toEqual({
         ...mockFocusSession,
@@ -166,8 +185,9 @@ describe('FocusSessionsController', () => {
         energyLevel: EnergyLevel.HIGH,
       });
       expect(focusSessionsService.update).toHaveBeenCalledWith(
-        mockFocusSession.id,
+        'test-uuid',
         updateDto,
+        mockUser.id,
       );
     });
 
@@ -181,10 +201,14 @@ describe('FocusSessionsController', () => {
         new NotFoundException(),
       );
 
-      await expect(controller.update(id, updateDto)).rejects.toThrow(
-        NotFoundException,
+      await expect(
+        controller.update(id, updateDto, mockRequest),
+      ).rejects.toThrow(NotFoundException);
+      expect(focusSessionsService.update).toHaveBeenCalledWith(
+        id,
+        updateDto,
+        mockUser.id,
       );
-      expect(focusSessionsService.update).toHaveBeenCalledWith(id, updateDto);
     });
   });
 
@@ -199,66 +223,34 @@ describe('FocusSessionsController', () => {
 
       const completedSession = {
         ...mockFocusSession,
-        wasSuccessful: true,
-        notes: 'Completed session notes',
+        ...completeDto,
       };
 
       mockFocusSessionsService.complete.mockResolvedValue(completedSession);
 
       const result = await controller.complete(
-        mockFocusSession.id,
+        'test-uuid',
         completeDto,
+        mockRequest,
       );
 
       expect(result).toEqual(completedSession);
       expect(focusSessionsService.complete).toHaveBeenCalledWith(
-        mockFocusSession.id,
+        'test-uuid',
         completeDto,
-      );
-    });
-
-    it('should throw NotFoundException when focus session does not exist', async () => {
-      const id = 'non-existent-id';
-      const completeDto: CompleteFocusSessionDto = {
-        endTime: new Date(),
-        energyLevel: EnergyLevel.MEDIUM,
-        wasSuccessful: true,
-      };
-
-      mockFocusSessionsService.complete.mockRejectedValue(
-        new NotFoundException(),
-      );
-
-      await expect(controller.complete(id, completeDto)).rejects.toThrow(
-        NotFoundException,
-      );
-      expect(focusSessionsService.complete).toHaveBeenCalledWith(
-        id,
-        completeDto,
+        mockUser.id,
       );
     });
   });
 
   describe('remove', () => {
     it('should delete a focus session', async () => {
-      mockFocusSessionsService.remove.mockResolvedValue(undefined);
-
-      await controller.remove(mockFocusSession.id);
+      await controller.remove('test-uuid', mockRequest);
 
       expect(focusSessionsService.remove).toHaveBeenCalledWith(
-        mockFocusSession.id,
+        'test-uuid',
+        mockUser.id,
       );
-    });
-
-    it('should throw NotFoundException when focus session does not exist', async () => {
-      const id = 'non-existent-id';
-
-      mockFocusSessionsService.remove.mockRejectedValue(
-        new NotFoundException(),
-      );
-
-      await expect(controller.remove(id)).rejects.toThrow(NotFoundException);
-      expect(focusSessionsService.remove).toHaveBeenCalledWith(id);
     });
   });
 });

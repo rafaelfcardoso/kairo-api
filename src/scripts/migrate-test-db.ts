@@ -8,9 +8,9 @@ import { FocusSession } from '../focus-sessions/focus-sessions.entity';
 import { BlockRule } from '../entities/block-rule.entity';
 import { SystemHealth } from '../entities/system-health.entity';
 import { ApiRequestLog, ApiMetrics } from '../entities/api-metrics.entity';
+import { User } from '../entities/user.entity';
 import { InitialSchema1705759726000 } from '../migrations/1705759726000-InitialSchema';
 import { FixProjectColors1738362321118 } from '../migrations/1738362321118-FixProjectColors';
-import { EnsureInboxProject1738362321119 } from '../migrations/1738362321119-EnsureInboxProject';
 import { AddHasTimeToTasks1738934197033 } from '../migrations/1738934197033-AddHasTimeToTasks';
 import { UpdateTaskStatusEnum1739279174960 } from '../migrations/1739279174960-UpdateTaskStatusEnum';
 import { EnsureValidTaskStatuses1739279174961 } from '../migrations/1739279174961-EnsureValidTaskStatuses';
@@ -20,10 +20,9 @@ import { AddNonePriorityEnum1738178127099 } from '../migrations/1738178127099-Ad
 import { CreateFocusSessionTables1740494148045 } from '../migrations/1740494148045-CreateFocusSessionTables';
 import { AddProjectIdToFocusSession1740589432291 } from '../migrations/1740589432291-AddProjectIdToFocusSession';
 import { AddRecurringTaskFields1740916550124 } from '../migrations/1740916550124-AddRecurringTaskFields';
-import { UpdateTaskEntityWithMetadata1686501234567 } from '../migrations/1686501234567-UpdateTaskEntityWithMetadata';
-import { SimplifyTaskEntity1686501245678 } from '../migrations/1686501245678-SimplifyTaskEntity';
-import { CleanupUnusedTaskTypes1686501256789 } from '../migrations/1686501256789-CleanupUnusedTaskTypes';
-import { AddSystemProjectAndInbox1738360717263 } from '../migrations/1738360717263-AddSystemProjectAndInbox';
+import { UpdateTaskEntityWithMetadata1705759726001 } from '../migrations/1705759726001-UpdateTaskEntityWithMetadata';
+import { SimplifyTaskEntity1705759726002 } from '../migrations/1705759726002-SimplifyTaskEntity';
+import { CleanupUnusedTaskTypes1705759726003 } from '../migrations/1705759726003-CleanupUnusedTaskTypes';
 import { AddFocusSessionEnergyLevelEnum1739279174963 } from '../migrations/1739279174963-AddFocusSessionEnergyLevelEnum';
 import { AddTaskTagsTable1739279174963 } from '../migrations/1739279174963-AddTaskTagsTable';
 import { AddBlockRuleTypeEnum1739279174964 } from '../migrations/1739279174964-AddBlockRuleTypeEnum';
@@ -37,20 +36,26 @@ import { CreateNlpFeedbackTable1741912345000 } from '../migrations/1741912345000
 import { CreateNlpModelPerformanceTable1742000000000 } from '../migrations/1742000000000-CreateNlpModelPerformanceTable';
 import { RemoveIsGoalFromTagTable1743380485000 } from '../migrations/1743380485000-RemoveIsGoalFromTagTable';
 import { AddCompletedAtToTasks1743458631759 } from '../migrations/1743458631759-AddCompletedAtToTasks';
+import { AddIsSystemToTag1712592000000 } from '../migrations/1712592000000-AddIsSystemToTag';
+import { AddUserEntityAndRelations1744054661856 } from '../migrations/1744054661856-AddUserEntityAndRelations';
+import { AssignExistingDataToDefaultUser1744054769246 } from '../migrations/1744054769246-AssignExistingDataToDefaultUser';
+import { MakeUserIdNonNullable1744054883888 } from '../migrations/1744054883888-MakeUserIdNonNullable';
+import { RemoveIsSystemFromTag1744198367443 } from '../migrations/1744198367443-RemoveIsSystemFromTag';
+import { AddIsArchivedToTag1744198558505 } from '../migrations/1744198558505-AddIsArchivedToTag';
+import { FixMigrationIssues1744204141138 } from '../migrations/1744204141138-FixMigrationIssues';
 
 // Load environment variables from .env.test
 config({ path: path.resolve(process.cwd(), '.env.test') });
 
 const migrations = [
   InitialSchema1705759726000,
-  UpdateTaskEntityWithMetadata1686501234567,
-  SimplifyTaskEntity1686501245678,
-  CleanupUnusedTaskTypes1686501256789,
+  UpdateTaskEntityWithMetadata1705759726001,
+  SimplifyTaskEntity1705759726002,
+  CleanupUnusedTaskTypes1705759726003,
   AddNonePriorityEnum1710000000000,
+  AddIsSystemToTag1712592000000,
   AddNonePriorityEnum1738178127099,
   FixProjectColors1738362321118,
-  AddSystemProjectAndInbox1738360717263,
-  EnsureInboxProject1738362321119,
   AddHasTimeToTasks1738934197033,
   UpdateTaskStatusEnum1739279174960,
   EnsureValidTaskStatuses1739279174961,
@@ -71,6 +76,12 @@ const migrations = [
   CreateNlpModelPerformanceTable1742000000000,
   RemoveIsGoalFromTagTable1743380485000,
   AddCompletedAtToTasks1743458631759,
+  AddUserEntityAndRelations1744054661856,
+  AssignExistingDataToDefaultUser1744054769246,
+  MakeUserIdNonNullable1744054883888,
+  RemoveIsSystemFromTag1744198367443,
+  AddIsArchivedToTag1744198558505,
+  FixMigrationIssues1744204141138,
 ];
 
 // Define all entities in one place for better maintenance
@@ -83,6 +94,7 @@ const entities = [
   SystemHealth,
   ApiRequestLog,
   ApiMetrics,
+  User,
 ];
 
 async function runTestDbMigration() {

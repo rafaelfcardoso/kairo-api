@@ -1,5 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
+import { Cron, CronExpression, SchedulerRegistry } from '@nestjs/schedule';
 import { TaskService } from '../../tasks/tasks.service';
 import { NotificationService } from './notification.service';
 import { Task, TaskStatus } from '../../tasks/tasks.entity';
@@ -12,7 +12,7 @@ import { TaskDomainService } from '../../tasks/tasks.domain.service';
  * using cron jobs. It delegates domain logic to the TaskDomainService.
  */
 @Injectable()
-export class SchedulerService {
+export class SchedulerService implements OnApplicationShutdown {
   private readonly logger = new Logger(SchedulerService.name);
 
   constructor(
@@ -21,7 +21,21 @@ export class SchedulerService {
     private taskService: TaskService,
     private taskDomainService: TaskDomainService,
     private notificationService: NotificationService,
+    private schedulerRegistry: SchedulerRegistry,
   ) {}
+
+  onApplicationShutdown(signal?: string) {
+    this.logger.log(`SchedulerService shutting down (signal: ${signal})...`);
+    const jobs = this.schedulerRegistry.getCronJobs();
+    jobs.forEach((job, name) => {
+      try {
+        job.stop();
+        this.logger.log(`Stopped cron job: ${name}`);
+      } catch (e) {
+        this.logger.error(`Failed to stop cron job ${name}:`, e);
+      }
+    });
+  }
 
   /**
    * Check for due tasks every minute

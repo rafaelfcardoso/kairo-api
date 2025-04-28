@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { TasksRepository } from './tasks.repository';
@@ -22,6 +23,7 @@ import {
   BatchCompleteTasksDto,
   BatchCompleteTasksResponseDto,
 } from './dto/complete-overdue-tasks.dto';
+import { User } from '../entities/user.entity';
 
 @Injectable()
 export class TaskService {
@@ -170,17 +172,100 @@ export class TaskService {
     }
   }
 
-  async getTasks(filterDto: TaskFilterDto): Promise<Task[]> {
-    return this.tasksRepository.getTasks(filterDto);
+  // Helper method for ownership check
+  private async checkTaskOwnership(
+    taskId: string,
+    userId: string,
+  ): Promise<Task> {
+    const task = await this.tasksRepository.findOne({ where: { id: taskId } });
+    if (!task) {
+      throw new NotFoundException(`Task with ID "${taskId}" not found`);
+    }
+    if (task.userId !== userId) {
+      this.securityLogger.logSuspiciousActivity(
+        'Ownership check failed',
+        'HIGH',
+        { taskId, attemptedByUserId: userId, ownerUserId: task.userId },
+      );
+      throw new ForbiddenException('You do not own this task');
+    }
+    return task;
   }
 
-  async getTaskById(id: string): Promise<Task> {
-    return this.tasksRepository.getTaskById(id);
+  async getTasks(filterDto: TaskFilterDto, userId: string): Promise<Task[]> {
+    const userFilterDto = { ...filterDto, userId: userId };
+    return this.tasksRepository.getTasks(userFilterDto);
   }
 
-  async createTask(createTaskDto: CreateTaskDto, _ip?: string): Promise<Task> {
-    const { title, description, dueDate, recurrenceRule, needsReminder } =
-      createTaskDto;
+  async getTaskById(id: string, userId: string): Promise<Task> {
+    const task = await this.tasksRepository.getTaskById(id);
+    if (!task) {
+      throw new NotFoundException(`Task with ID "${id}" not found`);
+    }
+    if (task.userId !== userId) {
+      this.securityLogger.logSuspiciousActivity(
+        'Attempted to access unauthorized task',
+        'HIGH',
+        { taskId: id, attemptedByUserId: userId, ownerUserId: task.userId },
+      );
+      throw new ForbiddenException('You do not own this task');
+    }
+    return task;
+  }
+
+  /**
+   * Validate a recurrence rule string
+   * @param recurrenceRule The recurrence rule to validate
+   * @throws BadRequestException if the rule is invalid
+   */
+  private validateRecurrenceRule(recurrenceRule: string): void {
+    // If no recurrence rule, nothing to validate
+    if (!recurrenceRule) return;
+
+    try {
+      // Basic validation: must include a valid FREQ parameter
+      if (
+        !recurrenceRule.includes('FREQ=DAILY') &&
+        !recurrenceRule.includes('FREQ=WEEKLY') &&
+        !recurrenceRule.includes('FREQ=MONTHLY') &&
+        !recurrenceRule.includes('FREQ=YEARLY')
+      ) {
+        throw new Error('Invalid frequency in recurrence rule');
+      }
+
+      // Fix any malformed rule
+      recurrenceRule =
+        this.recurringTaskService.fixRecurrenceRule(recurrenceRule);
+
+      // If we can calculate a next occurrence, the rule is valid enough
+      const testDate = new Date();
+      const nextDate = this.recurringTaskService.calculateNextOccurrence(
+        testDate,
+        recurrenceRule,
+      );
+
+      if (!nextDate) {
+        throw new Error('Could not calculate next occurrence');
+      }
+    } catch (error) {
+      throw new BadRequestException(
+        `Invalid recurrence rule: ${error.message}`,
+      );
+    }
+  }
+
+  async createTask(
+    createTaskDto: CreateTaskDto,
+    userId: string,
+  ): Promise<Task> {
+    const {
+      title,
+      description,
+      dueDate,
+      recurrenceRule,
+      needsReminder,
+      isRecurring,
+    } = createTaskDto;
 
     try {
       // Validate inputs
@@ -192,15 +277,26 @@ export class TaskService {
         this.validateDate(dueDate);
       }
 
-      // Fix malformed recurrence rule if present
-      if (recurrenceRule && recurrenceRule.includes('FREQ=DAILYINTERVAL=')) {
-        createTaskDto.recurrenceRule = recurrenceRule.replace(
-          'FREQ=DAILYINTERVAL=',
-          'FREQ=DAILY;INTERVAL=',
+      // Validate recurrence rule if task is recurring
+      if (isRecurring && recurrenceRule) {
+        this.validateRecurrenceRule(recurrenceRule);
+      } else if (isRecurring && !recurrenceRule) {
+        throw new BadRequestException(
+          'Recurring tasks must have a recurrence rule',
         );
       }
 
-      const savedTask = await this.tasksRepository.createTask(createTaskDto);
+      // Fix malformed recurrence rule if present
+      if (recurrenceRule) {
+        createTaskDto.recurrenceRule =
+          this.recurringTaskService.fixRecurrenceRule(recurrenceRule);
+      }
+
+      // Pass userId to the repository method
+      const savedTask = await this.tasksRepository.createTask(
+        createTaskDto,
+        userId,
+      );
 
       // Schedule reminder if needed
       if (needsReminder && savedTask.dueDate) {
@@ -228,6 +324,7 @@ export class TaskService {
 
       this.securityLogger.logSecurityEvent('Task created successfully', {
         taskId: savedTask.id,
+        userId: userId,
       });
       return savedTask;
     } catch (error) {
@@ -236,6 +333,7 @@ export class TaskService {
         error.message,
         {
           dto: createTaskDto,
+          userId: userId,
         },
       );
       if (error instanceof NotFoundException) {
@@ -248,16 +346,23 @@ export class TaskService {
   async updateTask(
     id: string,
     updateTaskDto: UpdateTaskDto,
-    _ip?: string,
+    userId: string,
   ): Promise<Task> {
-    const { title, description, dueDate, status, recurrenceRule } =
-      updateTaskDto;
-
-    // Get the task first to ensure it exists
     const task = await this.tasksRepository.getTaskById(id);
     if (!task) {
       throw new NotFoundException(`Task with ID "${id}" not found`);
     }
+    if (task.userId !== userId) {
+      this.securityLogger.logSuspiciousActivity(
+        'Ownership check failed for update',
+        'HIGH',
+        { taskId: id, attemptedByUserId: userId, ownerUserId: task.userId },
+      );
+      throw new ForbiddenException('You do not own this task');
+    }
+
+    const { title, description, dueDate, status, recurrenceRule } =
+      updateTaskDto;
 
     try {
       // Validate inputs
@@ -279,9 +384,13 @@ export class TaskService {
         );
       }
 
+      const originalStatus = task.status;
+      const wasCompleted = originalStatus === TaskStatus.COMPLETED;
+      const isCompleting = status === TaskStatus.COMPLETED;
+      const isReopening = wasCompleted && status !== TaskStatus.COMPLETED;
+
       // Check if task is being completed
-      if (status === TaskStatus.COMPLETED) {
-        // If it's a recurring task, use RecurringTaskService
+      if (isCompleting) {
         if (task.isRecurring) {
           // Mark the task as completed
           task.status = TaskStatus.COMPLETED;
@@ -306,26 +415,32 @@ export class TaskService {
           return this.tasksRepository.getTaskById(id);
         }
       }
-
-      // For non-completion updates, use the regular update method
-      const updatedTask = await this.tasksRepository.updateTask(
-        id,
-        updateTaskDto,
-      );
-
-      this.securityLogger.logSecurityEvent('Task updated successfully', {
-        taskId: id,
-      });
-
-      return this.tasksRepository.getTaskById(id);
+      // Check if task is being reopened
+      else if (isReopening) {
+        // Update the task entity directly before calling repository update
+        // task.completedAt = null; // This would modify the in-memory object, but updateTask repo method might ignore it
+        // Instead, pass completedAt: null explicitly to the repository update
+        const updatePayload = { ...updateTaskDto, completedAt: null };
+        await this.tasksRepository.updateTask(id, updatePayload);
+        return this.tasksRepository.getTaskById(id); // Return fresh task
+      }
+      // For other non-completion, non-reopening updates
+      else {
+        const updatedTask = await this.tasksRepository.updateTask(
+          id,
+          updateTaskDto,
+        );
+        this.securityLogger.logSecurityEvent('Task updated successfully', {
+          taskId: id,
+          userId: userId,
+        });
+        return this.tasksRepository.getTaskById(id);
+      }
     } catch (error) {
       this.securityLogger.logSuspiciousActivity(
         'Task update failed',
         'MEDIUM',
-        {
-          taskId: id,
-          error: error.message,
-        },
+        { taskId: id, userId: userId, error: error.message },
       );
       throw error;
     }
@@ -348,152 +463,156 @@ export class TaskService {
     return inboxProject;
   }
 
-  async deleteTask(id: string): Promise<void> {
-    const task = await this.tasksRepository.getTaskById(id);
-    if (!task) {
-      throw new NotFoundException(`Task with ID "${id}" not found`);
-    }
-    await this.tasksRepository.deleteTask(id);
+  async deleteTask(id: string, userId: string): Promise<void> {
+    await this.checkTaskOwnership(id, userId);
+    await this.tasksRepository.deleteTask(id, userId);
+    this.securityLogger.logSecurityEvent('Task deleted successfully', {
+      taskId: id,
+      userId: userId,
+    });
   }
 
-  async archiveTask(id: string): Promise<Task> {
-    return this.tasksRepository.archiveTask(id);
+  async archiveTask(id: string, userId: string): Promise<Task> {
+    const task = await this.checkTaskOwnership(id, userId);
+    const archivedTask = await this.tasksRepository.archiveTask(id, userId);
+    this.securityLogger.logSecurityEvent('Task archived successfully', {
+      taskId: id,
+      userId: userId,
+    });
+    return archivedTask;
   }
 
-  async getTodayTasks(): Promise<Task[]> {
-    return this.tasksRepository.getTodayTasks();
+  async getTodayTasks(userId: string): Promise<Task[]> {
+    return this.tasksRepository.getTodayTasks(userId);
   }
 
-  async getOverdueTasks(): Promise<Task[]> {
-    return this.tasksRepository.getOverdueTasks();
+  async getOverdueTasks(userId: string): Promise<Task[]> {
+    return this.tasksRepository.getOverdueTasks(userId);
   }
 
-  async getUpcomingTasks(days: number = 7): Promise<Task[]> {
-    return this.tasksRepository.getUpcomingTasks(days);
+  async getUpcomingTasks(days: number = 7, userId: string): Promise<Task[]> {
+    return this.tasksRepository.getUpcomingTasks(days, userId);
   }
 
-  async assignToProject(taskId: string, projectId: string): Promise<Task> {
+  async assignToProject(
+    taskId: string,
+    projectId: string,
+    userId: string,
+  ): Promise<Task> {
+    const task = await this.checkTaskOwnership(taskId, userId);
     const project = await this.projectsRepository.findOne({
-      where: { id: projectId },
+      where: [
+        { id: projectId, userId: userId },
+        { id: projectId, isSystem: true },
+      ],
     });
     if (!project) {
-      throw new NotFoundException(`Project with ID "${projectId}" not found`);
+      this.securityLogger.logSuspiciousActivity(
+        'Attempted to assign task to non-owned or non-existent project',
+        'MEDIUM',
+        { taskId, projectId, userId },
+      );
+      throw new NotFoundException(
+        `Project with ID "${projectId}" not found or not accessible.`,
+      );
     }
-
-    return this.tasksRepository.assignToProject(taskId, projectId);
+    return this.tasksRepository.assignToProject(taskId, projectId, userId);
   }
 
-  async addTags(taskId: string, tagIds: string[]): Promise<Task> {
+  async addTags(
+    taskId: string,
+    tagIds: string[],
+    userId: string,
+  ): Promise<Task> {
+    const task = await this.checkTaskOwnership(taskId, userId);
+    const foundTags = await this.tagsRepository.getTagsByIds(tagIds, userId);
+    const foundTagIds = foundTags.map((t) => t.id);
+    const missingOrForbiddenTagIds = tagIds.filter(
+      (id) => !foundTagIds.includes(id),
+    );
+
+    if (missingOrForbiddenTagIds.length > 0) {
+      this.securityLogger.logSuspiciousActivity(
+        'Attempted to add non-owned or non-existent tags',
+        'MEDIUM',
+        { taskId, userId, attemptedTagIds: missingOrForbiddenTagIds },
+      );
+      throw new NotFoundException(
+        `One or more tags not found or not accessible: ${missingOrForbiddenTagIds.join(', ')}`,
+      );
+    }
+
+    const taskWithTags = await this.tasksRepository.getTaskById(taskId);
+    if (!taskWithTags) {
+      throw new NotFoundException(`Task with ID "${taskId}" not found`);
+    }
+    if (taskWithTags.userId !== userId) {
+      throw new ForbiddenException('You do not own this task');
+    }
+
+    const existingTagIds = taskWithTags.tags?.map((t) => t.id) || [];
+    const tagsToAdd = foundTags.filter((t) => !existingTagIds.includes(t.id));
+
+    if (tagsToAdd.length > 0) {
+      taskWithTags.tags = [...(taskWithTags.tags || []), ...tagsToAdd];
+      await this.tasksRepository.save(taskWithTags);
+      this.securityLogger.logSecurityEvent('Tags added to task', {
+        taskId,
+        addedTagIds: tagsToAdd.map((t) => t.id),
+        userId,
+      });
+    }
+
+    return this.tasksRepository.getTaskById(taskId);
+  }
+
+  async removeTags(
+    taskId: string,
+    tagIds: string[],
+    userId: string,
+  ): Promise<Task> {
     const task = await this.tasksRepository.getTaskById(taskId);
     if (!task) {
       throw new NotFoundException(`Task with ID "${taskId}" not found`);
     }
-
-    const foundTags = await this.tagsRepository.getTagsByIds(tagIds);
-    if (foundTags.length !== tagIds.length) {
-      throw new NotFoundException('One or more tags not found');
-    }
-
-    task.tags = [...(task.tags || []), ...foundTags];
-    return this.tasksRepository.save(task);
-  }
-
-  async removeTags(taskId: string, tagIds: string[]): Promise<Task> {
-    const task = await this.getTaskById(taskId);
-    if (!task) {
-      throw new NotFoundException(`Task with ID "${taskId}" not found`);
-    }
-    if (!task.tags) {
-      task.tags = [];
-    }
-    task.tags = task.tags.filter((tag) => !tagIds.includes(tag.id));
-    return this.tasksRepository.save(task);
-  }
-
-  async addFocusSession(taskId: string, sessionId: string): Promise<Task> {
-    return this.tasksRepository.addFocusSession(taskId, sessionId);
-  }
-
-  async getTaskStats(): Promise<{
-    total: number;
-    completed: number;
-    overdue: number;
-    upcoming: number;
-  }> {
-    const [total, completed, overdue, upcoming] = await Promise.all([
-      this.tasksRepository.count({ where: { isArchived: false } }),
-      this.tasksRepository.count({
-        where: {
-          status: TaskStatus.COMPLETED,
-          isArchived: false,
-        },
-      }),
-      this.tasksRepository.getOverdueTasks(),
-      this.tasksRepository.getUpcomingTasks(),
-    ]);
-
-    return {
-      total: Number(total) || 0,
-      completed: Number(completed) || 0,
-      overdue: Array.isArray(overdue) ? overdue.length : 0,
-      upcoming: Array.isArray(upcoming) ? upcoming.length : 0,
-    };
-  }
-
-  async getTasksByPriority(): Promise<Record<TaskPriority, Task[]>> {
-    const tasks = await this.tasksRepository.find({
-      where: { isArchived: false },
-      relations: ['project', 'tags'],
-    });
-
-    return {
-      [TaskPriority.NONE]: tasks.filter(
-        (t) => t.priority === TaskPriority.NONE,
-      ),
-      [TaskPriority.LOW]: tasks.filter((t) => t.priority === TaskPriority.LOW),
-      [TaskPriority.MEDIUM]: tasks.filter(
-        (t) => t.priority === TaskPriority.MEDIUM,
-      ),
-      [TaskPriority.HIGH]: tasks.filter(
-        (t) => t.priority === TaskPriority.HIGH,
-      ),
-    };
-  }
-
-  async duplicateTask(id: string): Promise<Task> {
-    const sourceTask = await this.tasksRepository.getTaskById(id);
-    if (!sourceTask) {
-      throw new NotFoundException(`Task with ID "${id}" not found`);
-    }
-
-    // Create a properly formatted CreateTaskDto
-    const createTaskDto: CreateTaskDto = {
-      title: `${sourceTask.title} (Copy)`,
-      description: sourceTask.description,
-      priority: sourceTask.priority,
-      dueDate: sourceTask.dueDate?.toISOString(),
-      needsReminder: sourceTask.needsReminder,
-      reminderMessage: sourceTask.reminderMessage,
-      isRecurring: sourceTask.isRecurring,
-      recurrenceRule: sourceTask.recurrenceRule,
-      hasTime: sourceTask.hasTime,
-    };
-
-    // Create the new task
-    const duplicatedTask = await this.createTask(createTaskDto);
-
-    // Copy project and tags if they exist
-    if (sourceTask.project) {
-      await this.assignToProject(duplicatedTask.id, sourceTask.project.id);
-    }
-    if (sourceTask.tags?.length > 0) {
-      await this.addTags(
-        duplicatedTask.id,
-        sourceTask.tags.map((tag) => tag.id),
+    if (task.userId !== userId) {
+      this.securityLogger.logSuspiciousActivity(
+        'Attempted to remove tags from unauthorized task',
+        'HIGH',
+        { taskId: taskId, attemptedByUserId: userId, ownerUserId: task.userId },
       );
+      throw new ForbiddenException('You do not own this task');
     }
 
-    return this.tasksRepository.getTaskById(duplicatedTask.id);
+    if (!task.tags || task.tags.length === 0) {
+      return task;
+    }
+
+    const originalTagCount = task.tags.length;
+    task.tags = task.tags.filter((tag) => !tagIds.includes(tag.id));
+
+    if (task.tags.length < originalTagCount) {
+      await this.tasksRepository.save(task);
+      const removedIds = tagIds.filter(
+        (id) => !task.tags.some((t) => t.id === id),
+      );
+      this.securityLogger.logSecurityEvent('Tags removed from task', {
+        taskId,
+        removedTagIds: removedIds,
+        userId,
+      });
+    }
+
+    return this.tasksRepository.getTaskById(taskId);
+  }
+
+  async addFocusSession(
+    taskId: string,
+    sessionId: string,
+    userId: string,
+  ): Promise<Task> {
+    const task = await this.checkTaskOwnership(taskId, userId);
+    return this.tasksRepository.addFocusSession(taskId, sessionId);
   }
 
   async assignOrphanedTasksToInbox(): Promise<Task[]> {
@@ -530,11 +649,12 @@ export class TaskService {
    * @param filters Object containing filters
    * @returns Number of tasks matching the filters
    */
-  async countTasks(filters: Record<string, any>): Promise<number> {
-    // Convert the filter format to our internal TaskFilterDto format
+  async countTasks(
+    filters: Record<string, any>,
+    userId: string,
+  ): Promise<number> {
     const filterDto = new TaskFilterDto();
-
-    // Map common filter keys
+    filterDto.userId = userId;
     if (filters.status) {
       filterDto.status = filters.status;
     }
@@ -555,7 +675,6 @@ export class TaskService {
         ? filters.tag_ids
         : [filters.tag_ids];
     }
-
     return this.tasksRepository.countTasks(filterDto);
   }
 
@@ -566,23 +685,16 @@ export class TaskService {
     userId: string,
     options: CompleteOverdueTasksDto,
   ): Promise<Task[]> {
-    // Set up where conditions to find overdue tasks
     const whereConditions: any = {
-      status: TaskStatus.NOT_STARTED,
+      userId: userId,
       dueDate: LessThan(new Date()),
       isArchived: false,
       ...options?.additionalFilters,
+      status: !options?.includeBlockedTasks
+        ? TaskStatus.NOT_STARTED
+        : In([TaskStatus.NOT_STARTED, TaskStatus.BLOCKED]),
     };
 
-    // If we shouldn't include blocked tasks, add that to the conditions
-    if (!options?.includeBlockedTasks) {
-      whereConditions.status = TaskStatus.NOT_STARTED;
-    } else {
-      // If we should include blocked tasks, we need to use In operator
-      whereConditions.status = In([TaskStatus.NOT_STARTED, TaskStatus.BLOCKED]);
-    }
-
-    // Get all matching overdue tasks
     const overdueTasks = await this.tasksRepository.find({
       where: whereConditions,
       relations: ['project', 'tags'],
@@ -592,17 +704,13 @@ export class TaskService {
       return [];
     }
 
-    // Update all tasks to completed status
     const taskUpdates = overdueTasks.map((task) => ({
       ...task,
       status: TaskStatus.COMPLETED,
       completedAt: new Date(),
     }));
 
-    // Save all updates
-    const updatedTasks = await Promise.all(
-      taskUpdates.map((task) => this.tasksRepository.save(task)),
-    );
+    const updatedTasks = await this.tasksRepository.save(taskUpdates);
 
     return updatedTasks;
   }
@@ -614,18 +722,16 @@ export class TaskService {
     userId: string,
     options: BatchCompleteTasksDto,
   ): Promise<Task[]> {
-    // Set up where conditions to find tasks with specified statuses
     const whereConditions: any = {
+      userId: userId,
       status: In(options.statuses || [TaskStatus.NOT_STARTED]),
       isArchived: false,
     };
 
-    // If taskIds are provided, add them to the where conditions
     if (options?.additionalFilters?.taskIds?.length) {
       whereConditions.id = In(options.additionalFilters.taskIds);
     }
 
-    // Get all matching tasks
     const tasksToComplete = await this.tasksRepository.find({
       where: whereConditions,
       relations: ['project', 'tags'],
@@ -635,17 +741,13 @@ export class TaskService {
       return [];
     }
 
-    // Update all tasks to completed status
     const taskUpdates = tasksToComplete.map((task) => ({
       ...task,
       status: TaskStatus.COMPLETED,
       completedAt: new Date(),
     }));
 
-    // Save all updates
-    const updatedTasks = await Promise.all(
-      taskUpdates.map((task) => this.tasksRepository.save(task)),
-    );
+    const updatedTasks = await this.tasksRepository.save(taskUpdates);
 
     return updatedTasks;
   }
@@ -676,5 +778,50 @@ export class TaskService {
     } finally {
       await queryRunner.release();
     }
+  }
+
+  // Re-confirm signature
+  async getTaskStats(userId: string): Promise<{
+    total: number;
+    completed: number;
+    overdue: number;
+    dueToday: number;
+    byPriority: Record<TaskPriority, number>;
+  }> {
+    const total = await this.tasksRepository.countTasks({ userId });
+    const completed = await this.tasksRepository.countTasks({
+      userId,
+      status: TaskStatus.COMPLETED,
+    });
+    const overdue = await this.tasksRepository.countOverdueTasks(userId);
+    const dueToday = await this.tasksRepository.countTodayTasks(userId);
+    const byPriority = await this.tasksRepository.countTasksByPriority(userId);
+
+    return {
+      total,
+      completed,
+      overdue,
+      dueToday,
+      byPriority,
+    };
+  }
+
+  // Re-confirm signature
+  async getTasksByPriority(
+    userId: string,
+  ): Promise<Record<TaskPriority, Task[]>> {
+    const tasks = await this.tasksRepository.getTasksByPriority(userId);
+    const tasksByPriority: Record<TaskPriority, Task[]> = {
+      [TaskPriority.NONE]: [],
+      [TaskPriority.LOW]: [],
+      [TaskPriority.MEDIUM]: [],
+      [TaskPriority.HIGH]: [],
+    };
+
+    tasks.forEach((task) => {
+      tasksByPriority[task.priority].push(task);
+    });
+
+    return tasksByPriority;
   }
 }

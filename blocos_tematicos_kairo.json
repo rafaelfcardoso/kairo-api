@@ -1,0 +1,182 @@
+[
+  {
+    "emoji": "🌅",
+    "title": "Manhã com Clareza",
+    "description": "Comece o dia sem distrações, com foco em você.",
+    "time": {
+      "start": "06:00",
+      "end": "09:00"
+    }
+  },
+  {
+    "emoji": "🕯️",
+    "title": "Trabalho Profundo",
+    "description": "Um bloco para mergulhar sem interrupções. Aqui, o mundo fica em silêncio.",
+    "time": {
+      "start": "14:00",
+      "end": "16:00"
+    }
+  },
+  {
+    "emoji": "☕",
+    "title": "Café com Planejamento",
+    "description": "Organize o dia com calma, café e intenção.",
+    "time": {
+      "start": "08:00",
+      "end": "08:30"
+    }
+  },
+  {
+    "emoji": "🌳",
+    "title": "Pausa Consciente",
+    "description": "Sem notificações. Só você, sua respiração e um momento de presença.",
+    "time": {
+      "start": "11:00",
+      "end": "11:20"
+    }
+  },
+  {
+    "emoji": "🍽️",
+    "title": "Almoço sem Pressa",
+    "description": "Coma de verdade. Sem rolar feed, sem emails. Só presença.",
+    "time": {
+      "start": "12:00",
+      "end": "13:00"
+    }
+  },
+  {
+    "emoji": "🛋️",
+    "title": "Desacelerar o Vento",
+    "description": "Transição suave entre produtividade e descanso.",
+    "time": {
+      "start": "17:00",
+      "end": "18:00"
+    }
+  },
+  {
+    "emoji": "🌇",
+    "title": "Pôr do Sol Offline",
+    "description": "Curta o fim de tarde sem redes. Observe.",
+    "time": {
+      "start": "18:00",
+      "end": "19:00"
+    }
+  },
+  {
+    "emoji": "🛏️",
+    "title": "Bom Sono, Boa Vida",
+    "description": "Um ritual para proteger o que mais te dá energia: o sono.",
+    "time": {
+      "start": "22:30",
+      "end": "06:30"
+    }
+  },
+  {
+    "emoji": "🖋️",
+    "title": "Escrita Intencional",
+    "description": "Reserve um momento para escrever, refletir ou criar.",
+    "time": {
+      "start": "19:00",
+      "end": "20:00"
+    }
+  },
+  {
+    "emoji": "🧘",
+    "title": "Momento de Respiração",
+    "description": "Uma pausa curta para alinhar corpo e mente.",
+    "time": {
+      "start": "15:30",
+      "end": "15:40"
+    }
+  },
+  {
+    "emoji": "🎓",
+    "title": "Estudos com Foco",
+    "description": "Sessões dedicadas para aprender sem distrações digitais.",
+    "time": {
+      "start": "10:00",
+      "end": "11:30"
+    }
+  },
+  {
+    "emoji": "🎧",
+    "title": "Modo Criação",
+    "description": "Para entrar no fluxo e produzir algo que só você pode criar.",
+    "time": {
+      "start": "09:30",
+      "end": "11:30"
+    }
+  },
+  {
+    "emoji": "🚪",
+    "title": "Check-out do dia",
+    "description": "Desconecte dos apps e conecte-se com o que realmente importa.",
+    "time": {
+      "start": "20:00",
+      "end": "20:30"
+    }
+  },
+  {
+    "emoji": "👨‍👩‍👧‍👦",
+    "title": "Tempo com a Família",
+    "description": "Desligue o mundo, ligue o coração.",
+    "time": {
+      "start": "18:30",
+      "end": "20:00"
+    }
+  },
+  {
+    "emoji": "💬",
+    "title": "Conversa sem tela",
+    "description": "Nada de multitarefa. Apenas escuta ativa.",
+    "time": {
+      "start": null,
+      "end": null
+    }
+  },
+  {
+    "emoji": "💡",
+    "title": "Momento de Ideias",
+    "description": "Para refletir, anotar, ou simplesmente se inspirar.",
+    "time": {
+      "start": "07:30",
+      "end": "08:00"
+    }
+  },
+  {
+    "emoji": "🌿",
+    "title": "Caminhada Digital Detox",
+    "description": "Saia para andar sem fones, sem tela, só você e o mundo.",
+    "time": {
+      "start": "16:00",
+      "end": "16:30"
+    }
+  },
+  {
+    "emoji": "🎯",
+    "title": "Hora da Prioridade #1",
+    "description": "Escolha uma tarefa importante. Bloqueie tudo e resolva.",
+    "time": {
+      "start": "10:00",
+      "end": "11:00"
+    }
+  },
+  {
+    "emoji": "✈️",
+    "title": "Desconecte e Vá",
+    "description": "Um bloco automático para quando for viajar ou descansar.",
+    "time": {
+      "start": null,
+      "end": null
+    }
+  },
+  {
+    "emoji": "🕹️",
+    "title": "Sem Games, Só Vida Real",
+    "description": "Um lembrete de que a verdadeira conquista está aqui fora.",
+    "time": {
+      "start": null,
+      "end": null
+    }
+  }
+]

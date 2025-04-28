@@ -12,6 +12,9 @@ async function bootstrap() {
     logger: ['error', 'warn', 'log', 'debug', 'verbose'],
   });
 
+  // Enable shutdown hooks for graceful termination
+  app.enableShutdownHooks();
+
   // Set global prefix for API versioning
   app.setGlobalPrefix('api/v1', {
     exclude: ['/health', '/system-health', '/api'], // Exclude health check and Swagger endpoints
@@ -203,7 +206,7 @@ async function bootstrap() {
     .addTag('Tasks', 'Task management endpoints')
     .addTag('Projects', 'Project management endpoints')
     .addTag('Tags', 'Tag management endpoints')
-    .addTag('Auth', 'Authentication endpoints')
+    .addTag('Authentication', 'Authentication endpoints')
     .addTag('Focus Sessions', 'Focus session management endpoints')
     .addTag('Statistics', 'Statistics endpoints')
     .addBearerAuth(
