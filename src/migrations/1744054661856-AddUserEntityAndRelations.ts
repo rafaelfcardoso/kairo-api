@@ -18,10 +18,26 @@ export class AddUserEntityAndRelations1744054661856
     await queryRunner.query(
       `CREATE INDEX "IDX_60cea0d80c39eedaaaf5e21f17" ON "users" ("appleId") `,
     );
-    await queryRunner.query(`ALTER TABLE "project" ADD "userId" uuid`);
-    await queryRunner.query(`ALTER TABLE "focus_session" ADD "userId" uuid`);
-    await queryRunner.query(`ALTER TABLE "task" ADD "userId" uuid`);
-    await queryRunner.query(`ALTER TABLE "tag" ADD "userId" uuid`);
+    // Idempotent: add userId to project if missing
+    const projectTable = await queryRunner.getTable('project');
+    if (projectTable && !projectTable.findColumnByName('userId')) {
+      await queryRunner.query(`ALTER TABLE "project" ADD "userId" uuid`);
+    }
+    // Idempotent: add userId to focus_session if missing
+    const focusSessionTable = await queryRunner.getTable('focus_session');
+    if (focusSessionTable && !focusSessionTable.findColumnByName('userId')) {
+      await queryRunner.query(`ALTER TABLE "focus_session" ADD "userId" uuid`);
+    }
+    // Idempotent: add userId to task if missing
+    const taskTable = await queryRunner.getTable('task');
+    if (taskTable && !taskTable.findColumnByName('userId')) {
+      await queryRunner.query(`ALTER TABLE "task" ADD "userId" uuid`);
+    }
+    // Idempotent: add userId to tag if missing
+    const tagTable = await queryRunner.getTable('tag');
+    if (tagTable && !tagTable.findColumnByName('userId')) {
+      await queryRunner.query(`ALTER TABLE "tag" ADD "userId" uuid`);
+    }
     await queryRunner.query(
       `ALTER TABLE "api_request_log" ALTER COLUMN "requestId" DROP DEFAULT`,
     );

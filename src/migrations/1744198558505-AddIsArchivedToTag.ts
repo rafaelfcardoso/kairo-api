@@ -10,9 +10,13 @@ export class AddIsArchivedToTag1744198558505 implements MigrationInterface {
       await queryRunner.query(`ALTER TABLE "task" DROP COLUMN "metadata"`);
     }
 
-    await queryRunner.query(
-      `ALTER TABLE "tag" ADD "isArchived" boolean NOT NULL DEFAULT false`,
-    );
+    // Idempotent: add isArchived to tag if missing
+    const isArchivedExists = await queryRunner.hasColumn('tag', 'isArchived');
+    if (!isArchivedExists) {
+      await queryRunner.query(
+        `ALTER TABLE "tag" ADD "isArchived" boolean NOT NULL DEFAULT false`,
+      );
+    }
     await queryRunner.query(
       `ALTER TABLE "api_request_log" ALTER COLUMN "requestId" DROP DEFAULT`,
     );
@@ -28,8 +32,11 @@ export class AddIsArchivedToTag1744198558505 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE "api_request_log" ALTER COLUMN "requestId" SET DEFAULT uuid_generate_v4()`,
     );
-    await queryRunner.query(`ALTER TABLE "tag" DROP COLUMN "isArchived"`);
-
+    // Idempotent: drop isArchived from tag if it exists
+    const isArchivedExists = await queryRunner.hasColumn('tag', 'isArchived');
+    if (isArchivedExists) {
+      await queryRunner.query(`ALTER TABLE "tag" DROP COLUMN "isArchived"`);
+    }
     // Check if metadata column exists before trying to add it back
     const metadataExists = await queryRunner.hasColumn('task', 'metadata');
     if (!metadataExists) {

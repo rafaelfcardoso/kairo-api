@@ -11,6 +11,8 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from '../entities/user.entity';
 import { RegisterUserDto, LoginUserDto } from './dto/auth.dto'; // Import DTOs
+import { ProjectsService } from '../projects/projects.service'; // Import ProjectsService
+import { ProjectType } from '../projects/projects.entity'; // Correct import for ProjectType
 
 @Injectable()
 export class AuthService {
@@ -19,6 +21,7 @@ export class AuthService {
     private userRepository: Repository<User>,
     private jwtService: JwtService,
     private configService: ConfigService, // Keep ConfigService if needed elsewhere
+    private projectsService: ProjectsService, // Inject ProjectsService
   ) {}
 
   async register(registerUserDto: RegisterUserDto): Promise<User> {
@@ -45,6 +48,18 @@ export class AuthService {
     });
 
     await this.userRepository.save(newUser);
+
+    // Auto-create Inbox project for this user
+    await this.projectsService.createProject(
+      {
+        name: 'Inbox',
+        description: null, // Default description for Inbox
+        color: null, // Optionally set a color
+        parentId: null, // Inbox is root
+      },
+      newUser.id, // userId
+      // NOTE: ProjectsService.createProject will set type/order/isSystem as needed for Inbox elsewhere if required
+    );
 
     // Don't return password hash
     delete newUser.passwordHash;

@@ -9,6 +9,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { LocalStrategy } from './local.strategy';
 import { AppleStrategy } from './apple.strategy';
+import { ProjectsModule } from '../projects/projects.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { AppleStrategy } from './apple.strategy';
       }),
       inject: [ConfigService],
     }),
+    ProjectsModule, // <-- Ensure ProjectsService is available
   ],
   controllers: [AuthController],
   providers: [JwtStrategy, AuthService, LocalStrategy, AppleStrategy],
