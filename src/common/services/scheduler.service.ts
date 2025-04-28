@@ -218,4 +218,64 @@ export class SchedulerService implements OnApplicationShutdown {
       );
     }
   }
+
+  /**
+   * Check for due reminders every minute
+   */
+  @Cron(CronExpression.EVERY_MINUTE)
+  async checkReminders() {
+    this.logger.debug('Checking for scheduled reminders...');
+
+    try {
+      // Find tasks where reminder is due and not yet sent
+      const reminderTasks = await this.taskRepository.find({
+        where: {
+          needsReminder: true,
+          reminderAt: LessThanOrEqual(new Date()),
+          reminderSentAt: IsNull(),
+          isArchived: false,
+          status: Not(TaskStatus.COMPLETED),
+        },
+        relations: ['project', 'tags'],
+      });
+
+      if (reminderTasks.length > 0) {
+        this.logger.log(`Found ${reminderTasks.length} reminders to process`);
+        for (const task of reminderTasks) {
+          await this.processReminder(task);
+        }
+      }
+    } catch (error) {
+      this.logger.error(
+        `Error checking reminders: ${error.message}`,
+        error.stack,
+      );
+    }
+  }
+
+  /**
+   * Process a due reminder - send notification and mark as sent
+   */
+  private async processReminder(task: Task): Promise<void> {
+    try {
+      const userEmail = 'rafael.dev.test@icloud.com'; // Placeholder
+      const userTimezone = 'America/New_York'; // Placeholder
+
+      await this.notificationService.sendTaskNotification(
+        task,
+        userEmail,
+        userTimezone,
+      );
+
+      // Mark reminder as sent
+      task.reminderSentAt = new Date();
+      await this.taskRepository.save(task);
+      this.logger.log(`Reminder sent for task ${task.id}`);
+    } catch (error) {
+      this.logger.error(
+        `Error processing reminder for task ${task.id}: ${error.message}`,
+        error.stack,
+      );
+    }
+  }
 }

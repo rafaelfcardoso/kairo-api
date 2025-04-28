@@ -111,6 +111,22 @@ export class Task {
   reminderMessage: string;
 
   @ApiProperty({
+    example: '2025-05-01T09:00:00Z',
+    description: 'The scheduled time for a reminder notification',
+    required: false,
+  })
+  @Column({ nullable: true, type: 'timestamp' })
+  reminderAt: Date;
+
+  @ApiProperty({
+    example: '2025-05-01T09:01:00Z',
+    description: 'When the reminder notification was actually sent',
+    required: false,
+  })
+  @Column({ nullable: true, type: 'timestamp' })
+  reminderSentAt: Date;
+
+  @ApiProperty({
     example: 'FREQ=WEEKLY;BYDAY=SU;BYHOUR=14;BYMINUTE=0',
     description: 'Recurrence rule in iCalendar format for recurring tasks',
     required: false,
