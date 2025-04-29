@@ -48,6 +48,7 @@ import { RenameTaskTagsTagToTaskTag1745469200000 } from '../migrations/174546920
 import { AddUniqueConstraintToTagUserIdName1745847916000 } from '../migrations/1745847916000-AddUniqueConstraintToTagUserIdName';
 import { AddIndexesToJoinTables1745849293000 } from '../migrations/1745849293000-AddIndexesToJoinTables';
 import { DropLegacyNlpTables1745850942000 } from '../migrations/1745850942000-DropLegacyNlpTables';
+import { AddReminderColumnsToTask20250428180000 } from '../migrations/20250428180000-AddReminderColumnsToTask';
 import { DATABASE_CONFIG } from './constants';
 
 // Define interface for database configuration
@@ -104,6 +105,7 @@ const migrations = [
   AddUniqueConstraintToTagUserIdName1745847916000,
   AddIndexesToJoinTables1745849293000,
   DropLegacyNlpTables1745850942000,
+  AddReminderColumnsToTask20250428180000,
 ];
 
 // Define all entities in one place for better maintenance
