@@ -8,6 +8,8 @@ import mcp from '@modelcontextprotocol/sdk/server/mcp.js';
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
 
+import { randomUUID } from 'node:crypto';
+
 const {
   SSEServerTransport,
 } = require('@modelcontextprotocol/sdk/server/sse.js');
@@ -550,6 +552,138 @@ server.prompt(
   }),
 );
 
+// --- MCP Bearer Auth Middleware ---
+function requireBearerAuth(req, res, next) {
+  const auth = req.headers['authorization'];
+  if (!auth || !auth.startsWith('Bearer ')) {
+    res.set('WWW-Authenticate', 'Bearer realm="MCP"');
+    return res.status(401).json({
+      jsonrpc: '2.0',
+      error: {
+        code: -32001,
+        message: 'Missing or invalid Authorization header',
+      },
+      id: null,
+    });
+  }
+  // TODO: Validate the token (implement your logic or call your auth service)
+  // For now, accept any non-empty Bearer token
+  const token = auth.slice(7);
+  if (!token) {
+    res.set('WWW-Authenticate', 'Bearer realm="MCP"');
+    return res.status(401).json({
+      jsonrpc: '2.0',
+      error: {
+        code: -32001,
+        message: 'Empty Bearer token',
+      },
+      id: null,
+    });
+  }
+  // If you want to reject specific tokens, add logic here
+  // req.user = ... // Attach user info if you decode/verify token
+  next();
+}
+
+app.use(express.json());
+
+// --- MCP JSON-RPC Endpoint ---
+function mapMcpError(err, req) {
+  // Default values
+  let status = 500;
+  let error = {
+    code: -32000,
+    message: 'Internal MCP server error',
+  };
+  // Map known error types/codes
+  if (err) {
+    if (err.code === 'InvalidParams' || err.code === -32602 || err.status === 400) {
+      status = 400;
+      error = { code: -32602, message: err.message || 'Invalid params' };
+    } else if (err.code === 'Unauthorized' || err.status === 401) {
+      status = 401;
+      error = { code: -32001, message: err.message || 'Unauthorized' };
+    } else if (err.code === 'Forbidden' || err.status === 403) {
+      status = 403;
+      error = { code: -32003, message: err.message || 'Forbidden' };
+    } else if (err.code === 'NotFound' || err.status === 404) {
+      status = 404;
+      error = { code: -32004, message: err.message || 'Not found' };
+    } else if (err.code === 'RateLimited' || err.status === 429) {
+      status = 429;
+      error = { code: -32029, message: err.message || 'Rate limited' };
+    } else if (err.code === 'IncompatibleVersion' || err.status === 426) {
+      status = 426;
+      error = { code: -32026, message: err.message || 'Incompatible MCP version' };
+    } else if (err.code || err.status) {
+      // Use provided code/status if present
+      if (typeof err.status === 'number') status = err.status;
+      if (typeof err.code === 'number') error.code = err.code;
+      if (typeof err.message === 'string') error.message = err.message;
+    }
+  }
+  // Set WWW-Authenticate header for 401
+  if (status === 401 && req && req.res) {
+    req.res.set('WWW-Authenticate', 'Bearer realm="MCP"');
+  }
+  return { status, error };
+}
+
+app.post('/mcp', requireBearerAuth, async (req, res) => {
+  let sessionId = req.header('Mcp-Session-Id');
+  if (!sessionId) {
+    sessionId = randomUUID();
+  }
+  let transport = transports[sessionId];
+  if (!transport) {
+    const {
+      StreamableHTTPServerTransport,
+    } = require('@modelcontextprotocol/sdk/server/streamableHttp.js');
+    transport = new StreamableHTTPServerTransport(server, sessionId);
+    transports[sessionId] = transport;
+    await server.connect(transport);
+  }
+  res.set('Mcp-Session-Id', sessionId);
+  try {
+    await transport.handleRequest(req, res, req.body);
+  } catch (err) {
+    const { status, error } = mapMcpError(err, { req, res });
+    res.status(status).json({
+      jsonrpc: '2.0',
+      error,
+      id: req.body && req.body.id ? req.body.id : null,
+    });
+  }
+});
+
+// --- MCP SSE Streaming Endpoint ---
+app.get('/mcp', requireBearerAuth, async (req, res) => {
+  let sessionId = req.header('Mcp-Session-Id');
+  if (!sessionId) {
+    sessionId = randomUUID();
+  }
+  let transport = transports[sessionId];
+  if (!transport) {
+    const {
+      StreamableHTTPServerTransport,
+    } = require('@modelcontextprotocol/sdk/server/streamableHttp.js');
+    transport = new StreamableHTTPServerTransport(server, sessionId);
+    transports[sessionId] = transport;
+    await server.connect(transport);
+  }
+  res.set('Mcp-Session-Id', sessionId);
+  try {
+    await transport.handleRequest(req, res, req.body);
+  } catch (err) {
+    const { status, error } = mapMcpError(err, { req, res });
+    res.status(status).json({
+      jsonrpc: '2.0',
+      error,
+      id: req.body && req.body.id ? req.body.id : null,
+    });
+  }
+});
+
 // --- HTTP SSE Transport Setup ---
 app.get('/sse', async (_, res) => {
   // Create a new transport for each connecting client
@@ -601,3 +735,5 @@ app.listen(PORT, () => {
     `Client POST messages to: http://localhost:${PORT}/messages?sessionId=<sessionId>`,
   );
 });
+
+export default app;
