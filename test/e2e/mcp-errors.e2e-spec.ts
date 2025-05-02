@@ -1,7 +1,20 @@
 import request from 'supertest';
+import { INestApplication } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from '../../src/app.module';
 
-// Adjust this import if your app/server export is different
-import app from '../../src/server';
+let app: INestApplication;
+
+beforeAll(async () => {
+  app = await NestFactory.create(AppModule);
+  await app.init();
+});
+
+afterAll(async () => {
+  await app.close();
+});
+
+const expressApp = () => app.getHttpAdapter().getInstance();
 
 describe('MCP /mcp error mapping E2E', () => {
   const validBody = {
@@ -16,7 +29,7 @@ describe('MCP /mcp error mapping E2E', () => {
   };
 
   it('returns 401 Unauthorized if missing token', async () => {
-    const res = await request(app)
+    const res = await request(expressApp())
       .post('/mcp')
       .set('Content-Type', 'application/json')
       .set('Accept', 'application/json')
@@ -32,7 +45,7 @@ describe('MCP /mcp error mapping E2E', () => {
   }
 
   it('returns 400 InvalidParams if params missing', async () => {
-    const res = await request(app)
+    const res = await request(expressApp())
       .post('/mcp')
       .set('Authorization', 'Bearer TEST')
       .set('Content-Type', 'application/json')
@@ -50,7 +63,7 @@ describe('MCP /mcp error mapping E2E', () => {
 
   it('returns 403 Forbidden if token is forbidden (simulate)', async () => {
     // Simulate forbidden: you may need to adjust your auth middleware for this
-    const res = await request(app)
+    const res = await request(expressApp())
       .post('/mcp')
       .set('Authorization', 'Bearer FORBIDDEN')
       .set('Content-Type', 'application/json')
@@ -64,7 +77,7 @@ describe('MCP /mcp error mapping E2E', () => {
   });
 
   it('returns 404 NotFound for unknown method', async () => {
-    const res = await request(app)
+    const res = await request(expressApp())
       .post('/mcp')
       .set('Authorization', 'Bearer TEST')
       .set('Content-Type', 'application/json')
@@ -96,7 +109,7 @@ describe('MCP /mcp error mapping E2E', () => {
   });
 
   it('returns 426 IncompatibleVersion if protocolVersion unsupported', async () => {
-    const res = await request(app)
+    const res = await request(expressApp())
       .post('/mcp')
       .set('Authorization', 'Bearer TEST')
       .set('Content-Type', 'application/json')
@@ -120,7 +133,7 @@ describe('MCP /mcp error mapping E2E', () => {
 
   it('returns 500 ServerError for internal error', async () => {
     // Simulate by sending a request that triggers an exception
-    const res = await request(app)
+    const res = await request(expressApp())
       .post('/mcp')
       .set('Authorization', 'Bearer TEST')
       .set('Content-Type', 'application/json')

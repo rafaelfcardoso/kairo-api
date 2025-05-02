@@ -6,8 +6,9 @@ import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import { DataSource } from 'typeorm';
+import { mountMcpRoutes } from './server';
 
-async function bootstrap() {
+export async function startNestServer(port?: number) {
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'log', 'debug', 'verbose'],
   });
@@ -17,7 +18,18 @@ async function bootstrap() {
 
   // Set global prefix for API versioning
   app.setGlobalPrefix('api/v1', {
-    exclude: ['/health', '/system-health', '/api'], // Exclude health check and Swagger endpoints
+    exclude: [
+      '/health',
+      '/system-health',
+      '/api',
+      // Exclude MCP Adapter endpoints from API prefix
+      '/mcp',
+      { path: '/mcp', method: undefined },
+      '/sse',
+      { path: '/sse', method: undefined },
+      '/messages',
+      { path: '/messages', method: undefined },
+    ],
   });
 
   // Get ConfigService
@@ -159,12 +171,13 @@ async function bootstrap() {
 
   // Get configuration values
   const nodeEnv = configService.get('nodeEnv') || 'local';
-  const port = configService.get('port') || 3001;
+  const defaultPort = configService.get('port') || 3001;
+  const listenPort = port || process.env.PORT || defaultPort;
   const apiUrl = configService.get('api.url');
 
   // Debug environment variables
   console.log('Environment Variables:', {
-    PORT: port,
+    PORT: listenPort,
     NODE_ENV: nodeEnv,
     API_URL: apiUrl,
     RAILWAY_STATIC_URL: process.env.RAILWAY_STATIC_URL,
@@ -238,12 +251,15 @@ async function bootstrap() {
     customSiteTitle: 'Zenith API Documentation',
   });
 
-  // Listen on all interfaces (important for Docker)
-  await app.listen(port, '0.0.0.0');
+  // --- Mount MCP Adapter routes on the underlying Express app ---
+  const expressApp = app.getHttpAdapter().getInstance();
+  mountMcpRoutes(expressApp);
+
+  await app.listen(listenPort, '0.0.0.0');
 
   const serverUrl = await app.getUrl();
   const baseUrl = apiUrl || serverUrl;
-  console.log(`Server is listening on port ${port}`);
+  console.log(`Server is listening on port ${listenPort}`);
   console.log('Available endpoints:');
   console.log(`- Application Root: ${baseUrl}`);
   console.log(`- API Base: ${baseUrl}/api/v1`);
@@ -255,5 +271,6 @@ async function bootstrap() {
     database: configService.get('database.database'),
     ssl: configService.get('database.ssl'),
   });
+
+  return app;
 }
-bootstrap();

@@ -94,9 +94,6 @@ const server = new McpServer({
 });
 
 // --- Transport Setup ---
-const app = express();
-app.use(cors()); // Enable CORS for client connections
-
 const transports = {};
 
 // --- Helper for API Requests ---
@@ -585,7 +582,75 @@ function requireBearerAuth(req, res, next) {
   next();
 }
 
-app.use(express.json());
+// --- MCP Adapter Route Mounting ---
+import type { Express } from 'express';
+
+/**
+ * Mounts MCP Adapter routes (/mcp, /sse, /messages) on the provided Express app.
+ * Call this from within NestJS bootstrap after app is created.
+ */
+export function mountMcpRoutes(targetApp: Express) {
+  // CORS and JSON middleware (if not already set globally)
+  targetApp.use(cors());
+  targetApp.use(express.json());
+
+  // MCP main endpoint
+  targetApp.get('/mcp', requireBearerAuth, async (req, res) => {
+    let sessionId = req.header('Mcp-Session-Id');
+    if (!sessionId) {
+      sessionId = randomUUID();
+    }
+    let transport = transports[sessionId];
+    if (!transport) {
+      const { StreamableHTTPServerTransport } = require('@modelcontextprotocol/sdk/server/streamableHttp.js');
+      transport = new StreamableHTTPServerTransport(server, sessionId);
+      transports[sessionId] = transport;
+      await server.connect(transport);
+    }
+    res.set('Mcp-Session-Id', sessionId);
+    try {
+      await transport.handleRequest(req, res, req.body);
+    } catch (err) {
+      const { status, error } = mapMcpError(err, { req, res });
+      res.status(status).json({
+        jsonrpc: '2.0',
+        error,
+        id: req.body && req.body.id ? req.body.id : null,
+      });
+    }
+  });
+
+  // SSE streaming endpoint
+  targetApp.get('/sse', async (_, res) => {
+    const transport = new SSEServerTransport('/messages', res);
+    transports[transport.sessionId] = transport;
+    res.on('close', () => {
+      console.log(`Client disconnected: ${transport.sessionId}`);
+      delete transports[transport.sessionId];
+    });
+    console.log(`Client connected: ${transport.sessionId}`);
+    await server.connect(transport);
+  });
+
+  // POST messages endpoint
+  targetApp.post('/messages', async (req, res) => {
+    const sessionId = req.query.sessionId as string;
+    const transport = transports[sessionId];
+    if (transport) {
+      try {
+        await transport.handlePostMessage(req, res);
+      } catch (error) {
+        console.error(`Error handling POST message for session ${sessionId}: ${error.message}`);
+        if (!res.headersSent) {
+          res.status(500).send('Error processing message');
+        }
+      }
+    } else {
+      console.warn(`No active transport found for sessionId: ${sessionId}`);
+      res.status(404).send('No active session found for this sessionId');
+    }
+  });
+}
 
 // --- MCP JSON-RPC Endpoint ---
 function mapMcpError(err, req) {
@@ -628,112 +693,3 @@ function mapMcpError(err, req) {
   }
   return { status, error };
 }
-
-app.post('/mcp', requireBearerAuth, async (req, res) => {
-  let sessionId = req.header('Mcp-Session-Id');
-  if (!sessionId) {
-    sessionId = randomUUID();
-  }
-  let transport = transports[sessionId];
-  if (!transport) {
-    const {
-      StreamableHTTPServerTransport,
-    } = require('@modelcontextprotocol/sdk/server/streamableHttp.js');
-    transport = new StreamableHTTPServerTransport(server, sessionId);
-    transports[sessionId] = transport;
-    await server.connect(transport);
-  }
-  res.set('Mcp-Session-Id', sessionId);
-  try {
-    await transport.handleRequest(req, res, req.body);
-  } catch (err) {
-    const { status, error } = mapMcpError(err, { req, res });
-    res.status(status).json({
-      jsonrpc: '2.0',
-      error,
-      id: req.body && req.body.id ? req.body.id : null,
-    });
-  }
-});
-
-// --- MCP SSE Streaming Endpoint ---
-app.get('/mcp', requireBearerAuth, async (req, res) => {
-  let sessionId = req.header('Mcp-Session-Id');
-  if (!sessionId) {
-    sessionId = randomUUID();
-  }
-  let transport = transports[sessionId];
-  if (!transport) {
-    const {
-      StreamableHTTPServerTransport,
-    } = require('@modelcontextprotocol/sdk/server/streamableHttp.js');
-    transport = new StreamableHTTPServerTransport(server, sessionId);
-    transports[sessionId] = transport;
-    await server.connect(transport);
-  }
-  res.set('Mcp-Session-Id', sessionId);
-  try {
-    await transport.handleRequest(req, res, req.body);
-  } catch (err) {
-    const { status, error } = mapMcpError(err, { req, res });
-    res.status(status).json({
-      jsonrpc: '2.0',
-      error,
-      id: req.body && req.body.id ? req.body.id : null,
-    });
-  }
-});
-
-// --- HTTP SSE Transport Setup ---
-app.get('/sse', async (_, res) => {
-  // Create a new transport for each connecting client
-  const transport = new SSEServerTransport('/messages', res); // '/messages' is the endpoint for client->server POSTs
-  transports[transport.sessionId] = transport; // Store transport by session ID
-
-  // Clean up transport when client disconnects
-  res.on('close', () => {
-    console.log(`Client disconnected: ${transport.sessionId}`);
-    delete transports[transport.sessionId];
-    // Optionally, you might want to inform the server instance about disconnection
-    // server.disconnectClient(transport.sessionId); // If server object supports this
-  });
-
-  console.log(`Client connected: ${transport.sessionId}`);
-  // Connect the main server logic to this specific client transport
-  await server.connect(transport);
-});
-
-// Endpoint for clients to send messages (requests/notifications) to the server
-app.post('/messages', async (req, res) => {
-  // Ensure express.json() middleware is used
-  const sessionId = req.query.sessionId as string;
-  const transport = transports[sessionId];
-  if (transport) {
-    try {
-      // Let the specific client's transport handle the incoming message
-      await transport.handlePostMessage(req, res);
-    } catch (error) {
-      console.error(
-        `Error handling POST message for session ${sessionId}: ${error.message}`,
-      );
-      if (!res.headersSent) {
-        res.status(500).send('Error processing message');
-      }
-    }
-  } else {
-    console.warn(`No active transport found for sessionId: ${sessionId}`);
-    res.status(404).send('No active session found for this sessionId');
-  }
-});
-
-// --- Start the Server ---
-const PORT = process.env.MCP_PORT || 3002;
-app.listen(PORT, () => {
-  console.log(`Zenith MCP Adapter Server running on port ${PORT}`);
-  console.log(`SSE connections on: http://localhost:${PORT}/sse`);
-  console.log(
-    `Client POST messages to: http://localhost:${PORT}/messages?sessionId=<sessionId>`,
-  );
-});
-
-export default app;
