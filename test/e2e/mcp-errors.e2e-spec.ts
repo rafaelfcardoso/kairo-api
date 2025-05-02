@@ -6,8 +6,9 @@ import { AppModule } from '../../src/app.module';
 let app: INestApplication;
 
 beforeAll(async () => {
-  app = await NestFactory.create(AppModule);
-  await app.init();
+  // Start the full NestJS app via the same bootstrap function that mounts MCP routes
+  const { startNestServer } = await import('../../src/main');
+  app = await startNestServer(0); // 0 ⇒ let the OS pick a free port
 });
 
 afterAll(async () => {

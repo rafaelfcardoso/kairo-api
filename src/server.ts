@@ -602,7 +602,37 @@ export function mountMcpRoutes(targetApp: Express) {
     }
     let transport = transports[sessionId];
     if (!transport) {
-      const { StreamableHTTPServerTransport } = require('@modelcontextprotocol/sdk/server/streamableHttp.js');
+      const {
+        StreamableHTTPServerTransport,
+      } = require('@modelcontextprotocol/sdk/server/streamableHttp.js');
+      transport = new StreamableHTTPServerTransport(server, sessionId);
+      transports[sessionId] = transport;
+      await server.connect(transport);
+    }
+    res.set('Mcp-Session-Id', sessionId);
+    try {
+      await transport.handleRequest(req, res, req.body);
+    } catch (err) {
+      const { status, error } = mapMcpError(err, { req, res });
+      res.status(status).json({
+        jsonrpc: '2.0',
+        error,
+        id: req.body && req.body.id ? req.body.id : null,
+      });
+    }
+  });
+
+  // MCP JSON‑RPC POST endpoint (same handler as GET, but expects a body)
+  targetApp.post('/mcp', requireBearerAuth, async (req, res) => {
+    let sessionId = req.header('Mcp-Session-Id');
+    if (!sessionId) {
+      sessionId = randomUUID();
+    }
+    let transport = transports[sessionId];
+    if (!transport) {
+      const {
+        StreamableHTTPServerTransport,
+      } = require('@modelcontextprotocol/sdk/server/streamableHttp.js');
       transport = new StreamableHTTPServerTransport(server, sessionId);
       transports[sessionId] = transport;
       await server.connect(transport);
@@ -640,7 +670,9 @@ export function mountMcpRoutes(targetApp: Express) {
       try {
         await transport.handlePostMessage(req, res);
       } catch (error) {
-        console.error(`Error handling POST message for session ${sessionId}: ${error.message}`);
+        console.error(
+          `Error handling POST message for session ${sessionId}: ${error.message}`,
+        );
         if (!res.headersSent) {
           res.status(500).send('Error processing message');
         }
@@ -662,7 +694,11 @@ function mapMcpError(err, req) {
   };
   // Map known error types/codes
   if (err) {
-    if (err.code === 'InvalidParams' || err.code === -32602 || err.status === 400) {
+    if (
+      err.code === 'InvalidParams' ||
+      err.code === -32602 ||
+      err.status === 400
+    ) {
       status = 400;
       error = { code: -32602, message: err.message || 'Invalid params' };
     } else if (err.code === 'Unauthorized' || err.status === 401) {
@@ -679,7 +715,10 @@ function mapMcpError(err, req) {
       error = { code: -32029, message: err.message || 'Rate limited' };
     } else if (err.code === 'IncompatibleVersion' || err.status === 426) {
       status = 426;
-      error = { code: -32026, message: err.message || 'Incompatible MCP version' };
+      error = {
+        code: -32026,
+        message: err.message || 'Incompatible MCP version',
+      };
     } else if (err.code || err.status) {
       // Use provided code/status if present
       if (typeof err.status === 'number') status = err.status;
